@@ -170,4 +170,4 @@ dmypy.json
 cython_debug/
 
 ### Builds
-./git.json
+/git.json
