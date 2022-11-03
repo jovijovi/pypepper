@@ -7,6 +7,8 @@ from typing import Any
 
 from loguru import logger
 
+from pedro.common.version import version
+
 # Log format
 log_fmt = "[<green>{time:YYYY-MM-DDTHH:mm:ss.SSSZ}</green>][<level>{level:<8}</level>][<cyan>$host:$user</cyan>]" \
           "[<cyan>pid:{process}|tid:{thread}</cyan>][<cyan>{file.path}:{line}</cyan>]" \
@@ -47,13 +49,6 @@ config = {
 logger.remove()
 logger.configure(**config)
 
-version = {
-    "version": "unknown",
-    "gitCommit": "unknown",
-    "buildTime": "unknown",
-    "pythonVersion": "unknown"
-}
-
 
 class Logger:
     def __init__(self):
@@ -67,7 +62,7 @@ class Logger:
         return self
 
     def logo(self, msg: str):
-        msg += json.dumps(version, indent=4)
+        msg += json.dumps(version.get_version_info(), indent=4)
         self._logger.info(msg)
 
     # Severity: 5

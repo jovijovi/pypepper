@@ -5,7 +5,7 @@ from pedro.common.log import log
 from pedro.logo import logo
 
 
-class MyTestCase(unittest.TestCase):
+class TestCaseLog(unittest.TestCase):
     @staticmethod
     def test_log():
         log.logo(logo)
