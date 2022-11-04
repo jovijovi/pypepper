@@ -3,7 +3,7 @@ import unittest
 from pedro.common.utils.random import random
 
 
-class MyTestCase(unittest.TestCase):
+class TestCaseRandom(unittest.TestCase):
     def test_rand_int_between(self):
         for i in range(10):
             result = random.rand_int_between(-3, 3)
