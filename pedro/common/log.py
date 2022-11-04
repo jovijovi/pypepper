@@ -89,5 +89,9 @@ class Logger:
     def fatal(self, msg: str, *args: Any, **kwargs: Any):
         self._logger.log("FATAL", msg, *args, **kwargs)
 
+    def close(self):
+        self._logger.complete()
+        self._logger.remove()
+
 
 log = Logger()
