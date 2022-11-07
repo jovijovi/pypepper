@@ -2,10 +2,10 @@ import json
 
 from flask import Flask
 
+from pedro.common import system
+from pedro.common.config import config
 from pedro.common.log import log
 from pedro.logo import logo
-
-log.logo(logo)
 
 app = Flask(__name__)
 
@@ -24,5 +24,13 @@ def health():  # put application's code here
     return json.dumps("health")
 
 
+def main():
+    log.logo(logo)
+    system.handle_signals()
+    config.load_config()
+
+    app.run(host='0.0.0.0', port=55550)
+
+
 if __name__ == '__main__':
-    app.run()
+    main()
