@@ -3,6 +3,7 @@ import os.path
 from typing import Any
 
 import yaml
+from box import Box
 
 
 class ConfCluster:
@@ -58,7 +59,7 @@ class Config:
     _default_config_path = './conf/'
     _default_config_filename = 'app.config.yaml'
     _default_config_filepath = os.path.join(_default_config_path, _default_config_filename)
-    _setting: YmlConfig = None
+    _setting: Any = None
 
     def __init__(self):
         pass
@@ -89,7 +90,7 @@ class Config:
 
         with open(service_config_filename, 'r') as fd:
             data = fd.read()
-        self._setting = yaml.safe_load(data)
+        self._setting = Box(yaml.safe_load(data))
 
         # TODO: set log level
 
