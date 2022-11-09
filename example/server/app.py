@@ -19,8 +19,8 @@ def biz2():
 
 
 def register_biz_api(app: Flask):
-    app.add_url_rule('/api/v1/biz1', view_func=biz1)
-    app.add_url_rule('/api/v1/biz2', view_func=biz2)
+    app.add_url_rule('/api/v1/biz1', view_func=biz1, methods=['GET'])
+    app.add_url_rule('/api/v1/biz2', view_func=biz2, methods=['POST'])
 
 
 class AppHandlers(ITaskHandler):
