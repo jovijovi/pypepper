@@ -1,6 +1,6 @@
 from flask import Flask
 
-from pedro.network.http.handlers.base import health, metrics
+from pedro.network.http.handlers.base import health, metrics, ping
 from pedro.network.http.interfaces import ITaskHandler
 
 
@@ -14,11 +14,12 @@ class BaseHandlers(ITaskHandler):
 
     @staticmethod
     def _register_health_check(app: Flask):
-        app.add_url_rule("/health", view_func=health, methods=['GET'])
+        app.add_url_rule('/health', view_func=health, methods=['GET'])
+        app.add_url_rule('/ping', view_func=ping, methods=['GET'])
 
     @staticmethod
     def _register_metrics_check(app: Flask):
-        app.add_url_rule("/metrics", view_func=metrics, methods=['GET'])
+        app.add_url_rule('/metrics', view_func=metrics, methods=['GET'])
 
     # TODO:
     def _use_default_middleware(self, app: Flask):

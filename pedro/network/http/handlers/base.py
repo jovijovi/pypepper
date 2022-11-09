@@ -10,6 +10,11 @@ def health():
     return response.build_response(code="200", data=version.get_version_info(), msg="OK")
 
 
+def ping():
+    log.request_id().debug("pong")
+    return "pong"
+
+
 # TODO:
 def metrics():
     log.request_id().info("Receive MetricsCheck. URL.Path={}", request.path)
