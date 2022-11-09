@@ -1,8 +1,34 @@
 from flask import Flask
 
 from pedro.network.http.handlers.base import health, metrics
+from pedro.network.http.interfaces import ITaskHandler
 
 
-def register_handlers(app: Flask):
-    app.add_url_rule("/health", view_func=health)
-    app.add_url_rule("/metrics", view_func=metrics)
+class BaseHandlers(ITaskHandler):
+    def register_handlers(self, app: Flask):
+        self._register_health_check(app)
+        self._register_metrics_check(app)
+
+    def use_middleware(self, app: Flask):
+        self._use_default_middleware(app)
+
+    @staticmethod
+    def _register_health_check(app: Flask):
+        app.add_url_rule("/health", view_func=health)
+
+    @staticmethod
+    def _register_metrics_check(app: Flask):
+        app.add_url_rule("/metrics", view_func=metrics)
+
+    # TODO:
+    def _use_default_middleware(self, app: Flask):
+        pass
+
+
+base_handlers = BaseHandlers()
+
+
+def register_handlers(app: Flask, private_handlers: ITaskHandler):
+    base_handlers.register_handlers(app)
+    if private_handlers:
+        private_handlers.register_handlers(app)
