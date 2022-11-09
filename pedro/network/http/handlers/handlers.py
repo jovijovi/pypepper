@@ -14,11 +14,11 @@ class BaseHandlers(ITaskHandler):
 
     @staticmethod
     def _register_health_check(app: Flask):
-        app.add_url_rule("/health", view_func=health)
+        app.add_url_rule("/health", view_func=health, methods=['GET'])
 
     @staticmethod
     def _register_metrics_check(app: Flask):
-        app.add_url_rule("/metrics", view_func=metrics)
+        app.add_url_rule("/metrics", view_func=metrics, methods=['GET'])
 
     # TODO:
     def _use_default_middleware(self, app: Flask):
