@@ -1,8 +1,8 @@
 APP_NAME:=pedro.py
 HUB:=$(if $(HUB),$(HUB),some_docker_image_repo)
 OS:=linux
-PYTHON_VER=$(shell python -V)
-ALPINE_VER:=3.16
+PYTHON_VER:=3.10.6
+IMAGE_TAG:=slim-bullseye
 
 PROJECT_DIR:=$(shell pwd -L)
 GIT_BRANCH:=$(shell git -C "${PROJECT_DIR}" rev-parse --abbrev-ref HEAD | grep -v HEAD || git describe --tags || git -C "${PROJECT_DIR}" rev-parse --short HEAD)
@@ -45,13 +45,13 @@ test: test
 
 build: build-prepare
 	@echo "[MAKEFILE] Building binary"
+	python setup.py
 	@echo $(VERSION_INFO) > $(APP_DIR)/git.json
 
-# TODO:
 docker:
 	@echo "[MAKEFILE] Building docker image..."
 	@echo $(VERSION_INFO) > $(PROJECT_DIR)/git.json
-	docker build --force-rm -f $(DOCKER_FILE) --build-arg PYTHON_VER=$(PYTHON_VER) -t $(APP_NAME):$(VER) .
+	docker build --force-rm -f $(DOCKER_FILE) --build-arg PYTHON_VER=$(PYTHON_VER) --build-arg IMAGE_TAG=$(IMAGE_TAG) -t $(APP_NAME):$(VER) .
 	docker tag $(APP_NAME):$(VER) $(APP_NAME):latest
 	docker images|grep $(APP_NAME)
 	@echo "[MAKEFILE] Build docker image done"
