@@ -40,5 +40,15 @@ def test_log():
     log.request_id().debug(json.dumps(user, indent=4))
 
 
+def test_set_log_level():
+    log.trace("IT'S A TRACE LOG 1")
+    log.debug("IT'S A DEBUG LOG 1")
+
+    log.set_log_level("INFO")
+    log.trace("IT'S A TRACE LOG 2")
+    log.debug("IT'S A DEBUG LOG 2")
+    log.info("IT'S A INFO LOG 2")
+
+
 if __name__ == '__main__':
     pytest.main()

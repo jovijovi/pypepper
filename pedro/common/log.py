@@ -2,12 +2,63 @@ import json
 import os
 import socket
 import sys
+from enum import Enum
 from string import Template
 from typing import Any
 
 from loguru import logger
 
 from pedro.common.version import version
+
+
+class LogLevel(str, Enum):
+    """
+    Log level
+    """
+
+    TRACE = "TRACE"
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    FATAL = "FATAL"
+
+    @classmethod
+    def has_name(cls, name) -> bool:
+        """
+        Check if the name is in LogLevel
+        :param name: log level name
+        :return: result
+        """
+
+        return name in cls.__members__.keys()
+
+    @classmethod
+    def has_value(cls, value) -> bool:
+        """
+        Check if the value is in LogLevel
+        :param value: log level value
+        :return: result
+        """
+
+        return value in cls.__members__.values()
+
+
+class LogLevelFilter:
+    """
+    Log level filter
+    """
+
+    def __init__(self, level):
+        self.level = level
+
+    def __call__(self, record):
+        level_no = logger.level(self.level).no
+        return record["level"].no >= level_no
+
+
+# Default log filter
+default_log_filter = LogLevelFilter(LogLevel.TRACE)
 
 # Log format
 log_fmt = "[<green>{time:YYYY-MM-DDTHH:mm:ss.SSSZ}</green>][<level>{level:<8}</level>][<cyan>$host:$user</cyan>]" \
@@ -27,7 +78,7 @@ config = {
             "format": log_format_template,
 
             # Default log level
-            "level": "TRACE",
+            "level": LogLevel.TRACE,
 
             # Adds colors to logs
             "colorize": True,
@@ -35,6 +86,9 @@ config = {
             # Enqueue the messages to ensure logs integrity
             # Ref: https://loguru.readthedocs.io/en/stable/overview.html#asynchronous-thread-safe-multiprocess-safe
             "enqueue": True,
+
+            # Default log filter
+            "filter": default_log_filter,
         },
     ],
     "levels": [
@@ -87,11 +141,16 @@ class Logger:
 
     # Severity: 60
     def fatal(self, msg: str, *args: Any, **kwargs: Any):
-        self._logger.log("FATAL", msg, *args, **kwargs)
+        self._logger.log(LogLevel.FATAL, msg, *args, **kwargs)
 
     def close(self):
         self._logger.complete()
         self._logger.remove()
+
+    @staticmethod
+    def set_log_level(level: str):
+        if LogLevel.has_value(level):
+            default_log_filter.level = level
 
 
 log = Logger()
