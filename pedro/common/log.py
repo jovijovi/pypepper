@@ -1,5 +1,5 @@
+import getpass
 import json
-import os
 import socket
 import sys
 from enum import Enum
@@ -66,7 +66,7 @@ log_fmt = "[<green>{time:YYYY-MM-DDTHH:mm:ss.SSSZ}</green>][<level>{level:<8}</l
           "[<cyan>{module}.{function}</cyan>][<magenta>{extra[req_id]}</magenta>][<level>{message}</level>]"
 
 # Template of log format
-log_format_template = Template(log_fmt).substitute(host=socket.gethostname(), user=os.getlogin())
+log_format_template = Template(log_fmt).substitute(host=socket.gethostname(), user=getpass.getuser())
 
 # Log default config
 config = {
