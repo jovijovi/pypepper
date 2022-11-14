@@ -1,0 +1,11 @@
+version: '3.1'
+
+services:
+  pedropy:
+    container_name: devenv_pedro.py
+    image: pedro.py:latest
+    restart: always
+    volumes:
+      - ../conf:/opt/app/conf
+    ports:
+      - "55550:55550"
