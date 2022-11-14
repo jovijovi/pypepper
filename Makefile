@@ -41,7 +41,7 @@ debug: build-prepare
 
 test: test
 	@echo "[MAKEFILE] Testing"
-	pytest --cache-clear
+	pytest
 
 build: build-prepare
 	@echo "[MAKEFILE] Building binary"
