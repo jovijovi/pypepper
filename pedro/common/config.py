@@ -31,7 +31,7 @@ class ConfHeartbeat:
     logger: bool
 
 
-class ConfJsonRpcProxy:
+class ConfJsonRPCProxy:
     enable: bool
     port: int
     mutualTLS: bool
@@ -41,7 +41,7 @@ class ConfNetwork:
     ip: str
     httpServer: ConfHTTPServer
     httpsServer: ConfHTTPSServer
-    jsonRpcProxy: ConfJsonRpcProxy
+    jsonRPCProxy: ConfJsonRPCProxy
 
 
 class ConfLog:
