@@ -5,6 +5,8 @@ from typing import Any
 import yaml
 from box import Box
 
+from pedro.common.log import log
+
 
 class ConfCluster:
     name: str
@@ -92,7 +94,9 @@ class Config:
             data = fd.read()
         self._setting = Box(yaml.safe_load(data))
 
-        # TODO: set log level
+        # Set log level
+        if hasattr(self.get_yml_config(), "log") and hasattr(self.get_yml_config().log, "level"):
+            log.set_log_level(self.get_yml_config().log.level)
 
     def get_yml_config(self) -> YmlConfig:
         return self._setting
