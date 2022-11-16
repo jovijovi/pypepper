@@ -1,6 +1,7 @@
 import pytest
 from cryptography.hazmat.primitives import serialization, hashes
 
+from pedro.common.security.crypto.elliptic.algorithm import HashAlgorithmName
 from pedro.common.security.crypto.elliptic.ecdsa import ecdsa
 
 data = b"Hello, world!"
@@ -19,7 +20,7 @@ def test_ecdsa_sign_verify():
     print("## [ECDSA] private_key_pem=", private_key_pem)
 
     # Sign
-    sig = ecdsa.sign(data, private_key_pem, hashes.SHA256(), b"Hello")
+    sig = ecdsa.sign(data, private_key_pem, HashAlgorithmName.SHA256, b"Hello")
     print("## [ECDSA] sig(hex)=", sig.hex())
 
     # Load public key
@@ -34,7 +35,7 @@ def test_ecdsa_sign_verify():
         data=data,
         certificate=public_key_pem,
         sig=sig,
-        hash_alg=hashes.SHA256(),
+        hash_alg='SHA256',
     )
 
     assert result is True
