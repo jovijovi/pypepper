@@ -1,7 +1,7 @@
 APP_NAME:=pedro.py
 HUB:=$(if $(HUB),$(HUB),some_docker_image_repo)
 OS:=linux
-PYTHON_VER:=3.10.6
+PYTHON_VER:=3.10.8
 IMAGE_TAG:=slim-bullseye
 
 PROJECT_DIR:=$(shell pwd -L)
