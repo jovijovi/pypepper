@@ -43,10 +43,10 @@ class IPayload(metaclass=ABCMeta):
     category: str
 
     # Raw data digest
-    digest: bytes
+    digest: bytes | None
 
     # Raw
-    raw: bytes
+    raw: bytes | None
 
 
 class IData(metaclass=ABCMeta):

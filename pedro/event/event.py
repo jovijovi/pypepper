@@ -13,6 +13,9 @@ class Header(IHeader):
     default_version = '1'
 
     def __init__(self):
+        self.namespace = ''
+        self.request_id = ''
+        self.sender = ''
         self.id = uuid.new_uuid()
         self.timestamp = time.get_utc_datetime()
         self.version = self.default_version
@@ -20,6 +23,10 @@ class Header(IHeader):
 
 class Payload(IPayload):
     def __init__(self, dict_: dict | None = None):
+        self.id = ''
+        self.category = ''
+        self.digest = None
+        self.raw = None
         if dict_:
             for key in dict_:
                 setattr(self, key, dict_[key])
@@ -27,6 +34,9 @@ class Payload(IPayload):
 
 class Data(IData):
     def __init__(self):
+        self.flow = ''
+        self.name = ''
+        self.src = ''
         self.header = Header()
         self.payload = Payload()
 
