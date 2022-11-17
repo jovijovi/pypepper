@@ -34,12 +34,12 @@ def run(
     for i in range(retry_times):
         try:
             return func()
-        except InternalException as e:
+        except Exception as e:
             if verbose_log:
                 log.error('Try times={}, error={}', i + 1, e)
 
             if i + 1 == retry_times:
-                raise e
+                raise InternalException(e)
 
             time.sleep(second=retry_interval)
 

@@ -8,9 +8,9 @@ def transistor(in_voltage: int) -> int:
     voltage = 1
     delta = in_voltage - voltage
     if delta > 0:
-        raise InternalException("too high")
+        raise Exception("too high")
     elif delta < 0:
-        raise InternalException("too low")
+        raise Exception("too low")
 
     return in_voltage
 
@@ -52,7 +52,7 @@ def test_transistor():
     try:
         result = retry.run(func=lambda: transistor(0))
         print("Result=", result)
-    except InternalException as e:
+    except Exception as e:
         print("Expected error=", e)
 
     try:
@@ -63,21 +63,21 @@ def test_transistor():
             verbose_log=False,
         )
         print("Result=", result)
-    except InternalException as e:
+    except Exception as e:
         print("Expected error=", e)
 
     try:
         result = retry.run(func=lambda: transistor(42))
         print("Result=", result)
         assert result == 42
-    except InternalException as e:
+    except Exception as e:
         print(e)
 
 
 def test_invalid_func():
     try:
         retry.run(None)
-    except InternalException as e:
+    except Exception as e:
         print(e)
 
 
