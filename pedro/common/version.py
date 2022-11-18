@@ -15,7 +15,7 @@ class Version:
                 self._version_info = json.loads(data)
 
             return self._version_info
-        except Exception as e:
+        except (Exception,):
             return {
                 "version": self._unknown,
                 "gitCommit": self._unknown,
