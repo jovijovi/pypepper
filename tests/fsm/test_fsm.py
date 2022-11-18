@@ -2,7 +2,6 @@ import pytest
 
 from pedro.event import event
 from pedro.fsm import fsm
-from pedro.fsm.fsm import Transition
 
 
 def test_new_state():
@@ -33,7 +32,7 @@ def test_fsm():
         fsm_id='test-id-1',
         initial=fsm.State('Closed'),
         transitions=[
-            Transition(
+            fsm.Transition(
                 event=evt1,
                 from_state=[fsm.State('Closed')],
                 to_state=fsm.State('Opened'),
@@ -43,7 +42,7 @@ def test_fsm():
                     'what': 'opened',
                 },
             ),
-            Transition(
+            fsm.Transition(
                 event=evt2,
                 from_state=[fsm.State('Opened')],
                 to_state=fsm.State('Closed'),
