@@ -6,7 +6,7 @@ from pedro.fsm.fsm import Transition
 
 
 def test_new_state():
-    state = fsm.new_state('Closed')
+    state = fsm.State('Closed')
     print("State=", state.value)
     state.value = 'Opened'
     print("State=", state.value)
@@ -31,12 +31,12 @@ def test_fsm():
 
     options = fsm.Options(
         fsm_id='test-id-1',
-        initial=fsm.new_state('Closed'),
+        initial=fsm.State('Closed'),
         transitions=[
             Transition(
                 event=evt1,
-                from_state=[fsm.new_state('Closed')],
-                to_state=fsm.new_state('Opened'),
+                from_state=[fsm.State('Closed')],
+                to_state=fsm.State('Opened'),
                 handler=lambda ctx: print("Event1 transition's handler:", ctx.get('who'), ctx.get('what')),
                 context={
                     'who': 'Door',
@@ -45,8 +45,8 @@ def test_fsm():
             ),
             Transition(
                 event=evt2,
-                from_state=[fsm.new_state('Opened')],
-                to_state=fsm.new_state('Closed'),
+                from_state=[fsm.State('Opened')],
+                to_state=fsm.State('Closed'),
                 handler=lambda: event2_handler(),
                 context=None,
             )

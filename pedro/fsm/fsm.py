@@ -211,9 +211,3 @@ class FSM(IFSM):
 
 def new(options: IOptions) -> FSM:
     return FSM(options)
-
-
-def new_state(v: str) -> State:
-    return State(
-        v=v
-    )
