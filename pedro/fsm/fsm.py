@@ -14,11 +14,19 @@ P = ParamSpec("P")
 
 
 class State(IState):
-    def __init__(self, v: str):
-        self.value = v
+    """
+    Machine State
+    """
+
+    def __init__(self, value: str):
+        self.value = value
 
 
 class Transition(ITransition):
+    """
+    State Transition
+    """
+
     def __init__(self,
                  event: IEvent,
                  from_state: Collection[IState],
@@ -34,6 +42,10 @@ class Transition(ITransition):
 
 
 class Options(IOptions):
+    """
+    FSM Options
+    """
+
     def __init__(self,
                  fsm_id: str,
                  initial: IState,
@@ -45,6 +57,10 @@ class Options(IOptions):
 
 
 class Target(ITarget):
+    """
+    Target state with handler
+    """
+
     def __init__(self,
                  state: IState,
                  handler: Callable[P, T] | None = None,
@@ -56,6 +72,10 @@ class Target(ITarget):
 
 
 class Response(IResponse):
+    """
+    Transition response
+    """
+
     def __init__(self,
                  state: IState,
                  error: Any,
@@ -111,6 +131,12 @@ class FSM(IFSM):
 
     @staticmethod
     def build_event_key(event: IEvent) -> str:
+        """
+        Build event key
+        :param event: event
+        :return: the event key in JSON style
+        """
+
         return json.dumps({
             "flow": event.data.flow,
             "name": event.data.name,
@@ -210,4 +236,10 @@ class FSM(IFSM):
 
 
 def new(options: IOptions) -> FSM:
+    """
+    New an FSM
+    :param options: FSM options
+    :return: instance of FSM
+    """
+
     return FSM(options)
