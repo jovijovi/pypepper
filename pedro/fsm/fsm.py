@@ -105,17 +105,17 @@ class FSM(IFSM):
 
         for tr in options.transitions:
             for from_state in tr.from_state:
-                self._transitions[self.build_transition_key(tr.event, from_state)] = Target(
+                self._transitions[self._build_transition_key(tr.event, from_state)] = Target(
                     state=tr.to_state,
                     handler=tr.handler,
                     context=tr.context,
                 )
                 self._states[from_state] = True
             self._states[tr.to_state] = True
-            self._events[self.build_event_key(tr.event)] = tr.event
+            self._events[self._build_event_key(tr.event)] = tr.event
 
     @staticmethod
-    def build_transition_key(event: IEvent, from_state: IState) -> str:
+    def _build_transition_key(event: IEvent, from_state: IState) -> str:
         """
         Build transition key
         :param event: event
@@ -130,7 +130,7 @@ class FSM(IFSM):
         })
 
     @staticmethod
-    def build_event_key(event: IEvent) -> str:
+    def _build_event_key(event: IEvent) -> str:
         """
         Build event key
         :param event: event
@@ -142,11 +142,11 @@ class FSM(IFSM):
             "name": event.data.name,
         })
 
-    def transition(self,
-                   event: IEvent,
-                   handler: Callable[P, T] | None = None,
-                   context: MutableMapping[Any, Any] | None = None,
-                   ) -> Response:
+    def _transition(self,
+                    event: IEvent,
+                    handler: Callable[P, T] | None = None,
+                    context: MutableMapping[Any, Any] | None = None,
+                    ) -> Response:
         """
         Transition state
         :param event: event
@@ -155,7 +155,7 @@ class FSM(IFSM):
         :return: transition response
         """
 
-        key = self.build_transition_key(event, self._current)
+        key = self._build_transition_key(event, self._current)
 
         target = self._transitions.get(key)
         if not target:
@@ -221,7 +221,7 @@ class FSM(IFSM):
         :return: transition response
         """
 
-        return self.transition(event, handler, context)
+        return self._transition(event, handler, context)
 
     def close(self):
         """
