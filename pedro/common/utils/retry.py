@@ -1,4 +1,5 @@
-from typing import Callable, TypeVar, ParamSpec
+from collections.abc import Callable
+from typing import TypeVar, ParamSpec
 
 from pedro.common.log import log
 from pedro.common.utils import time
