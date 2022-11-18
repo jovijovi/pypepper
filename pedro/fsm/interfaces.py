@@ -36,7 +36,7 @@ class ITarget(metaclass=ABCMeta):
 
 class IResponse(metaclass=ABCMeta):
     state: IState
-    error: Any  # TODO
+    error: Any | None
     event_handler_result: T | None
     transition_result: T | None
 
