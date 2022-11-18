@@ -1,7 +1,5 @@
 from abc import abstractmethod, ABCMeta
 
-from cryptography.hazmat.primitives.hashes import HashAlgorithm
-
 
 class IElliptic(metaclass=ABCMeta):
     @abstractmethod
