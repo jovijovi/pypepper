@@ -79,6 +79,7 @@ class FSM(IFSM):
                     handler=tr.handler,
                     context=tr.context,
                 )
+                self._states[from_state] = True
             self._states[tr.to_state] = True
             self._events[self.build_event_key(tr.event)] = tr.event
 
