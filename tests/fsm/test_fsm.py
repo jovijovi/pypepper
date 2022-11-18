@@ -25,6 +25,10 @@ def test_fsm():
     evt3.set_name('Knock Knock')
     evt3.set_src('Closed')
 
+    def event2_handler():
+        print("Event2 transition's handler: somebody close the door")
+        return "#42#"
+
     options = fsm.Options(
         fsm_id='test-id-1',
         initial=fsm.new_state('Closed'),
@@ -33,14 +37,17 @@ def test_fsm():
                 event=evt1,
                 from_state=[fsm.new_state('Closed')],
                 to_state=fsm.new_state('Opened'),
-                handler=None,
-                context=None,
+                handler=lambda ctx: print("Event1 transition's handler:", ctx.get('who'), ctx.get('what')),
+                context={
+                    'who': 'Door',
+                    'what': 'opened',
+                },
             ),
             Transition(
                 event=evt2,
                 from_state=[fsm.new_state('Opened')],
                 to_state=fsm.new_state('Closed'),
-                handler=None,
+                handler=lambda: event2_handler(),
                 context=None,
             )
         ]
@@ -49,24 +56,50 @@ def test_fsm():
 
     print("Initial state=", machine.current().value)
 
+    # Open the door
     rsp1 = machine.on(evt1, lambda: print(f'Event({evt1.data.name}) finished'))
     print("Error1=", rsp1.error)
     print("Current state1=", rsp1.state.value)
 
-    rsp2 = machine.on(evt2, lambda: print(f'Event({evt2.data.name}) finished'))
+    # Close the door
+    rsp2 = machine.on(
+        event=evt2,
+        handler=lambda ctx: print(ctx.get("who"), ctx.get("what"), ":", "Hello, world!"),
+        context={
+            'who': 'Somebody',
+            'what': 'say',
+        }
+    )
     print("Error2=", rsp2.error)
+    print("Event handler result=", rsp2.event_handler_result)
     print("Current state2=", rsp2.state.value)
 
+    # Knock Knock
     rsp3 = machine.on(evt3)
     print("Error3=", rsp3.error)
+    print("Transition result=", rsp3.transition_result)
     print("Current state3=", rsp3.state.value)
 
-    def mock_error():
-        raise Exception('Mock Error!')
+    # Open the door again
+    def mock_error(ctx):
+        print(ctx.get('who'), ctx.get('what'), "an error!")
+        raise Exception('A mock Error!')
 
-    rsp4 = machine.on(evt1, lambda: mock_error())
+    rsp4 = machine.on(evt1, lambda ctx: mock_error(ctx), {
+        'who': 'FooBar',
+        'what': 'throw',
+    })
     print("Error4=", rsp4.error)
     print("Current state4=", rsp4.state.value)
+
+    # Knock Knock
+    rsp5 = machine.on(evt2, lambda: 42)
+    print("Error5=", rsp5.error)
+    print("Transition result=", rsp5.transition_result)
+    print("Current state5=", rsp5.state.value)
+
+    # Close FSM
+    machine.close()
 
 
 if __name__ == '__main__':

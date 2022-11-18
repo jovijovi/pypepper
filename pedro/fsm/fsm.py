@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import json
-from collections.abc import MutableMapping, Collection
-from typing import Any
+from collections.abc import MutableMapping, Collection, Callable
+from typing import Any, TypeVar, ParamSpec
 
 from pedro.errors import ERROR_INVALID_EVENT
 from pedro.event.interfaces import IEvent
 from pedro.exceptions import InternalException
 from pedro.fsm.interfaces import IState, IResponse, IFSM, IOptions, ITarget, ITransition
+
+T = TypeVar("T")
+P = ParamSpec("P")
 
 
 class State(IState):
@@ -20,8 +23,8 @@ class Transition(ITransition):
                  event: IEvent,
                  from_state: Collection[IState],
                  to_state: IState,
-                 handler: Any,
-                 context: Any,
+                 handler: Callable[P, T] | None = None,
+                 context: MutableMapping[Any, Any] | None = None,
                  ):
         self.event = event
         self.from_state = from_state
@@ -44,8 +47,8 @@ class Options(IOptions):
 class Target(ITarget):
     def __init__(self,
                  state: IState,
-                 handler: Any,
-                 context: Any,
+                 handler: Callable[P, T] | None = None,
+                 context: MutableMapping[Any, Any] | None = None,
                  ):
         self.state = state
         self.handler = handler
@@ -56,16 +59,24 @@ class Response(IResponse):
     def __init__(self,
                  state: IState,
                  error: Any,
+                 event_handler_result: T | None = None,
+                 transition_result: T | None = None,
                  ):
         self.state = state
         self.error = error
+        self.event_handler_result = event_handler_result
+        self.transition_result = transition_result
 
 
 class FSM(IFSM):
+    """
+    Finite State Machine
+    """
+
     _id: str
     _current: IState | None
-    _mapper: MutableMapping[Any, ITarget] = {}
-    _events: MutableMapping[Any, IEvent] = {}
+    _transitions: MutableMapping[str, ITarget] = {}
+    _events: MutableMapping[str, IEvent] = {}
     _states: MutableMapping[IState, bool] = {}
 
     def __init__(self, options: IOptions):
@@ -74,7 +85,7 @@ class FSM(IFSM):
 
         for tr in options.transitions:
             for from_state in tr.from_state:
-                self._mapper[self.build_mapper_key(tr.event, from_state)] = Target(
+                self._transitions[self.build_transition_key(tr.event, from_state)] = Target(
                     state=tr.to_state,
                     handler=tr.handler,
                     context=tr.context,
@@ -84,7 +95,14 @@ class FSM(IFSM):
             self._events[self.build_event_key(tr.event)] = tr.event
 
     @staticmethod
-    def build_mapper_key(event: IEvent, from_state: IState) -> str:
+    def build_transition_key(event: IEvent, from_state: IState) -> str:
+        """
+        Build transition key
+        :param event: event
+        :param from_state: from some state (source state)
+        :return: the transition key in JSON style
+        """
+
         return json.dumps({
             "flow": event.data.flow,
             "name": event.data.name,
@@ -98,10 +116,22 @@ class FSM(IFSM):
             "name": event.data.name,
         })
 
-    def transition(self, event: IEvent, handler: Any | None = None, context: Any | None = None) -> Response:
-        key = self.build_mapper_key(event, self._current)
+    def transition(self,
+                   event: IEvent,
+                   handler: Callable[P, T] | None = None,
+                   context: MutableMapping[Any, Any] | None = None,
+                   ) -> Response:
+        """
+        Transition state
+        :param event: event
+        :param handler: transition handler
+        :param context: transition handler's context
+        :return: transition response
+        """
 
-        target = self._mapper.get(key)
+        key = self.build_transition_key(event, self._current)
+
+        target = self._transitions.get(key)
         if not target:
             return Response(
                 state=self._current,
@@ -110,33 +140,38 @@ class FSM(IFSM):
 
         self._current = target.state
 
+        event_handler_result: T = None
         if target.handler:
             try:
-                if context:
-                    target.handler(context)
+                if target.context:
+                    event_handler_result = target.handler(target.context)
                 else:
-                    target.handler()
+                    event_handler_result = target.handler()
             except Exception as e:
                 return Response(
                     state=self._current,
                     error=e,
                 )
 
+        transition_result: T = None
         if handler:
             try:
                 if context:
-                    handler(context)
+                    transition_result = handler(context)
                 else:
-                    handler()
+                    transition_result = handler()
             except Exception as e:
                 return Response(
                     state=self._current,
                     error=e,
+                    event_handler_result=event_handler_result,
                 )
 
         return Response(
             state=self._current,
             error=None,
+            event_handler_result=event_handler_result,
+            transition_result=transition_result,
         )
 
     def current(self) -> IState:
@@ -147,7 +182,19 @@ class FSM(IFSM):
 
         return self._current
 
-    def on(self, event: IEvent, handler: Any | None = None, context: Any | None = None) -> IResponse:
+    def on(self,
+           event: IEvent,
+           handler: Callable[P, T] | None = None,
+           context: MutableMapping[Any, Any] | None = None,
+           ) -> IResponse:
+        """
+        Trigger event
+        :param event: event
+        :param handler: transition handler
+        :param context: transition handler's context
+        :return: transition response
+        """
+
         return self.transition(event, handler, context)
 
     def close(self):
@@ -156,7 +203,7 @@ class FSM(IFSM):
         :return: None
         """
 
-        self._mapper.clear()
+        self._transitions.clear()
         self._events.clear()
         self._states.clear()
         self._current = None
