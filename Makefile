@@ -45,6 +45,7 @@ test: test
 
 build: build-prepare
 	@echo "[MAKEFILE] Building binary"
+	python -m pip install -r requirements.txt
 	python setup.py
 	@echo $(VERSION_INFO) > $(APP_DIR)/git.json
 
