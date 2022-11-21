@@ -8,7 +8,7 @@ from typing import Any
 
 from loguru import logger
 
-from pedro.common.version import version
+from pypedro.common.version import version
 
 
 class LogLevel(str, Enum):

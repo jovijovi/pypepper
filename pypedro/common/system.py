@@ -1,8 +1,8 @@
 import os
 import signal
 
-from pedro.common.log import log
-from pedro.common.utils import time
+from pypedro.common.log import log
+from pypedro.common.utils import time
 
 signals = [
     signal.SIGINT,

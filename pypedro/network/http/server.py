@@ -1,8 +1,8 @@
 from flask import Flask
 
-from pedro.common.config import config
-from pedro.network.http.handlers import handlers
-from pedro.network.http.interfaces import ITaskHandler
+from pypedro.common.config import config
+from pypedro.network.http.handlers import handlers
+from pypedro.network.http.interfaces import ITaskHandler
 
 app = Flask(__name__)
 

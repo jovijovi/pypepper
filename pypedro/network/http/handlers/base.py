@@ -1,8 +1,8 @@
 from flask import request
 
-from pedro.common.log import log
-from pedro.common.version import version
-from pedro.network.http import response
+from pypedro.common.log import log
+from pypedro.common.version import version
+from pypedro.network.http import response
 
 
 def health():

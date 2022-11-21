@@ -1,9 +1,9 @@
 version: '3.1'
 
 services:
-  pedropy:
-    container_name: devenv_pedro.py
-    image: pedro.py:latest
+  pypedro:
+    container_name: devenv_pypedro
+    image: pypedro:latest
     restart: always
     volumes:
       - ../conf:/opt/app/conf

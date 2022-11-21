@@ -2,7 +2,7 @@ import signal
 
 import pytest
 
-from pedro.common import system
+from pypedro.common import system
 
 
 def test_handle_signals():

@@ -1,8 +1,8 @@
 import pytest
 
-from pedro import errors
-from pedro.event import event
-from pedro.fsm import fsm
+from pypedro import errors
+from pypedro.event import event
+from pypedro.fsm import fsm
 
 
 def test_new_state():

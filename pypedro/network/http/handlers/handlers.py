@@ -1,7 +1,7 @@
 from flask import Flask
 
-from pedro.network.http.handlers.base import health, metrics, ping
-from pedro.network.http.interfaces import ITaskHandler
+from pypedro.network.http.handlers.base import health, metrics, ping
+from pypedro.network.http.interfaces import ITaskHandler
 
 
 class BaseHandlers(ITaskHandler):

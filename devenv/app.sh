@@ -33,4 +33,4 @@ fi
 
 echo "## Done."
 
-docker ps|grep pedro
+docker ps|grep pypedro

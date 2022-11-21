@@ -1,6 +1,6 @@
 import pytest
 
-from pedro.loader import loader
+from pypedro.loader import loader
 
 
 def foo_loader():

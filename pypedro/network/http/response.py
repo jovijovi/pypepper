@@ -3,7 +3,7 @@ from typing import Any
 
 from flask import make_response, jsonify, Response
 
-from pedro.common.log import log
+from pypedro.common.log import log
 
 
 def build_response(code: str, data: Any, msg: str = None) -> Response:

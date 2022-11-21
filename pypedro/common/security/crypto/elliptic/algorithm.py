@@ -1,8 +1,8 @@
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.hashes import HashAlgorithm
 
-from pedro.errors import ERROR_INVALID_ALGORITHM
-from pedro.exceptions import InternalException
+from pypedro.errors import ERROR_INVALID_ALGORITHM
+from pypedro.exceptions import InternalException
 
 
 class HashAlgorithmName:

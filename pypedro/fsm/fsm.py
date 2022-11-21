@@ -4,10 +4,10 @@ import json
 from collections.abc import MutableMapping, Collection, Callable
 from typing import Any, TypeVar, ParamSpec
 
-from pedro.errors import ERROR_INVALID_EVENT
-from pedro.event.interfaces import IEvent
-from pedro.exceptions import InternalException
-from pedro.fsm.interfaces import IState, IResponse, IFSM, IOptions, ITarget, ITransition
+from pypedro.errors import ERROR_INVALID_EVENT
+from pypedro.event.interfaces import IEvent
+from pypedro.exceptions import InternalException
+from pypedro.fsm.interfaces import IState, IResponse, IFSM, IOptions, ITarget, ITransition
 
 T = TypeVar("T")
 P = ParamSpec("P")

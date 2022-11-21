@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pickle
 
-from pedro.common.security.crypto import digest
-from pedro.common.security.crypto.elliptic.ecdsa import ecdsa
-from pedro.common.utils import time
-from pedro.common.utils import uuid
-from pedro.event.interfaces import IHeader, IPayload, IData, IEvent
+from pypedro.common.security.crypto import digest
+from pypedro.common.security.crypto.elliptic.ecdsa import ecdsa
+from pypedro.common.utils import time
+from pypedro.common.utils import uuid
+from pypedro.event.interfaces import IHeader, IPayload, IData, IEvent
 
 
 class Header(IHeader):

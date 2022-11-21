@@ -1,7 +1,7 @@
 from typing import Callable
 
-from pedro.errors import ERROR_INVALID_MODULE_NAME, ERROR_INVALID_LOADER, ERROR_NOT_FOUND_MODULE
-from pedro.exceptions import InternalException
+from pypedro.errors import ERROR_INVALID_MODULE_NAME, ERROR_INVALID_LOADER, ERROR_NOT_FOUND_MODULE
+from pypedro.exceptions import InternalException
 
 
 class Loader:

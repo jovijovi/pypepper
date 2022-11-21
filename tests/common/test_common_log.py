@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from pedro.common.log import log
-from pedro.logo import logo
+from pypedro.common.log import log
+from pypedro.logo import logo
 
 
 def test_log():

@@ -1,7 +1,7 @@
 import math
 import secrets
 
-from pedro.exceptions import InternalException
+from pypedro.exceptions import InternalException
 
 
 class Random:

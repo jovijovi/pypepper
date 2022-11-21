@@ -1,4 +1,4 @@
-APP_NAME:=pedro.py
+APP_NAME:=pypedro
 HUB:=$(if $(HUB),$(HUB),some_docker_image_repo)
 OS:=linux
 PYTHON_VER:=3.10.8

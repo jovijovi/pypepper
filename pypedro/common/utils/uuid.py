@@ -1,6 +1,6 @@
 import uuid
 
-from pedro.exceptions import InternalException
+from pypedro.exceptions import InternalException
 
 
 def new_uuid() -> str:

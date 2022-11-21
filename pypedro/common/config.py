@@ -5,7 +5,7 @@ from typing import Any
 import yaml
 from box import Box
 
-from pedro.common.log import log
+from pypedro.common.log import log
 
 
 class ConfCluster:

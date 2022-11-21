@@ -19,8 +19,8 @@ network:
 serviceInfo:
   version: v1
   hostName: HostName
-  serviceName: pedropy
-  processName: pedropy
+  serviceName: pypedro
+  processName: pypedro
   ip: 127.0.0.1
   port: 55550
   tags:

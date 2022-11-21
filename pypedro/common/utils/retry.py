@@ -1,10 +1,10 @@
 from collections.abc import Callable
 from typing import TypeVar, ParamSpec
 
-from pedro.common.log import log
-from pedro.common.utils import time
-from pedro.common.utils.random import random
-from pedro.exceptions import InternalException
+from pypedro.common.log import log
+from pypedro.common.utils import time
+from pypedro.common.utils.random import random
+from pypedro.exceptions import InternalException
 
 DEFAULT_RETRY_TIMES: int = 3
 DEFAULT_RETRY_INTERVAL: int = 3

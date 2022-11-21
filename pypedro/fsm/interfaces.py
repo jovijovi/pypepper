@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Collection, Callable, MutableMapping
 from typing import Any, TypeVar, ParamSpec
 
-from pedro.event.interfaces import IEvent
+from pypedro.event.interfaces import IEvent
 
 T = TypeVar("T")
 P = ParamSpec("P")

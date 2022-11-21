@@ -2,8 +2,8 @@ from cryptography import exceptions
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from pedro.common.security.crypto.elliptic import algorithm
-from pedro.common.security.crypto.elliptic.interfaces import IElliptic
+from pypedro.common.security.crypto.elliptic import algorithm
+from pypedro.common.security.crypto.elliptic.interfaces import IElliptic
 
 
 class ECDSA(IElliptic):

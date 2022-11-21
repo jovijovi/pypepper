@@ -1,6 +1,6 @@
 import pytest
 
-from pedro.common.utils import time
+from pypedro.common.utils import time
 
 
 def test_get_datetime():
