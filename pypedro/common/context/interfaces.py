@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from collections.abc import MutableMapping
 from typing import Any
 
@@ -15,6 +15,7 @@ class IContext(metaclass=ABCMeta):
     context: MutableMapping[Any, Any] | None
     parent: IContext | None
 
+    @abstractmethod
     def with_value(self, key: Any, value: Any) -> IContext:
         """
         Set context key/value
@@ -24,6 +25,7 @@ class IContext(metaclass=ABCMeta):
         """
         pass
 
+    @abstractmethod
     def trace(self, index: int) -> IContext:
         """
         Trace to the context by index
@@ -32,6 +34,7 @@ class IContext(metaclass=ABCMeta):
         """
         pass
 
+    @abstractmethod
     def length(self) -> int:
         """
         Get the length from the context with index 0 to the current context
@@ -39,6 +42,7 @@ class IContext(metaclass=ABCMeta):
         """
         pass
 
+    @abstractmethod
     def head(self) -> IContext:
         """
         Get context chain head
