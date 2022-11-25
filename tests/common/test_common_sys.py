@@ -1,5 +1,3 @@
-import signal
-
 import pytest
 
 from pypedro.common import system
