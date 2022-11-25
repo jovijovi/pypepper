@@ -1,7 +1,6 @@
 import pytest
 
 from pypedro.common.utils import retry
-from pypedro.exceptions import InternalException
 
 
 def transistor(in_voltage: int) -> int:

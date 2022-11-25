@@ -1,5 +1,5 @@
 import pytest
-from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives import serialization
 
 from pypedro.common.security.crypto.elliptic.algorithm import HashAlgorithmName
 from pypedro.common.security.crypto.elliptic.ecdsa import ecdsa
