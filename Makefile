@@ -32,21 +32,22 @@ endif
 
 all: docker
 
-build-prepare:
+build-prepare: clean
 	@echo "[MAKEFILE] Prepare for building..."
 	mkdir -p $(APP_DIR)
+	python -m pip install -r requirements-dev.txt
 
 debug: build-prepare
 	@echo "[MAKEFILE] Building debug"
 
 test: test
 	@echo "[MAKEFILE] Testing"
-	pytest
+	pytest --cov=pypedro tests/
 
 build: build-prepare
 	@echo "[MAKEFILE] Building binary"
 	python -m pip install -r requirements.txt
-	python setup.py
+	python ./scripts/build.py
 	@echo $(VERSION_INFO) > $(APP_DIR)/git.json
 
 docker:
@@ -58,7 +59,10 @@ docker:
 	@echo "[MAKEFILE] Build docker image done"
 
 clean:
+	@echo "[MAKEFILE] Cleaning..."
 	rm ./dist/ -rf
+	rm .pytest_cache -rf
+	rm .coverage -rf
 	@echo "[MAKEFILE] Cleaned"
 
 help:

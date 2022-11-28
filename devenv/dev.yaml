@@ -21,7 +21,7 @@ services:
       - devenv-network-pypedro
 
   mongo:
-    container_name: devenv_mongodb_congress
+    container_name: devenv_mongodb_pypedro
     image: mongo:5.0.14
     command: --auth
     restart: always
@@ -38,7 +38,7 @@ services:
       - devenv-network-pypedro
 
   mongo-express:
-    container_name: devenv_mongo_express_congress
+    container_name: devenv_mongo_express_pypedro
     image: mongo-express:0.54.0
     restart: always
     ports:

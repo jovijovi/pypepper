@@ -9,9 +9,9 @@ ENV PATH "/root/.local/bin:${PATH}"
 ADD conf /opt/app_src/conf
 ADD pypedro /opt/app_src/pypedro
 ADD example/server /opt/app_src/example/server
+ADD scripts /opt/app_src/scripts
 COPY git.json /opt/app_src/
 COPY requirements.txt /opt/app_src/
-COPY setup.py /opt/app_src/
 
 WORKDIR /opt/app_src
 
@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl
 RUN python -m pip install --disable-pip-version-check --no-cache-dir --user -r requirements.txt
-RUN python setup.py
+RUN python ./scripts/build.py
 
 FROM ${BASE_IMAGE} as runtime
 
