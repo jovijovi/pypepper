@@ -1,6 +1,6 @@
 arrow==1.2.3
 cachetools==5.2.0
-cryptography==38.0.3
+cryptography>=38.0.4
 flask==2.2.2
 loguru==0.6.0
 mongoengine==0.24.2
