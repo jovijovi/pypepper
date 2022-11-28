@@ -175,8 +175,13 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-### Custom
+### Builds
 .github
-/devenv
+
+### Documents
 /docs
+
+### Tests
+/devenv
 /tests
+/.database
