@@ -6,15 +6,15 @@ networks:
 services:
   mysql:
     container_name: devenv_mysql_pypedro
-    image: mysql:8.0.26
+    image: mysql:8.0.30
     command: --default-authentication-plugin=mysql_native_password
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: example
     volumes:
-      - /opt/dev/pypedro/mysql_data:/var/lib/mysql
-      - ./database/mysql/schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
-      - ./database/mysql/table.sql:/docker-entrypoint-initdb.d/2_table.sql
+      - ../.database/mysql_data:/var/lib/mysql
+      - ./init/mysql/schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
+      - ./init/mysql/table.sql:/docker-entrypoint-initdb.d/2_table.sql
     ports:
       - "3306:3306"
     networks:
