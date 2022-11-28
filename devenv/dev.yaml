@@ -19,3 +19,32 @@ services:
       - "3306:3306"
     networks:
       - devenv-network-pypedro
+
+  mongo:
+    container_name: devenv_mongodb_congress
+    image: mongo:5.0.14
+    command: --auth
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: test
+    volumes:
+      - ../.database/mongodb_data:/data/db
+      - ./init/mongodb/user.js:/docker-entrypoint-initdb.d/1_user.js
+    ports:
+      - "27017:27017"
+    networks:
+      - devenv-network-pypedro
+
+  mongo-express:
+    container_name: devenv_mongo_express_congress
+    image: mongo-express:0.54.0
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+    networks:
+      - devenv-network-pypedro

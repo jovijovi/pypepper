@@ -3,6 +3,7 @@ cachetools==5.2.0
 cryptography==38.0.3
 flask==2.2.2
 loguru==0.6.0
+mongoengine==0.24.2
 pip>=22.2.2
 pycparser==2.21
 pytest==7.2.0
