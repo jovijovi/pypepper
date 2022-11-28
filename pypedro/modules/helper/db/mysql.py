@@ -4,14 +4,10 @@ from abc import ABCMeta
 
 from sqlalchemy import create_engine, Connection
 
+from pypedro.modules.helper.db.interfaces import IConfig
 
-class Config(metaclass=ABCMeta):
-    uri: str | None
-    username: str | None
-    password: str | None
-    host: str | None
-    port: int = 3306
-    db: str | None
+
+class Config(IConfig, metaclass=ABCMeta):
     charset: str = 'utf8mb4'
 
     def __init__(self,
@@ -21,14 +17,15 @@ class Config(metaclass=ABCMeta):
                  host: str | None = None,
                  port: int = 3306,
                  db: str | None = None,
-                 charset: str = 'utf8mb4',
-                 ):
-        self.uri = uri
-        self.username = username
-        self.password = password
-        self.host = host
-        self.port = port
-        self.db = db
+                 charset: str = 'utf8mb4'):
+        super().__init__(
+            uri=uri,
+            username=username,
+            password=password,
+            host=host,
+            port=port,
+            db=db,
+        )
         self.charset = charset
 
 
