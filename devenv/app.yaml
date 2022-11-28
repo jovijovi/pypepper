@@ -1,0 +1,11 @@
+version: '3.1'
+
+services:
+  pypedro:
+    container_name: devenv_pypedro
+    image: pypedro:latest
+    restart: always
+    volumes:
+      - ../conf:/opt/app/conf
+    ports:
+      - "55550:55550"

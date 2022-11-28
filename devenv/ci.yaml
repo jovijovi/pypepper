@@ -1,0 +1,38 @@
+version: '3.1'
+
+networks:
+  devenv-network-pypedro:
+
+services:
+  mysql:
+    container_name: devenv_mysql_pypedro
+    image: mysql:8.0.30
+    command: --default-authentication-plugin=mysql_native_password
+    restart: 'no'
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+    volumes:
+      - /tmp/pypedro/database/mysql_data:/var/lib/mysql
+      - ./init/mysql/schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
+      - ./init/mysql/table.sql:/docker-entrypoint-initdb.d/2_table.sql
+    ports:
+      - "3306:3306"
+    networks:
+      - devenv-network-pypedro
+
+  mongo:
+    container_name: devenv_mongodb_pypedro
+    image: mongo:5.0.14
+    command: --auth
+    restart: 'no'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: test
+    volumes:
+      - /tmp/pypedro/database/mongodb_data:/data/db
+      - ./init/mongodb/user.js:/docker-entrypoint-initdb.d/1_user.js
+    ports:
+      - "27017:27017"
+    networks:
+      - devenv-network-pypedro

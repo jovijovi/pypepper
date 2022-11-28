@@ -1,0 +1,5 @@
+ERROR_INVALID_MODULE_NAME: str = 'invalid module name'
+ERROR_INVALID_LOADER: str = 'invalid loader'
+ERROR_NOT_FOUND_MODULE: str = 'not found module'
+ERROR_INVALID_ALGORITHM: str = 'invalid algorithm'
+ERROR_INVALID_EVENT: str = 'invalid event'

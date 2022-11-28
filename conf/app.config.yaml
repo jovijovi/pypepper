@@ -1,0 +1,41 @@
+# Cluster settings
+cluster:
+  name: cluster-name
+  id: 5dd31f84-5df2-48c7-b84b-32d25b17a930
+  description: 'cluster description'
+
+# Network settings
+network:
+  ip: 0.0.0.0
+  httpServer:
+    enable: true
+    port: 55550
+  httpsServer:
+    enable: false
+    port: 55650
+    mutualTLS: false
+
+# Service info
+serviceInfo:
+  version: v1
+  hostName: HostName
+  serviceName: pypedro
+  processName: pypedro
+  ip: 127.0.0.1
+  port: 55550
+  tags:
+    - microservice
+    - python
+    - docker
+  id: 6b52f65f-34e5-42f3-9a71-283249571db3
+
+# Log settings
+log:
+  level: TRACE
+
+# Custom config (Optional)
+custom:
+  foo: "Something interesting"
+  bar:
+    - 100
+    - 200
