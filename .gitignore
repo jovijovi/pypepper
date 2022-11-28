@@ -175,3 +175,6 @@ cython_debug/
 
 ### Builds
 /git.json
+
+### Tests
+/.database
