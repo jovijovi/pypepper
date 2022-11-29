@@ -5,7 +5,7 @@ from sqlalchemy import String
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from sqlalchemy.sql import functions
 
-from pypedro.modules.helper.db import mysql
+from pypedro.helper.db import mysql
 
 Base = declarative_base()
 

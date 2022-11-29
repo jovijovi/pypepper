@@ -29,11 +29,10 @@ Committed to the best practices of microservices in Blockchain, Big Data, AI, et
   - `system` System signals handler
 - `event` An event package with payload, support sign/verify signature
 - `fsm` An out-of-box FSM with event trigger, support custom state
-- `modules`
-  - `helper`
-    - `db`
-      - `mongodb` MongoDB helper
-      - `mysql` MySQL helper
+- `helper`
+  - `db`
+    - `mongodb` MongoDB helper
+    - `mysql` MySQL helper
 - `network`
   - `http` RESTFul APIs sever based on [Flask](https://github.com/pallets/flask/). 
 - `loader` Module loader
