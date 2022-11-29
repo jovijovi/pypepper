@@ -4,7 +4,7 @@ from abc import ABCMeta
 
 from sqlalchemy import create_engine, Connection
 
-from pypedro.modules.helper.db.interfaces import IConfig
+from pypedro.helper.db.interfaces import IConfig
 
 
 class Config(IConfig, metaclass=ABCMeta):
