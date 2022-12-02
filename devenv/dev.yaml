@@ -12,7 +12,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: example
     volumes:
-      - ../.database/mysql_data:/var/lib/mysql
+      - ../.data/mysql_data:/var/lib/mysql
       - ./init/mysql/schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
       - ./init/mysql/table.sql:/docker-entrypoint-initdb.d/2_table.sql
     ports:
@@ -30,7 +30,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: example
       MONGO_INITDB_DATABASE: test
     volumes:
-      - ../.database/mongodb_data:/data/db
+      - ../.data/mongodb_data:/data/db
       - ./init/mongodb/user.js:/docker-entrypoint-initdb.d/1_user.js
     ports:
       - "27017:27017"
