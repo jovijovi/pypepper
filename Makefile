@@ -40,7 +40,7 @@ build-prepare: clean
 debug: build-prepare
 	@echo "[MAKEFILE] Building debug"
 
-test: test
+test: clean
 	@echo "[MAKEFILE] Testing"
 	pytest --cov=pypedro tests/
 
