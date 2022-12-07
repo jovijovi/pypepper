@@ -6,7 +6,7 @@ from pypedro.scheduler.tag import Tag
 
 class IBase(metaclass=ABCMeta):
     id: str
-    queue_id: str
+    channel_id: str
     dag_id: str
     hash: str
     name: str
