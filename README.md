@@ -5,19 +5,16 @@
 
 <https://github.com/jovijovi/pypedro>
 
-PyPedro is a microservice toolkit written in [Python 3](https://www.python.org). \
-Committed to the best practices of microservices in Blockchain, Big Data, AI, etc.
+PyPedro is a microservice toolkit written in [Python](https://www.python.org).
 
 ## Features
 
 - `common`
   - `context` A powerful chained context
   - `security`
-    - `crypto`
-      - `elliptic`
-        - `ecdsa` Sign/Verify message by ECDSA
-      - `digest` Get hash bytes/hex
-      - `salt` Generates a random salt of the specified size
+    - `crypto.elliptic.ecdsa` Sign/Verify message by ECDSA
+    - `crypto.digest` Get hash bytes/hex
+    - `crypto.salt` Generates a random salt of the specified size
   - `utils`
     - `random` A class for generating random values
     - `retry` Retry running the function by random interval, support lambda
@@ -30,9 +27,8 @@ Committed to the best practices of microservices in Blockchain, Big Data, AI, et
 - `event` An event package with payload, support sign/verify signature
 - `fsm` An out-of-box FSM with event trigger, support custom state
 - `helper`
-  - `db`
-    - `mongodb` MongoDB helper
-    - `mysql` MySQL helper
+  - `db.mongodb` MongoDB helper
+  - `db.mysql` MySQL helper
 - `network`
   - `http` RESTFul APIs sever based on [Flask](https://github.com/pallets/flask/). 
 - `loader` Module loader
