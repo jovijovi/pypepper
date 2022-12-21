@@ -5,6 +5,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import MutableMapping
 from threading import Lock
 
+from pypedro.common.context import Context
 from pypedro.common.utils import uuid
 from pypedro.scheduler.base import IBase
 from pypedro.scheduler.channel import Channel, manager
@@ -93,10 +94,10 @@ class IJob(IBase, metaclass=ABCMeta):
 
 
 class Job(IJob):
-
     def __init__(self, category: str = None):
         self.id = uuid.new_uuid()
         self.category = category
+        self.context = Context(context_id=uuid.new_uuid())
 
     def save(self):
         # TODO:

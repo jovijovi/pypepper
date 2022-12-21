@@ -8,7 +8,7 @@ class IBase(metaclass=ABCMeta):
     id: str
     channel_id: str
     dag_id: str
-    hash: str
+    fingerprint: str
     name: str
     category: str
     description: str
