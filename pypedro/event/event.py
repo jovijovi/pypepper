@@ -103,5 +103,8 @@ class Event(IEvent):
         pass
 
 
-def new() -> Event:
-    return Event()
+def new(name: str | None = None, src: str | None = None) -> Event:
+    evt = Event()
+    evt.set_name(name)
+    evt.set_src(src)
+    return evt
