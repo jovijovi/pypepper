@@ -9,4 +9,16 @@ class IWorkflow(IBase, metaclass=ABCMeta):
 
 
 class Workflow(IWorkflow):
-    pass
+    def add_task(self, task: Task):
+        self.tasks.append(task)
+
+    def add_tasks(self, tasks: list[Task]):
+        self.tasks.extend(tasks)
+
+    def get_tasks(self) -> list[Task]:
+        return self.tasks
+
+    def run(self):
+        # TODO:
+        if len(self.tasks) == 0:
+            return
