@@ -6,12 +6,14 @@
 
 # PyPepper
 
+In memory of my father who passed away due to COVID-19.
+
+[![PyPI](https://img.shields.io/pypi/v/pypepper?label=\&logo=pypi\&logoColor=fff)](https://pypi.org/project/pypepper/)
 [![GitHub Actions](https://github.com/jovijovi/pypepper/workflows/Test/badge.svg)](https://github.com/jovijovi/pypepper)
 [![Coverage](https://img.shields.io/codecov/c/github/jovijovi/pypepper?label=\&logo=codecov\&logoColor=fff)](https://codecov.io/gh/jovijovi/pypepper)
 
-<https://github.com/jovijovi/pypepper>
-
-PyPepper is a microservice toolkit written in [Python](https://www.python.org).
+- <https://github.com/jovijovi/pypepper>
+- PyPepper is a microservice toolkit written in [Python](https://www.python.org).
 
 ## Features
 
