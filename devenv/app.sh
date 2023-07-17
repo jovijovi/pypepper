@@ -2,7 +2,7 @@
 
 set -e
 
-MODE=$1
+COMMAND=${1}
 
 # Print the usage message
 function printHelp() {
@@ -20,10 +20,10 @@ function printHelp() {
   echo "  ./app.sh down"
 }
 
-if [[ "${MODE}" == "up" ]]; then
+if [[ "${COMMAND}" == "up" ]]; then
   echo "## Starting app..."
   docker compose -f app.yaml up -d
-elif [[ "${MODE}" == "down" ]]; then
+elif [[ "${COMMAND}" == "down" ]]; then
   echo "## Stopping app..."
   docker compose -f app.yaml down
 else
