@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from pypedro.common.config import config
-from pypedro.common.log import log
+from pypepper.common.config import config
+from pypepper.common.log import log
 
 
 def test_load_config():

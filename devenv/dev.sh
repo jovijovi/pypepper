@@ -26,13 +26,13 @@ function printHelp() {
 
 if [[ "${COMMAND}" == "up" ]]; then
   echo "## Creating dev env..."
-  docker-compose -f dev.yaml up -d ${SERVICE_NAME}
+  docker compose -f dev.yaml up -d ${SERVICE_NAME}
 elif [[ "${COMMAND}" == "down" ]]; then
   echo "## Shutting down dev env..."
-  docker-compose -f dev.yaml down
+  docker compose -f dev.yaml down
 elif [[ "${COMMAND}" == "stop" ]]; then
   echo "## Stopping service..."
-  docker-compose -f dev.yaml stop ${SERVICE_NAME}
+  docker compose -f dev.yaml stop ${SERVICE_NAME}
 else
   printHelp
   exit 1

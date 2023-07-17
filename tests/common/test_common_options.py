@@ -3,9 +3,9 @@ from typing import TypeVar, Any, Generic
 
 import pytest
 
-from pypedro.common import options
-from pypedro.common.context import context
-from pypedro.common.options import IOptions
+from pypepper.common import options
+from pypepper.common.context import context
+from pypepper.common.options import IOptions
 
 T = TypeVar("T", bound=IOptions)
 

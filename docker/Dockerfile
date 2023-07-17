@@ -7,7 +7,7 @@ FROM ${BASE_IMAGE} as builder
 ENV PATH "/root/.local/bin:${PATH}"
 
 ADD conf /opt/app_src/conf
-ADD pypedro /opt/app_src/pypedro
+ADD pypepper /opt/app_src/pypepper
 ADD example/server /opt/app_src/example/server
 ADD scripts /opt/app_src/scripts
 COPY git.json /opt/app_src/

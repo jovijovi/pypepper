@@ -4,14 +4,16 @@
 
 </div>
 
-# PyPedro
+# PyPepper
 
-[![GitHub Actions](https://github.com/jovijovi/pypedro/workflows/Test/badge.svg)](https://github.com/jovijovi/pypedro)
-[![Coverage](https://img.shields.io/codecov/c/github/jovijovi/pypedro?label=\&logo=codecov\&logoColor=fff)](https://codecov.io/gh/jovijovi/pypedro)
+In memory of my father who passed away due to COVID-19.
 
-<https://github.com/jovijovi/pypedro>
+[![PyPI](https://img.shields.io/pypi/v/pypepper?label=\&logo=pypi\&logoColor=fff)](https://pypi.org/project/pypepper/)
+[![GitHub Actions](https://github.com/jovijovi/pypepper/workflows/Test/badge.svg)](https://github.com/jovijovi/pypepper)
+[![Coverage](https://img.shields.io/codecov/c/github/jovijovi/pypepper?label=\&logo=codecov\&logoColor=fff)](https://codecov.io/gh/jovijovi/pypepper)
 
-PyPedro is a microservice toolkit written in [Python](https://www.python.org).
+- <https://github.com/jovijovi/pypepper>
+- PyPepper is a microservice toolkit written in [Python](https://www.python.org).
 
 ## Features
 
@@ -28,7 +30,7 @@ Common packages.
 - `common.utils.time` Get UTC/local datetime/timezone/timestamp, support sleep
 - `common.utils.uuid` UUID(v4) generator
 - `common.cache` A thread safe TTL cache-set
-- `common.log` A simple logger in Pedro style
+- `common.log` A simple logger based on [loguru](https://github.com/Delgan/loguru)
 - `common.options` An easy-to-use options
 - `common.system` System signals handler
 
@@ -62,7 +64,7 @@ Module loader.
 ## Development Environment
 
 - python `3.10`,`3.11`
-- conda `22.9.0`
+- conda >= `22.9.0`
 
 ## Quick Guide
 

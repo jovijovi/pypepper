@@ -2,5 +2,5 @@ import shutil
 
 # Copy code
 shutil.copytree("./conf", "./dist/conf")
-shutil.copytree("./pypedro", "./dist/pypedro")
+shutil.copytree("./pypepper", "./dist/pypepper")
 shutil.copytree("./example", "./dist/example")

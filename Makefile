@@ -1,7 +1,7 @@
-APP_NAME:=pypedro
+APP_NAME:=pypepper
 HUB:=$(if $(HUB),$(HUB),some_docker_image_repo)
 OS:=linux
-PYTHON_VER:=3.10.8
+PYTHON_VER:=3.10.11
 IMAGE_TAG:=slim-bullseye
 
 PROJECT_DIR:=$(shell pwd -L)
@@ -42,7 +42,7 @@ debug: build-prepare
 
 test: clean
 	@echo "[MAKEFILE] Testing"
-	pytest --cov=pypedro tests/
+	pytest --cov=pypepper tests/
 
 build: build-prepare
 	@echo "[MAKEFILE] Building binary"

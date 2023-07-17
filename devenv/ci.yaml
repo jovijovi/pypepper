@@ -1,11 +1,11 @@
 version: '3.1'
 
 networks:
-  devenv-network-pypedro:
+  devenv-network-pypepper:
 
 services:
   mysql:
-    container_name: devenv_mysql_pypedro
+    container_name: devenv_mysql_pypepper
     image: mysql:8.0.30
     command: --default-authentication-plugin=mysql_native_password
     restart: 'no'
@@ -18,10 +18,10 @@ services:
     ports:
       - "3306:3306"
     networks:
-      - devenv-network-pypedro
+      - devenv-network-pypepper
 
   mongo:
-    container_name: devenv_mongodb_pypedro
+    container_name: devenv_mongodb_pypepper
     image: mongo:5.0.14
     command: --auth
     restart: 'no'
@@ -35,4 +35,4 @@ services:
     ports:
       - "27017:27017"
     networks:
-      - devenv-network-pypedro
+      - devenv-network-pypepper

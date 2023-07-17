@@ -1,6 +1,6 @@
 import pytest
 
-from pypedro.common.security.crypto import digest
+from pypepper.common.security.crypto import digest
 
 message = '1234567890'
 mock_hash_string = 'c775e7b757ede630cd0aa1113bd102661ab38829ca52a6422ab782862f268646'

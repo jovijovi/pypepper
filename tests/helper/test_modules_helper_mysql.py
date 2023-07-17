@@ -5,7 +5,7 @@ from sqlalchemy import String
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from sqlalchemy.sql import functions
 
-from pypedro.helper.db import mysql
+from pypepper.helper.db import mysql
 
 Base = declarative_base()
 
@@ -40,7 +40,7 @@ cat3 = Animals(
 def test_all():
     # Connect
     engine = mysql.connect(mysql.Config(
-        uri="mysql+pymysql://root:example@localhost:3306/mock_pypedro?charset=utf8mb4",
+        uri="mysql+pymysql://root:example@localhost:3306/mock_pypepper?charset=utf8mb4",
     ))
     assert engine.closed is False
 
@@ -110,7 +110,7 @@ def test_connect():
         username='root',
         password='example',
         host='localhost',
-        db='mock_pypedro',
+        db='mock_pypepper',
     ))
     assert engine.closed is False
 

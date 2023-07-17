@@ -1,6 +1,6 @@
 import pytest
 
-from pypedro.common import system
+from pypepper.common import system
 
 
 def test_handle_signals():

@@ -1,8 +1,8 @@
 import pytest
 
-from pypedro.common.security.crypto.elliptic.algorithm import HashAlgorithmName
-from pypedro.common.security.crypto.elliptic.ecdsa import ecdsa
-from pypedro.event import event
+from pypepper.common.security.crypto.elliptic.algorithm import HashAlgorithmName
+from pypepper.common.security.crypto.elliptic.ecdsa import ecdsa
+from pypepper.event import event
 
 mock_event_id = 'e3e5866b-79ae-4cd0-8a84-31bcb5ec5b27'
 mock_event_namespace = 'foo'

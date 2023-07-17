@@ -2,7 +2,7 @@
 
 set -e
 
-MODE=$1
+COMMAND=${1}
 
 # Print the usage message
 function printHelp() {
@@ -20,12 +20,12 @@ function printHelp() {
   echo "  ./app.sh down"
 }
 
-if [[ "${MODE}" == "up" ]]; then
+if [[ "${COMMAND}" == "up" ]]; then
   echo "## Starting app..."
-  docker-compose -f app.yaml up -d
-elif [[ "${MODE}" == "down" ]]; then
+  docker compose -f app.yaml up -d
+elif [[ "${COMMAND}" == "down" ]]; then
   echo "## Stopping app..."
-  docker-compose -f app.yaml down
+  docker compose -f app.yaml down
 else
   printHelp
   exit 1
@@ -33,4 +33,4 @@ fi
 
 echo "## Done."
 
-docker ps|grep pypedro
+docker ps|grep pypepper

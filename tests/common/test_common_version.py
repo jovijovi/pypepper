@@ -1,6 +1,6 @@
 import pytest
 
-from pypedro.common.version import version
+from pypepper.common.version import version
 
 
 def test_get_version_info():

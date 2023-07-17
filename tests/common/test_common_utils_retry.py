@@ -1,6 +1,6 @@
 import pytest
 
-from pypedro.common.utils import retry
+from pypepper.common.utils import retry
 
 
 def transistor(in_voltage: int) -> int:

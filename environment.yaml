@@ -1,0 +1,24 @@
+name: pypepper
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10.11
+  - pip=23.0
+  - pip:
+      - arrow==1.2.3
+      - cachetools==5.3.1
+      - cryptography>=38.0.4
+      - flask==2.3.2
+      - loguru==0.7.0
+      - mongoengine==0.27.0
+      - python-box==6.1.0
+      - pymysql==1.1.0
+      - pyyaml==6.0
+      - sqlalchemy==2.0.19
+      - coverage>=6.5.0
+      - pytest==7.2.0
+      - pytest-asyncio==0.20.2
+      - pytest-cov==4.0.0
+      - build==0.10.0
+      - twine==4.0.2

@@ -19,8 +19,8 @@ network:
 serviceInfo:
   version: v1
   hostName: HostName
-  serviceName: pypedro
-  processName: pypedro
+  serviceName: pypepper
+  processName: pypepper
   ip: 127.0.0.1
   port: 55550
   tags:

@@ -1,11 +1,11 @@
 from flask import Flask
 
-from pypedro.common import system
-from pypedro.common.config import config
-from pypedro.common.log import log
-from pypedro.logo import logo
-from pypedro.network.http import server
-from pypedro.network.http.interfaces import ITaskHandler
+from pypepper.common import system
+from pypepper.common.config import config
+from pypepper.common.log import log
+from pypepper.logo import logo
+from pypepper.network.http import server
+from pypepper.network.http.interfaces import ITaskHandler
 
 
 def biz1():
