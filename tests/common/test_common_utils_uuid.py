@@ -1,6 +1,6 @@
 import pytest
 
-from pypedro.common.utils import uuid
+from pypepper.common.utils import uuid
 
 
 def test_new_uuid():

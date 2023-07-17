@@ -1,4 +1,4 @@
-USE `mock_pypedro`
+USE `mock_pypepper`
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;

@@ -1,7 +1,7 @@
 import pytest
 from mongoengine import Document, StringField
 
-from pypedro.helper.db import mongodb
+from pypepper.helper.db import mongodb
 
 
 class Animals(Document):

@@ -1,8 +1,8 @@
 import pytest
 from cachetools import cached
 
-from pypedro.common import cache
-from pypedro.common.utils import time
+from pypepper.common import cache
+from pypepper.common.utils import time
 
 
 @cached(cache={})

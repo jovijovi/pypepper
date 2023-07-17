@@ -1,7 +1,7 @@
 import pytest
 
-from pypedro.scheduler import channel
-from pypedro.scheduler.channel import Channel
+from pypepper.scheduler import channel
+from pypepper.scheduler.channel import Channel
 
 SEND_ROUND = 3
 TOTAL_LENGTH = 2 * SEND_ROUND

@@ -2,9 +2,9 @@ import time
 
 import pytest
 
-from pypedro.scheduler import events
-from pypedro.scheduler.events import FSM
-from pypedro.scheduler.job import Job
+from pypepper.scheduler import events
+from pypepper.scheduler.events import FSM
+from pypepper.scheduler.job import Job
 
 
 def test_scheduler():

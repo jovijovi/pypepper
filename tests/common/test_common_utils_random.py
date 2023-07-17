@@ -1,6 +1,6 @@
 import pytest
 
-from pypedro.common.utils.random import random
+from pypepper.common.utils.random import random
 
 
 def test_rand_int_between():

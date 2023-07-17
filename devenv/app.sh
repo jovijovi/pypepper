@@ -22,10 +22,10 @@ function printHelp() {
 
 if [[ "${MODE}" == "up" ]]; then
   echo "## Starting app..."
-  docker-compose -f app.yaml up -d
+  docker compose -f app.yaml up -d
 elif [[ "${MODE}" == "down" ]]; then
   echo "## Stopping app..."
-  docker-compose -f app.yaml down
+  docker compose -f app.yaml down
 else
   printHelp
   exit 1
@@ -33,4 +33,4 @@ fi
 
 echo "## Done."
 
-docker ps|grep pypedro
+docker ps|grep pypepper

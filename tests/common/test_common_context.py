@@ -1,7 +1,7 @@
 import pytest
 
-from pypedro.common.context import context
-from pypedro.common.utils.uuid import new_uuid_32bits
+from pypepper.common.context import context
+from pypepper.common.utils.uuid import new_uuid_32bits
 
 
 def test_new_context():

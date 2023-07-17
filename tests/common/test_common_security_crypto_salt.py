@@ -2,7 +2,7 @@ import binascii
 
 import pytest
 
-from pypedro.common.security.crypto import salt
+from pypepper.common.security.crypto import salt
 
 
 def test_salt():

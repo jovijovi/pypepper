@@ -1,8 +1,8 @@
 import pytest
 from cryptography.hazmat.primitives import serialization
 
-from pypedro.common.security.crypto.elliptic.algorithm import HashAlgorithmName
-from pypedro.common.security.crypto.elliptic.ecdsa import ecdsa
+from pypepper.common.security.crypto.elliptic.algorithm import HashAlgorithmName
+from pypepper.common.security.crypto.elliptic.ecdsa import ecdsa
 
 data = b"Hello, world!"
 
