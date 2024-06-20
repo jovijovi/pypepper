@@ -1,8 +1,8 @@
 APP_NAME:=pypepper
 HUB:=$(if $(HUB),$(HUB),some_docker_image_repo)
 OS:=linux
-PYTHON_VER:=3.10.11
-IMAGE_TAG:=slim-bullseye
+PYTHON_VER:=3.10.14
+IMAGE_TAG:=slim-bookworm
 
 PROJECT_DIR:=$(shell pwd -L)
 GIT_BRANCH:=$(shell git -C "${PROJECT_DIR}" rev-parse --abbrev-ref HEAD | grep -v HEAD || git describe --tags || git -C "${PROJECT_DIR}" rev-parse --short HEAD)
