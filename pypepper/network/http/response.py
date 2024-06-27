@@ -1,38 +1,51 @@
 import http
 from typing import Any
 
-from flask import make_response, jsonify, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import Response, JSONResponse
 
 from pypepper.common.log import log
 
 
-def build_response(code: str, data: Any, msg: str = None) -> Response:
-    return make_response(jsonify({
-        "code": code,
-        "msg": msg,
-        "data": data,
-    }), http.HTTPStatus.OK)
+def build_response(code: str, data: Any, msg: str = None) -> JSONResponse:
+    return JSONResponse(
+        status_code=http.HTTPStatus.OK,
+        content=jsonable_encoder({
+            "code": code,
+            "msg": msg,
+            "data": data,
+        }),
+    )
 
 
-def bad_request(code: str = "400") -> Response:
-    return make_response(jsonify({
-        "code": code,
-        "msg": "Bad request",
-    }), http.HTTPStatus.BAD_REQUEST)
+def bad_request(code: str = "400") -> JSONResponse:
+    return JSONResponse(
+        status_code=http.HTTPStatus.BAD_REQUEST,
+        content=jsonable_encoder({
+            "code": code,
+            "msg": "Bad request",
+        }),
+    )
 
 
-def not_found(code: str = "404") -> Response:
-    return make_response(jsonify({
-        "code": code,
-        "msg": "Not found",
-    }), http.HTTPStatus.NOT_FOUND)
+def not_found(code: str = "404") -> JSONResponse:
+    return JSONResponse(
+        status_code=http.HTTPStatus.NOT_FOUND,
+        content=jsonable_encoder({
+            "code": code,
+            "msg": "Not found",
+        }),
+    )
 
 
-def error(e: Exception, code: str = None) -> Response:
+def error(e: Exception, code: str = None) -> JSONResponse:
     if e:
         log.error("message={}", e)
 
-    return make_response(jsonify({
-        "code": code,
-        "msg": str(e),
-    }), http.HTTPStatus.INTERNAL_SERVER_ERROR)
+    return JSONResponse(
+        status_code=http.HTTPStatus.INTERNAL_SERVER_ERROR,
+        content=jsonable_encoder({
+            "code": code,
+            "msg": str(e),
+        }),
+    )

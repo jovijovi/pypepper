@@ -1,13 +1,13 @@
 from abc import abstractmethod, ABCMeta
 
-from flask import Flask
+from fastapi import FastAPI
 
 
 class ITaskHandler(metaclass=ABCMeta):
     @abstractmethod
-    def register_handlers(self, app: Flask):
+    def register_handlers(self, app: FastAPI):
         pass
 
     @abstractmethod
-    def use_middleware(self, app: Flask):
+    def use_middleware(self, app: FastAPI):
         pass
