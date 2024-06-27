@@ -51,7 +51,7 @@ Database helper.
 
 ### ***network***
 
-- `network.http` RESTFul API server based on [Flask](https://github.com/pallets/flask/). 
+- `network.http` RESTFul API server based on [FastAPI](https://github.com/tiangolo/fastapi). 
 
 ### ***scheduler***
 
