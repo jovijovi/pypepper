@@ -17,7 +17,9 @@ WORKDIR /opt/app_src
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-    curl
+    curl \
+    procps \
+    iputils-ping
 RUN python -m pip install --disable-pip-version-check --no-cache-dir --user -r requirements.txt
 RUN python ./scripts/build.py
 
