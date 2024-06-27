@@ -2,7 +2,7 @@ ARG PYTHON_VER
 ARG IMAGE_TAG
 ARG BASE_IMAGE=python:${PYTHON_VER}-${IMAGE_TAG}
 
-FROM ${BASE_IMAGE} as builder
+FROM ${BASE_IMAGE} AS builder
 
 ENV PATH "/root/.local/bin:${PATH}"
 
@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 RUN python -m pip install --disable-pip-version-check --no-cache-dir --user -r requirements.txt
 RUN python ./scripts/build.py
 
-FROM ${BASE_IMAGE} as runtime
+FROM ${BASE_IMAGE} AS runtime
 
 ENV PATH "/root/.local/bin:${PATH}"
 ENV PYTHONPATH "${PYTHONPATH}:/opt/app/"
