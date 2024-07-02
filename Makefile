@@ -60,9 +60,9 @@ docker:
 
 clean:
 	@echo "[MAKEFILE] Cleaning..."
-	rm ./dist/ -rf
-	rm .pytest_cache -rf
-	rm .coverage -rf
+	rm -rf ./dist/
+	rm -rf .pytest_cache
+	rm -rf .coverage
 	@echo "[MAKEFILE] Cleaned"
 
 help:
