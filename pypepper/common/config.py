@@ -17,12 +17,14 @@ class ConfCluster:
 class ConfHTTPServer:
     enable: bool
     port: int
+    timeout: int = 30
 
 
 class ConfHTTPSServer:
     enable: bool
     port: int
     mutualTLS: bool
+    timeout: int = 30
 
 
 class ConfHeartbeat:

@@ -9,3 +9,4 @@ services:
       - ../conf:/opt/app/conf
     ports:
       - "55550:55550"
+    #network_mode: host
