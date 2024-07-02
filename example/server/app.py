@@ -1,4 +1,4 @@
-from flask import Flask
+from fastapi import FastAPI
 
 from pypepper.common import system
 from pypepper.common.config import config
@@ -18,16 +18,16 @@ def biz2():
     return "biz2"
 
 
-def register_biz_api(app: Flask):
-    app.add_url_rule('/api/v1/biz1', view_func=biz1, methods=['GET'])
-    app.add_url_rule('/api/v1/biz2', view_func=biz2, methods=['POST'])
+def register_biz_api(app: FastAPI):
+    app.get('/api/v1/biz1')(biz1)
+    app.post('/api/v1/biz2')(biz2)
 
 
 class AppHandlers(ITaskHandler):
-    def register_handlers(self, app: Flask):
+    def register_handlers(self, app: FastAPI):
         register_biz_api(app)
 
-    def use_middleware(self, app: Flask):
+    def use_middleware(self, app: FastAPI):
         pass
 
 
