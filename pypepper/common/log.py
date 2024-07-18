@@ -152,5 +152,11 @@ class Logger:
         if LogLevel.has_value(level):
             default_log_filter.level = level
 
+    @staticmethod
+    def set_colorize(colorize=True):
+        config["handlers"][0]["colorize"] = colorize
+        logger.remove()
+        logger.configure(handlers=config["handlers"])
+
 
 log = Logger()
