@@ -32,6 +32,7 @@ serviceInfo:
 # Log settings
 log:
   level: TRACE
+  colorize: True
 
 # Custom config (Optional)
 custom:

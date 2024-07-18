@@ -49,6 +49,7 @@ class ConfNetwork:
 class ConfLog:
     mode: str
     level: str
+    colorize: bool
 
 
 class YmlConfig:
@@ -96,9 +97,10 @@ class Config:
             data = fd.read()
         self._setting = Box(yaml.safe_load(data))
 
-        # Set log level
+        # Set log config (level, colorize...)
         if hasattr(self.get_yml_config(), "log") and hasattr(self.get_yml_config().log, "level"):
             log.set_log_level(self.get_yml_config().log.level)
+            log.set_colorize(self.get_yml_config().log.colorize)
 
     def get_yml_config(self) -> YmlConfig:
         return self._setting
