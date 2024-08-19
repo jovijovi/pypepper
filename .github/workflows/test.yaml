@@ -26,14 +26,14 @@ jobs:
         run: python -m pip install -r requirements-dev.txt ; python -m pip install -r requirements.txt
 
       - name: Start devenv
-        run: cd ./devenv/ ; pwd ; docker-compose -f ci.yaml up -d ; sleep 10s ; docker ps ; cd ..
+        run: cd ./devenv/ ; pwd ; docker compose -f ci.yaml up -d ; sleep 10s ; docker ps ; cd ..
 
       - name: Test with coverage
         run: make test
 
       - name: Stop devenv
         if: always()
-        run: docker-compose -f ./devenv/ci.yaml down
+        run: docker compose -f ./devenv/ci.yaml down
 
       - name: Upload coverage profile
         uses: codecov/codecov-action@v2
