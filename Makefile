@@ -1,5 +1,4 @@
 APP_NAME:=pypepper
-HUB:=$(if $(HUB),$(HUB),some_docker_image_repo)
 OS:=linux
 PYTHON_VER:=3.10.14
 IMAGE_TAG:=slim-bookworm
@@ -28,9 +27,9 @@ else
 DOCKER_FILE=./docker/Dockerfile
 endif
 
-.PHONY: build-prepare debug test build docker help clean
+.PHONY: build-prepare debug test build docker clean publish-test publish help
 
-all: docker
+all: test clean docker
 
 build-prepare: clean
 	@echo "[MAKEFILE] Prepare for building..."
@@ -65,6 +64,19 @@ clean:
 	rm -rf .coverage
 	@echo "[MAKEFILE] Cleaned"
 
+publish-test: clean
+	python3 -m build
+	python3 -m twine upload --verbose --repository testpypi dist/*
+
+publish: clean
+	python3 -m build
+	python3 -m twine upload --repository pypi dist/*
+
 help:
-	@echo "make build -- Compile code"
-	@echo "make docker -- Build docker image"
+	@echo "# Build code:\n  make build"
+	@echo "# Build docker image:\n  make docker"
+	@echo "# Clean:\n  make clean"
+	@echo "# Test:\n  make test"
+	@echo "# All:\n  make all"
+	@echo "# Publish to testpypi:\n  make publish-test"
+	@echo "# Publish to pypi:\n  make publish"
