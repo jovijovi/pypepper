@@ -63,7 +63,7 @@ Module loader.
 
 ## Development Environment
 
-- python `3.10`,`3.11`
+- python `3.10`,`3.11`,`3.12`
 - conda >= `22.9.0`
 
 ## Quick Guide
