@@ -15,24 +15,31 @@ In memory of my father who passed away due to COVID-19.
 - <https://github.com/jovijovi/pypepper>
 - PyPepper is a microservice toolkit written in [Python](https://www.python.org).
 
-## Features
+## :checkered_flag: Features
 
 ### ***common***
 
 Common packages.
 
-- `common.context` A powerful chained context
-- `common.security.crypto.elliptic.ecdsa` Sign/Verify message by ECDSA
-- `common.security.crypto.digest` Get hash bytes/hex
-- `common.security.crypto.salt` Generates a random salt of the specified size
-- `common.utils.random` A class for generating random values
-- `common.utils.retry` Retry running the function by random interval, support lambda
-- `common.utils.time` Get UTC/local datetime/timezone/timestamp, support sleep
-- `common.utils.uuid` UUID(v4) generator
-- `common.cache` A thread safe TTL cache-set
-- `common.log` A simple logger based on [loguru](https://github.com/Delgan/loguru)
-- `common.options` An easy-to-use options
-- `common.system` System signals handler
+- `context`
+  - `common.context` A powerful chained context
+- `security`
+  - `common.security.crypto.elliptic.ecdsa` Sign/Verify message by ECDSA
+  - `common.security.crypto.digest` Get hash bytes/hex
+  - `common.security.crypto.salt` Generates a random salt of the specified size
+- `utils`
+  - `common.utils.random` A class for generating random values
+  - `common.utils.retry` Retry running the function by random interval, support lambda
+  - `common.utils.time` Get UTC/local datetime/timezone/timestamp, support sleep
+  - `common.utils.uuid` UUID(v4) generator
+- `cache`
+  - `common.cache` A thread safe TTL cache-set
+- `log`
+  - `common.log` A simple logger based on [loguru](https://github.com/Delgan/loguru)
+- `options`
+  - `common.options` An easy-to-use options
+- :computer: `system`
+  - `common.system` System signals handler
 
 ### ***event***
 
@@ -61,12 +68,12 @@ A Workflow-based job scheduler.
 
 Module loader.
 
-## Development Environment
+## :computer: Development Environment
 
-- python `3.10`,`3.11`,`3.12`
+- python `3.10`,`3.11`,`3.12`,`3.13`
 - conda >= `22.9.0`
 
-## Quick Guide
+## :wrench: Quick Guide
 
 - Build code
 
@@ -94,7 +101,7 @@ Module loader.
   make clean
   ```
 
-## Roadmap
+## :bulb: Roadmap
 
 - [ ] Documents
 - [ ] Tracing

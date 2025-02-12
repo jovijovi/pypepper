@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: [ "3.10","3.11","3.12" ]
+        python: [ "3.10","3.11","3.12","3.13" ]
     name: Python ${{ matrix.python }}
     steps:
       - name: Checkout
@@ -36,7 +36,7 @@ jobs:
         run: docker compose -f ./devenv/ci.yaml down
 
       - name: Upload coverage profile
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           file: .coverage
           token: ${{ secrets.CODECOV_TOKEN }}

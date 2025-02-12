@@ -19,6 +19,7 @@ class Version:
             return {
                 "version": self._unknown,
                 "gitCommit": self._unknown,
+                "commitTime": self._unknown,
                 "buildTime": self._unknown,
                 "pythonVersion": self._unknown,
             }

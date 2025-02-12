@@ -1,0 +1,24 @@
+#################
+# Makefile HELP #
+#################
+
+- Build code:
+  make build
+
+- Build docker image:
+  make docker
+
+- Clean:
+  make clean
+
+- Test:
+  make test
+
+- All:
+  make all
+
+- Publish to testpypi:
+  make publish-test
+
+- Publish to pypi:
+  make publish
