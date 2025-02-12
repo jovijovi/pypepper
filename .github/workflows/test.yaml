@@ -38,5 +38,5 @@ jobs:
       - name: Upload coverage profile
         uses: codecov/codecov-action@v5
         with:
-          file: .coverage
+          files: .coverage
           token: ${{ secrets.CODECOV_TOKEN }}
