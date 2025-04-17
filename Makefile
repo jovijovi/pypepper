@@ -1,6 +1,6 @@
 APP_NAME:=pypepper
 OS:=linux
-PYTHON_VER:=3.10.16
+PYTHON_VER:=3.10.17
 IMAGE_TAG:=slim-bookworm
 
 PROJECT_DIR:=$(shell pwd -L)
