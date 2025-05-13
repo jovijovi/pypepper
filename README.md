@@ -6,14 +6,15 @@
 
 # PyPepper
 
-In memory of my father who passed away due to COVID-19.
-
 [![PyPI](https://img.shields.io/pypi/v/pypepper?label=\&logo=pypi\&logoColor=fff)](https://pypi.org/project/pypepper/)
 [![GitHub Actions](https://github.com/jovijovi/pypepper/workflows/Test/badge.svg)](https://github.com/jovijovi/pypepper)
 [![Coverage](https://img.shields.io/codecov/c/github/jovijovi/pypepper?label=\&logo=codecov\&logoColor=fff)](https://codecov.io/gh/jovijovi/pypepper)
 
-- <https://github.com/jovijovi/pypepper>
-- PyPepper is a microservice toolkit written in [Python](https://www.python.org).
+> _In memory of my father, who passed away in 2023 from COVID-19._
+
+PyPepper is a microservice toolkit.
+
+<https://github.com/jovijovi/pypepper>
 
 ## :checkered_flag: Features
 
@@ -38,7 +39,7 @@ Common packages.
   - `common.log` A simple logger based on [loguru](https://github.com/Delgan/loguru)
 - `options`
   - `common.options` An easy-to-use options
-- :computer: `system`
+- `system`
   - `common.system` System signals handler
 
 ### ***event***
@@ -68,12 +69,11 @@ A Workflow-based job scheduler.
 
 Module loader.
 
-## :computer: Development Environment
+## :computer: Quick Guide
 
-- python `3.10`,`3.11`,`3.12`,`3.13`
-- conda >= `22.9.0`
-
-## :wrench: Quick Guide
+- Development Environment
+  - python `3.10`,`3.11`,`3.12`,`3.13`
+  - conda >= `22.9.0`
 
 - Build code
 
