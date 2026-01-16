@@ -72,8 +72,8 @@ Module loader.
 ## :computer: Quick Guide
 
 - Development Environment
-  - python `3.10`,`3.11`,`3.12`,`3.13`
-  - conda >= `22.9.0`
+  - python `3.10`,`3.11`,`3.12`,`3.13`,`3.14`
+  - uv >= `0.9.0`
 
 - Build code
 
