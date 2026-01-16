@@ -45,7 +45,7 @@ def get_utc_datetime() -> str:
 
 def get_date(tz: str = None) -> str:
     """
-    Return date by timezone
+    Return date by timezone.
     :param tz: timezone (optional)
     :return: date
     """

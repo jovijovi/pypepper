@@ -162,7 +162,7 @@ class IEvent(metaclass=ABCMeta):
         """
         Set event payload.
         :param payload: event payload.
-        :return: None..
+        :return: None.
         """
         pass
 

@@ -202,7 +202,7 @@ class FSM(IFSM):
 
     def current(self) -> IState:
         """
-        Get FSM current state
+        Get FSM current state.
         :return: current state
         """
 
