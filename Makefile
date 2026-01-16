@@ -1,7 +1,7 @@
 APP_NAME:=pypepper
 OS:=linux
-PYTHON_VER:=3.10.17
-IMAGE_TAG:=slim-bookworm
+PYTHON_VER:=3.13.11
+IMAGE_TAG:=slim-trixie
 
 PROJECT_DIR:=$(shell pwd -L)
 GIT_BRANCH:=$(shell git -C "${PROJECT_DIR}" rev-parse --abbrev-ref HEAD | grep -v HEAD || git describe --tags || git -C "${PROJECT_DIR}" rev-parse --short HEAD)
@@ -42,7 +42,9 @@ build: build-prepare
 docker:
 	@echo "[BUILD] Building docker image..."
 	@echo $(VERSION_INFO) > $(PROJECT_DIR)/git.json
-	docker build --pull \
+	docker buildx build \
+	  --pull \
+	  --load \
 	  --force-rm \
 	  -f $(DOCKER_FILE) \
 	  --build-arg PYTHON_VER=$(PYTHON_VER) \
