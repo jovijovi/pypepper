@@ -176,6 +176,7 @@ cython_debug/
 ### Builds
 /git.json
 /.pypirc
+/docker/Dockerfile.dev
 
 ### Tests
 /.data
