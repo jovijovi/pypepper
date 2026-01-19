@@ -24,13 +24,19 @@ def run(
     """
     Retry running the function m times with n seconds interval
     :param func: function
-    :param retry_times: retry times
-    :param retry_interval: retry interval
+    :param retry_times: retry times, should be greater than 0
+    :param retry_interval: retry interval, should be greater than or equal to 0
     :param verbose_log: verbose log
     :return: function result
     """
     if not func:
         raise InternalException("invalid function")
+
+    if retry_times <= 0:
+        raise InternalException("invalid retry times")
+
+    if retry_interval < 0:
+        raise InternalException("invalid retry interval")
 
     for i in range(retry_times):
         try:
@@ -43,6 +49,8 @@ def run(
                 raise InternalException(e)
 
             time.sleep(second=retry_interval)
+
+    return None
 
 
 def random_retry_interval(

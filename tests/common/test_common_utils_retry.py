@@ -80,5 +80,18 @@ def test_invalid_func():
         print(e)
 
 
+def test_invalid_params():
+    try:
+        retry.run(func=hello_world, retry_times=0)
+    except Exception as e:
+        print(e)
+
+    try:
+        result = retry.run(func=lambda: transistor(0), retry_interval=-1)
+        print("Result=", result)
+    except Exception as e:
+        print(e)
+
+
 if __name__ == '__main__':
     pytest.main()

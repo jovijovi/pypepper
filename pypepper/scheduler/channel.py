@@ -61,7 +61,7 @@ class ChannelManager:
             if 0 == len(self._job_channel):
                 return None
 
-            self._job_channel.pop(key)
+            return self._job_channel.pop(key)
 
     def new(self, key: str) -> Channel:
         chan = self.get(key)
