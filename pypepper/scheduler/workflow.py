@@ -9,6 +9,9 @@ class IWorkflow(IBase, metaclass=ABCMeta):
 
 
 class Workflow(IWorkflow):
+    def __init__(self):
+        self.tasks: list[Task] = []
+
     def add_task(self, task: Task):
         self.tasks.append(task)
 
