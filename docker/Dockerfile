@@ -4,7 +4,7 @@
 ARG PYTHON_VER=3.13
 ARG IMAGE_TAG=slim
 ARG BASE_IMAGE=python:${PYTHON_VER}-${IMAGE_TAG}
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.9.26
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.10.4
 
 FROM ${UV_IMAGE} AS uvbin
 
