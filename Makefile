@@ -52,7 +52,7 @@ docker:
 	  -t $(APP_NAME):$(APP_TAG) .
 	docker tag $(APP_NAME):$(APP_TAG) $(APP_NAME):latest
 	docker images|grep $(APP_NAME)
-	@echo "[BUILD] Build docker image done"
+	@echo "[BUILD] The Docker image has been built."
 
 clean:
 	@echo "[BUILD] Cleaning..."

@@ -1,10 +1,10 @@
-# syntax=docker/dockerfile:1.20.0
+# syntax=docker/dockerfile:1.21.0
 
 # Global args
 ARG PYTHON_VER=3.13
 ARG IMAGE_TAG=slim
 ARG BASE_IMAGE=python:${PYTHON_VER}-${IMAGE_TAG}
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.10.4
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.10.6
 
 FROM ${UV_IMAGE} AS uvbin
 
