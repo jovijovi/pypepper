@@ -8,9 +8,15 @@
 ## Project Structure & Module Organization
 
 - Source code: `pypepper/`
-  - CLI wiring in `src/cli`, commands in `src/commands`, web provider in `src/provider-web.ts`, infra in `src/infra`, media pipeline in `src/media`
+  - Common capability package (Context/Cache/Log/Config/Options/Utils/Security/System): `pypepper/common/`
+  - Event model and signature: `pypepper/event/`
+  - FSM (Finite State Machine): `pypepper/fsm/`
+  - Database helper: `pypepper/helper/db/`
+  - HTTP service: `pypepper/network/http/`
+  - Scheduler: `pypepper/scheduler/`
 - Tests: colocated `tests/test_*.py`.
-- Docs: `docs/` (images, logo, documents). Built output lives in `dist/`.
+- Docs: `docs/` (images, logo, documents).
+- Built output lives in `dist/`.
 - Config file: `conf/app.config.yaml`
 
 ## Build, Test, and Development Commands
@@ -22,14 +28,11 @@
 
 ## Coding Style & Naming Conventions
 
-- Language: TypeScript (ESM). Prefer strict typing; avoid `any`.
-- Formatting/linting via Oxlint and Oxfmt; run `pnpm check` before commits.
-- Never add `@ts-nocheck` and do not disable `no-explicit-any`; fix root causes and update Oxlint/Oxfmt config only when required.
-- Never share class behavior via prototype mutation (`applyPrototypeMixins`, `Object.defineProperty` on `.prototype`, or exporting `Class.prototype` for merges). Use explicit inheritance/composition (`A extends B extends C`) or helper composition so TypeScript can typecheck.
-- If this pattern is needed, stop and get explicit approval before shipping; default behavior is to split/refactor into an explicit class hierarchy and keep members strongly typed.
-- In tests, prefer per-instance stubs over prototype mutation (`SomeClass.prototype.method = ...`) unless a test explicitly documents why prototype-level patching is required.
+- Language: Python. Prefer strict typing; avoid `any`.
+- If this pattern is needed, stop and get explicit approval before shipping; the default behavior is to split/refactor into an explicit class hierarchy and keep members strongly typed.
+- In tests, prefer per-instance stubs over prototype mutation unless a test explicitly documents why prototype-level patching is required.
 - Add brief code comments for tricky or non-obvious logic.
-- Keep files concise; extract helpers instead of “V2” copies. Use existing patterns for CLI options and dependency injection via `createDefaultDeps`.
+- Keep files concise; extract helpers instead of “V2” copies.
 - Aim to keep files under ~700 LOC; guideline only (not a hard guardrail). Split/refactor when it improves clarity or testability.
 - Naming: use **PyPepper** for product/app/docs headings
 
