@@ -45,3 +45,19 @@ services:
       ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
     networks:
       - devenv-network-pypepper
+
+  postgres:
+    container_name: devenv_postgres_pypepper
+    image: postgres:18.2
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: mock_pypepper
+    volumes:
+      - ../.data/postgres_data:/var/lib/postgresql
+      - ./init/postgres:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - devenv-network-pypepper

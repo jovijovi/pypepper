@@ -22,6 +22,7 @@ dependencies = [
     "mongoengine==0.29.1",
     "python-box==7.4.1",
     "pymysql==1.1.2",
+    "psycopg[binary]==3.3.3",
     "pyyaml==6.0.3",
     "sqlalchemy==2.0.47",
     "pip==26.0.1",
