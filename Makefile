@@ -27,7 +27,7 @@ all: test clean docker
 build-prepare: clean
 	@echo "[BUILD] Prepare for building..."
 	mkdir -p $(APP_DIR)
-	python -m pip install -r requirements-dev.txt
+	uv pip install -r requirements-dev.txt
 
 test: clean
 	@echo "[BUILD] Testing"
@@ -35,7 +35,7 @@ test: clean
 
 build: build-prepare
 	@echo "[BUILD] Building binary"
-	python -m pip install -r requirements.txt
+	uv pip install -r requirements.txt
 	python ./scripts/build.py
 	@echo $(VERSION_INFO) > $(APP_DIR)/git.json
 
