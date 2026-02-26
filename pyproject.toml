@@ -16,7 +16,7 @@ dependencies = [
     "arrow==1.4.0",
     "cachetools==7.0.1",
     "cryptography==46.0.5",
-    "fastapi==0.133.0",
+    "fastapi==0.133.1",
     "uvicorn==0.41.0",
     "loguru==0.7.3",
     "mongoengine==0.29.1",
