@@ -56,6 +56,7 @@ Database helper.
 
 - `helper.db.mongodb` MongoDB helper
 - `helper.db.mysql` MySQL helper
+- `helper.db.postgres` PostgreSQL helper
 
 ### ***network***
 
@@ -73,7 +74,7 @@ Module loader.
 
 - Development Environment
   - python `3.10`,`3.11`,`3.12`,`3.13`,`3.14`
-  - uv >= `0.10.6`
+  - uv >= `0.10.7`
 
 - Build code
 
