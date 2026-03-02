@@ -153,25 +153,32 @@ async def test_connection_manager_get_all():
 async def test_connection_queue_full():
     """Test queue full handling"""
     manager = SSEConnectionManager()
-    connection = await manager.connect(connection_id='test-conn-10')
+    original_max_queue_size = SSEConnection.MAX_QUEUE_SIZE
 
-    # Fill queue to capacity
-    for i in range(SSEConnection.MAX_QUEUE_SIZE):
-        event = SSEEvent(data={'index': i}, event='fill', id=f'evt-{i}')
-        success = await connection.send(event)
-        assert success is True
+    try:
+        # Use a smaller queue in tests to keep runtime short.
+        SSEConnection.MAX_QUEUE_SIZE = 20
+        connection = await manager.connect(connection_id='test-conn-10')
 
-    # Try to send one more (should be dropped)
-    overflow_event = SSEEvent(data={'overflow': True}, event='overflow')
-    success = await connection.send(overflow_event)
-    assert success is False
+        # Fill queue to capacity
+        for i in range(SSEConnection.MAX_QUEUE_SIZE):
+            event = SSEEvent(data={'index': i}, event='fill', id=f'evt-{i}')
+            success = await connection.send(event)
+            assert success is True
 
-    # Check stats
-    stats = connection.get_stats()
-    assert stats['dropped_events'] == 1
+        # Try to send one more (should be dropped)
+        overflow_event = SSEEvent(data={'overflow': True}, event='overflow')
+        success = await connection.send(overflow_event)
+        assert success is False
 
-    # Cleanup
-    await manager.disconnect('test-conn-10')
+        # Check stats
+        stats = connection.get_stats()
+        assert stats['dropped_events'] == 1
+
+        # Cleanup
+        await manager.disconnect('test-conn-10')
+    finally:
+        SSEConnection.MAX_QUEUE_SIZE = original_max_queue_size
 
 
 @pytest.mark.asyncio

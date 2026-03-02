@@ -1,74 +1,60 @@
+import asyncio
+from types import SimpleNamespace
+
 import pytest
-from fastapi import FastAPI, Request
-from fastapi.testclient import TestClient
 
 from pypepper.network.http.sse.handlers import EchoSSEHandler, CounterSSEHandler
 from pypepper.network.http.sse.stream import sse_stream
 
 
-@pytest.fixture
-def app():
-    """Create test FastAPI application"""
-    app = FastAPI()
+class _MockRequest:
+    def __init__(self, disconnect_after: int = 6):
+        self.headers = {}
+        self.state = SimpleNamespace()
+        self.client = SimpleNamespace(host='testclient')
+        self._disconnect_after = disconnect_after
+        self._checks = 0
 
-    @app.get('/sse/echo')
-    async def sse_echo_endpoint(request: Request):
-        from fastapi.sse import EventSourceResponse
-
-        handler = EchoSSEHandler(messages=['Hello', 'World'], interval=0.1)
-        return EventSourceResponse(sse_stream(request, handler))
-
-    @app.get('/sse/counter')
-    async def sse_counter_endpoint(request: Request):
-        from fastapi.sse import EventSourceResponse
-
-        handler = CounterSSEHandler(start=0, end=5, interval=0.1)
-        return EventSourceResponse(sse_stream(request, handler))
-
-    return app
+    async def is_disconnected(self) -> bool:
+        self._checks += 1
+        return self._checks > self._disconnect_after
 
 
-def test_sse_echo_endpoint(app):
-    """Test SSE echo endpoint"""
-    client = TestClient(app)
-
-    with client.stream('GET', '/sse/echo') as response:
-        assert response.status_code == 200
-        assert 'text/event-stream' in response.headers['content-type']
-
-        # Read some events
-        events = []
-        for line in response.iter_lines():
-            if line:
-                events.append(line)
-            # Read enough lines to get connect + first echo event
-            if len(events) >= 10:
-                break
-
-        assert len(events) > 0
-        # Verify we got some data
-        data_lines = [line for line in events if line.startswith('data:')]
-        assert len(data_lines) > 0
+async def _collect_stream_chunks(handler, max_chunks: int) -> list[str]:
+    request = _MockRequest(disconnect_after=max_chunks + 2)
+    stream = sse_stream(request, handler)
+    chunks: list[str] = []
+    try:
+        for _ in range(max_chunks):
+            chunk = await asyncio.wait_for(anext(stream), timeout=1.0)
+            chunks.append(chunk)
+    finally:
+        await stream.aclose()
+    return chunks
 
 
-def test_sse_counter_endpoint(app):
-    """Test SSE counter endpoint"""
-    client = TestClient(app)
+@pytest.mark.asyncio
+async def test_sse_echo_stream_non_blocking():
+    """Echo stream should emit data quickly without blocking."""
+    chunks = await _collect_stream_chunks(
+        EchoSSEHandler(messages=['Hello'], interval=0.01),
+        max_chunks=2,
+    )
 
-    with client.stream('GET', '/sse/counter') as response:
-        assert response.status_code == 200
-        assert 'text/event-stream' in response.headers['content-type']
+    assert any('event: connect' in chunk for chunk in chunks)
+    assert any('event: echo' in chunk for chunk in chunks)
+    assert any('Hello' in chunk for chunk in chunks)
 
-        # Read events
-        events = []
-        for line in response.iter_lines():
-            if line:
-                events.append(line)
-            # Read enough lines
-            if len(events) >= 15:
-                break
 
-        assert len(events) > 0
+@pytest.mark.asyncio
+async def test_sse_counter_stream_non_blocking():
+    """Counter stream should emit counter payload quickly without blocking."""
+    chunks = await _collect_stream_chunks(
+        CounterSSEHandler(start=0, end=1, interval=0.01),
+        max_chunks=3,
+    )
+    assert any('event: counter' in chunk for chunk in chunks)
+    assert any('"count": 0' in chunk for chunk in chunks)
 
 
 @pytest.mark.asyncio

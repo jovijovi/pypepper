@@ -4,14 +4,13 @@ from typing import Any
 
 from fastapi.sse import ServerSentEvent
 
-from pypepper.event.event import Event
 from pypepper.network.http.sse.interfaces import ISSEEvent
 
 
 class SSEEvent(ISSEEvent):
     """
     SSE Event wrapper
-    Compatible with PyPepper Event and FastAPI ServerSentEvent
+    Independent event definition for FastAPI ServerSentEvent
     """
 
     def __init__(
@@ -52,46 +51,6 @@ class SSEEvent(ISSEEvent):
             id=self.id,
             retry=self.retry,
             comment=self.comment,
-        )
-
-    @classmethod
-    def from_pypepper_event(
-        cls,
-        event: Event,
-        event_type: str | None = None,
-    ) -> SSEEvent:
-        """
-        Convert from PyPepper Event
-
-        :param event: PyPepper Event object
-        :param event_type: SSE event type (defaults to event.data.name)
-        :return: SSEEvent instance
-        """
-        return cls(
-            data={
-                'header': {
-                    'namespace': event.data.header.namespace,
-                    'request_id': event.data.header.request_id,
-                    'sender': event.data.header.sender,
-                    'id': event.data.header.id,
-                    'timestamp': str(event.data.header.timestamp),
-                    'version': event.data.header.version,
-                },
-                'flow': event.data.flow,
-                'name': event.data.name,
-                'src': event.data.src,
-                'payload': {
-                    'id': event.data.payload.id,
-                    'category': event.data.payload.category,
-                    'raw': (
-                        event.data.payload.raw.decode()
-                        if isinstance(event.data.payload.raw, bytes)
-                        else event.data.payload.raw
-                    ),
-                },
-            },
-            event=event_type or event.data.name,
-            id=event.data.header.id,
         )
 
     @staticmethod

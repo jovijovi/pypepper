@@ -1,6 +1,5 @@
 import pytest
 
-from pypepper.event import event as pypepper_event
 from pypepper.network.http.sse.event import SSEEvent, new_sse_event
 
 
@@ -36,29 +35,9 @@ def test_sse_event_to_server_sent_event():
     assert server_sent_event.id == 'evt-1'
 
 
-def test_sse_event_from_pypepper_event():
-    """Test conversion from PyPepper Event"""
-    # Create PyPepper Event
-    evt = pypepper_event.new(name='TestEvent', src='test-source')
-    evt.set_event_namespace('test-namespace')
-    evt.set_sender('test-sender')
-    evt.add_payload(
-        payload_id='payload-1',
-        category='test',
-        raw=b'test data',
-    )
-
-    # Convert to SSE Event
-    sse_event = SSEEvent.from_pypepper_event(evt, event_type='custom-event')
-
-    assert sse_event is not None
-    assert sse_event.event == 'custom-event'
-    assert sse_event.data['name'] == 'TestEvent'
-    assert sse_event.data['src'] == 'test-source'
-    assert sse_event.data['header']['namespace'] == 'test-namespace'
-    assert sse_event.data['header']['sender'] == 'test-sender'
-    assert sse_event.data['payload']['id'] == 'payload-1'
-    assert sse_event.data['payload']['category'] == 'test'
+def test_sse_event_is_independent_from_pypepper_event():
+    """SSE event API should not depend on pypepper.event."""
+    assert not hasattr(SSEEvent, 'from_pypepper_event')
 
 
 def test_sse_event_ping():
