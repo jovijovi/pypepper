@@ -27,7 +27,8 @@
 - Run `make test` before opening a PR.
 
 ## Commit & Pull Request Guidelines
-- Follow Conventional Commit style seen in history: `feat(scope): ...`, `fix(scope): ...`, `docs: ...`, `build: ...`, `test(scope): ...`.
+- Commit messages MUST follow Conventional Commits 1.0.0: `https://www.conventionalcommits.org/en/v1.0.0/`.
+- Do not create non-conforming commit messages; use types such as `feat`, `fix`, `docs`, `build`, `test`, with optional scope (for example, `feat(network/http): add sse`).
 - Keep subjects imperative and scoped (example: `feat(network/http): add sse`).
 - Use `.github/pull_request_template.md`: provide problem/fix summary, scope, linked issue, security impact, repro steps, and evidence.
 - Include human verification notes and clearly state any unverified areas.
