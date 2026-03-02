@@ -1,9 +1,28 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
-COMMAND=${1}
-SERVICE_NAME=${2}
+COMMAND=${1:-}
+SERVICE_NAME=${2:-}
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+DEV_FILE="${SCRIPT_DIR}/dev.yaml"
+
+
+function detectComposeCmd() {
+  # Prefer the modern plugin command.
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    echo "docker compose"
+    return 0
+  fi
+
+  # Fallback for legacy Docker Compose v1.
+  if command -v docker-compose >/dev/null 2>&1; then
+    echo "docker-compose"
+    return 0
+  fi
+
+  echo ""
+}
 
 # Print the usage message
 function printHelp() {
@@ -22,17 +41,41 @@ function printHelp() {
   echo "  ./dev.sh down"
   echo "  ./dev.sh up mysql"
   echo "  ./dev.sh stop mysql"
+  echo
+  echo "This script auto-detects compose command:"
+  echo "  1) docker compose"
+  echo "  2) docker-compose"
 }
+
+COMPOSE_CMD=$(detectComposeCmd)
+if [[ -z "${COMPOSE_CMD}" ]]; then
+  echo "Error: neither 'docker compose' nor 'docker-compose' is available." >&2
+  exit 1
+fi
+
+function compose() {
+  ${COMPOSE_CMD} -f "${DEV_FILE}" "$@"
+}
+
+echo "## Using compose command: ${COMPOSE_CMD}"
 
 if [[ "${COMMAND}" == "up" ]]; then
   echo "## Creating dev env..."
-  docker compose -f dev.yaml up -d ${SERVICE_NAME}
+  if [[ -n "${SERVICE_NAME}" ]]; then
+    compose up -d "${SERVICE_NAME}"
+  else
+    compose up -d
+  fi
 elif [[ "${COMMAND}" == "down" ]]; then
   echo "## Shutting down dev env..."
-  docker compose -f dev.yaml down
+  compose down
 elif [[ "${COMMAND}" == "stop" ]]; then
   echo "## Stopping service..."
-  docker compose -f dev.yaml stop ${SERVICE_NAME}
+  if [[ -n "${SERVICE_NAME}" ]]; then
+    compose stop "${SERVICE_NAME}"
+  else
+    compose stop
+  fi
 else
   printHelp
   exit 1
@@ -40,4 +83,6 @@ fi
 
 echo "## Done."
 
-docker ps
+if command -v docker >/dev/null 2>&1; then
+  docker ps
+fi

@@ -1,6 +1,6 @@
 APP_NAME:=pypepper
 OS:=linux
-PYTHON_VER:=3.13.11
+PYTHON_VER:=3.13.12
 IMAGE_TAG:=slim-trixie
 
 PROJECT_DIR:=$(shell pwd -L)
@@ -27,7 +27,7 @@ all: test clean docker
 build-prepare: clean
 	@echo "[BUILD] Prepare for building..."
 	mkdir -p $(APP_DIR)
-	python -m pip install -r requirements-dev.txt
+	uv pip install -r requirements-dev.txt
 
 test: clean
 	@echo "[BUILD] Testing"
@@ -35,7 +35,7 @@ test: clean
 
 build: build-prepare
 	@echo "[BUILD] Building binary"
-	python -m pip install -r requirements.txt
+	uv pip install -r requirements.txt
 	python ./scripts/build.py
 	@echo $(VERSION_INFO) > $(APP_DIR)/git.json
 
@@ -52,7 +52,7 @@ docker:
 	  -t $(APP_NAME):$(APP_TAG) .
 	docker tag $(APP_NAME):$(APP_TAG) $(APP_NAME):latest
 	docker images|grep $(APP_NAME)
-	@echo "[BUILD] Build docker image done"
+	@echo "[BUILD] The Docker image has been built."
 
 clean:
 	@echo "[BUILD] Cleaning..."

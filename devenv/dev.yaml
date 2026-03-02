@@ -4,7 +4,7 @@ networks:
 services:
   mysql:
     container_name: devenv_mysql_pypepper
-    image: mysql:8.0.30
+    image: mysql:8.0.45
     command: --default-authentication-plugin=mysql_native_password
     restart: always
     environment:
@@ -20,7 +20,7 @@ services:
 
   mongo:
     container_name: devenv_mongodb_pypepper
-    image: mongo:5.0.14
+    image: mongo:8.0.19
     command: --auth
     restart: always
     environment:
@@ -37,12 +37,27 @@ services:
 
   mongo-express:
     container_name: devenv_mongo_express_pypepper
-    image: mongo-express:0.54.0
+    image: mongo-express:1.0.2-20-alpine3.19
     restart: always
     ports:
       - "8081:8081"
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: root
-      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
+    networks:
+      - devenv-network-pypepper
+
+  postgres:
+    container_name: devenv_postgres_pypepper
+    image: postgres:18.2
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: mock_pypepper
+    volumes:
+      - ../.data/postgres_data:/var/lib/postgresql
+      - ./init/postgres:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
     networks:
       - devenv-network-pypepper

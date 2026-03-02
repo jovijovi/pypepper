@@ -34,6 +34,34 @@ log:
   level: TRACE
   colorize: True
 
+# SSE (Server-Sent Events) settings
+sse:
+  enabled: true
+
+  # Connection limits (for 100 concurrent users)
+  maxTotalConnections: 100
+  maxConnectionsPerIP: 5
+
+  # Queue configuration
+  maxQueueSize: 500
+
+  # Timeout configuration
+  streamTimeoutSeconds: 30
+  heartbeatIntervalSeconds: 15
+
+  # API Key authentication
+  authentication:
+    enabled: true
+    # Valid API Keys (replace with your own keys)
+    validKeys:
+      - "dev-api-key-123"
+      - "test-api-key-456"
+
+  # Rate limiting
+  rateLimit:
+    enabled: true
+    maxRequestsPerMinute: 60
+
 # Custom config (Optional)
 custom:
   foo: "Something interesting"
