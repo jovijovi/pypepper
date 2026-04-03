@@ -1,8 +1,8 @@
 arrow==1.4.0
 cachetools==7.0.5
-cryptography==46.0.5
-fastapi==0.135.1
-uvicorn==0.41.0
+cryptography==46.0.6
+fastapi==0.135.3
+uvicorn==0.42.0
 loguru==0.7.3
 mongoengine==0.29.3
 python-box==7.4.1
