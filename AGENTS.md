@@ -1,5 +1,20 @@
 # Repository Guidelines
 
+## AI-Collaborative Development (Lithos)
+
+This repository follows the [Lithos](https://github.com/jovijovi/lithos)
+human–AI collaboration standard at the lighter-governed-workflow depth.
+[`docs/AI_FLOW.md`](docs/AI_FLOW.md) is the single source of truth for roles, the
+four approval gates, working discipline, environment/sandbox boundaries, and the
+definition of done — read it before implementing. The conformance claim is
+declared in [`docs/lithos/adoption-manifest.json`](docs/lithos/adoption-manifest.json),
+and [`docs/lithos/evaluation-report.md`](docs/lithos/evaluation-report.md) records
+effects, friction, and the remaining gaps. Before offering work as done, run the
+local gates from the repo root with `make lithos-verify` (static safety scan plus
+manifest conformance) and report the result. These gates are safety/declaration
+evidence only — they prove no behavior and authorize no merge, release, or
+external action; those remain with the human owner.
+
 ## Project Structure & Module Organization
 - Core library code lives in `pypepper/`, grouped by domain: `common/`, `event/`, `fsm/`, `helper/`, `network/`, and `scheduler/`.
 - Tests mirror package structure under `tests/` (for example, `pypepper/scheduler/workflow.py` -> `tests/scheduler/test_workflow.py`).

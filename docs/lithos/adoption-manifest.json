@@ -1,0 +1,52 @@
+{
+  "_comment": "PyPepper Lithos adoption manifest. A declaration of conformance, not an authorization: it grants no permission and clears no approval gate. Validate with: python3 scripts/verify_lithos_conformance.py. Field reference: Lithos docs/conformance-and-fixtures.md (https://github.com/jovijovi/lithos).",
+  "manifest_version": "1.0",
+  "lithos_version": "1.x",
+  "adoption_profile": "lighter-governed-workflow",
+  "conformance_claim": {
+    "claims_conformance": true,
+    "statement": "PyPepper adopts Lithos 1.x at the lighter-governed-workflow depth on the test/lithos-adoption-evaluation branch; runtime behavior is unchanged and the governed surface is the Lithos adoption documents and scripts, not the pre-existing pypepper/ runtime tree."
+  },
+  "local_workflow_file": "docs/AI_FLOW.md",
+  "roles": {
+    "owner": { "assigned_to": "the PyPepper maintainer (GitHub: jovijovi)", "human": true },
+    "controller": { "assigned_to": "the maintainer, or an orchestrating agent acting under the maintainer's instruction" },
+    "architect": { "assigned_to": "the maintainer, who owns design and acceptance criteria" },
+    "implementation_agent": { "assigned_to": "a contributing engineer or an AI agent working within approved scope" },
+    "reviewer": { "assigned_to": "a contributor or review agent independent of the implementation" },
+    "verifier": { "assigned_to": "the GitHub Actions Test workflow plus the independent reviewer" }
+  },
+  "approval_gates": {
+    "preparation": { "owner_approval_required": false, "standing_authorization": true },
+    "implementation": { "owner_approval_required": true, "granted_by": "owner" },
+    "destructive_external": { "owner_approval_required": true, "granted_by": "owner", "per_action": true },
+    "live_runtime": { "in_scope": false, "owner_approval_required": true, "separate_controls_required": true }
+  },
+  "approval_authority": {
+    "holder": "owner",
+    "delegable_to_agent": false,
+    "separate_from_verification_evidence": true,
+    "separate_from_run_records": true
+  },
+  "verification": {
+    "evidence_required": true,
+    "independent_of_implementation": true
+  },
+  "autonomous_pr_policy": {
+    "agent_may_open_pr": true,
+    "agent_may_update_pr": true,
+    "agent_self_approval": false,
+    "agent_self_merge": false,
+    "ownerless_auto_merge": false,
+    "ownerless_branch_deletion": false,
+    "ownerless_release_or_publish": false,
+    "live_or_runtime_default_on": false,
+    "owner_approval_required_for": [
+      "merge",
+      "branch-deletion",
+      "release-or-publish",
+      "live-runtime",
+      "external-destructive"
+    ]
+  }
+}

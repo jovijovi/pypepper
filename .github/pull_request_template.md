@@ -76,6 +76,18 @@ Attach at least one:
 - [ ] Screenshot/recording
 - [ ] Perf numbers (if relevant)
 
+## Lithos Adoption Gates
+
+This repository follows Lithos (see [`docs/AI_FLOW.md`](../docs/AI_FLOW.md)) at the
+lighter-governed-workflow depth. Run the local gates from the repo root and report the
+result (they are safety/declaration evidence only — they prove no behavior and clear no
+approval gate):
+
+- [ ] `make lithos-verify` passes (static safety scan + manifest conformance), or both scripts run individually:
+  - [ ] `python3 scripts/verify_static_safety.py`
+  - [ ] `python3 scripts/verify_lithos_conformance.py`
+- [ ] If governance docs/manifest changed, `docs/AI_FLOW.md`, `docs/lithos/adoption-manifest.json`, and `docs/lithos/evaluation-report.md` remain consistent.
+
 ## Human Verification (required)
 
 What you personally verified (not just CI), and how:

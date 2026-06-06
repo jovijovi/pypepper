@@ -20,7 +20,7 @@ APP_TAG=$(VERSION).$(BUILD_TIME)
 VERSION_INFO='{"version":"$(VERSION)","gitCommit":"$(GIT_COMMIT)","commitTime":"$(COMMIT_TIME)","buildTime":"$(BUILD_TIME)","pythonVersion":"$(PYTHON_VER)"}'
 
 
-.PHONY: build-prepare debug test build docker clean publish-test publish help
+.PHONY: build-prepare debug test build docker clean publish-test publish help lithos-verify
 
 all: test clean docker
 
@@ -68,6 +68,12 @@ publish-test: clean
 publish: clean
 	python3 -m build
 	python3 -m twine upload --repository pypi dist/*
+
+lithos-verify:
+	@echo "[LITHOS] Running adoption gates (static safety scan + manifest conformance)..."
+	python3 scripts/verify_static_safety.py
+	python3 scripts/verify_lithos_conformance.py
+	@echo "[LITHOS] Adoption gates passed."
 
 help:
 	@cat ./docs/makefile/help.txt

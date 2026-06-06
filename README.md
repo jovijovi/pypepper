@@ -102,6 +102,17 @@ Module loader.
   make clean
   ```
 
+## :handshake: AI-Collaborative Development
+
+Human–AI collaboration on PyPepper follows the
+[Lithos](https://github.com/jovijovi/lithos) standard at the lighter-governed-workflow
+depth. The single source of truth is [`docs/AI_FLOW.md`](docs/AI_FLOW.md); the
+conformance claim is declared in
+[`docs/lithos/adoption-manifest.json`](docs/lithos/adoption-manifest.json), and
+[`docs/lithos/evaluation-report.md`](docs/lithos/evaluation-report.md) records the
+effects, friction, and remaining gaps. Run the local governance gates from the repo
+root with `make lithos-verify` (static safety scan plus manifest conformance).
+
 ## :bulb: Roadmap
 
 - [ ] Documents
