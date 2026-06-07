@@ -76,6 +76,17 @@ Attach at least one:
 - [ ] Screenshot/recording
 - [ ] Perf numbers (if relevant)
 
+## Lithos / Governance Evidence
+
+Required for Lithos adoption/evaluation or governance-surface PRs:
+
+- [ ] Claim uses one `full-lifecycle-governance` model (`full-lifecycle governance` in prose); no separate conformance tiers.
+- [ ] `python scripts/verify_lithos_adoption.py` was run, or this PR explains why it is not applicable.
+- [ ] Product behavior evidence is separate from static safety evidence.
+- [ ] Static safety scan scope is stated (`adoption surface` or explicit broader scan).
+- [ ] Hermes / Claude Code / Codex role split and any deviations are stated.
+- [ ] Unverified areas and non-approvals are explicit.
+
 ## Human Verification (required)
 
 What you personally verified (not just CI), and how:

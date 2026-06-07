@@ -1,0 +1,62 @@
+{
+  "_comment": "PyPepper Lithos adoption manifest. A declaration of conformance, not an authorization: it grants no permission and clears no approval gate. Field reference: Lithos docs/conformance-and-fixtures.md.",
+  "manifest_version": "1.0",
+  "lithos_version": "1.x",
+  "governance_model": "full-lifecycle-governance",
+  "conformance_claim": {
+    "claims_conformance": true,
+    "statement": "PyPepper conforms to Lithos 1.x under the full-lifecycle governance model on the test/lithos-adoption-effects evaluation branch."
+  },
+  "local_workflow_file": "docs/AI_FLOW.md",
+  "roles": {
+    "owner": { "assigned_to": "PyPepper maintainer (human owner)", "human": true },
+    "controller": { "assigned_to": "Hermes (PM/controller under owner instruction)" },
+    "architect": { "assigned_to": "Hermes (evaluation plan and acceptance criteria), owner sign-off" },
+    "implementation_agent": { "assigned_to": "Claude Code (Opus) documentation engineer" },
+    "reviewer": { "assigned_to": "Codex CLI (independent of implementation)" },
+    "verifier": { "assigned_to": "Codex CLI and Hermes (independent of implementation)" }
+  },
+  "approval_gates": {
+    "preparation": { "owner_approval_required": false, "standing_authorization": true },
+    "implementation": { "owner_approval_required": true, "granted_by": "owner" },
+    "destructive_external": { "owner_approval_required": true, "granted_by": "owner", "per_action": true },
+    "live_runtime": { "in_scope": false, "owner_approval_required": true, "separate_controls_required": true }
+  },
+  "approval_authority": {
+    "holder": "owner",
+    "delegable_to_agent": false,
+    "separate_from_verification_evidence": true,
+    "separate_from_run_records": true
+  },
+  "verification": {
+    "evidence_required": true,
+    "independent_of_implementation": true
+  },
+  "autonomous_pr_policy": {
+    "agent_may_open_pr": false,
+    "agent_may_update_pr": false,
+    "agent_self_approval": false,
+    "agent_self_merge": false,
+    "ownerless_auto_merge": false,
+    "ownerless_branch_deletion": false,
+    "ownerless_release_or_publish": false,
+    "live_or_runtime_default_on": false,
+    "owner_approval_required_for": [
+      "open-pr",
+      "merge",
+      "branch-deletion",
+      "release-or-publish",
+      "live-runtime",
+      "external-destructive"
+    ]
+  },
+  "knowledge_governance": {
+    "dev_log": "docs/dev_log/",
+    "lessons": "docs/lessons/",
+    "practices": "docs/practices/",
+    "generated_index": "docs/INDEX.md",
+    "drift_report": "docs/lessons/_drift_report.md",
+    "evidence_retention": "Development logs, lessons, practices, and verification outputs live under docs/ and in the branch pull-request thread for the life of this evaluation branch.",
+    "stale_knowledge_handling": "use-driven validation; archived, superseded, and deprecated records are immutable"
+  }
+}

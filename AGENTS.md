@@ -32,3 +32,12 @@
 - Keep subjects imperative and scoped (example: `feat(network/http): add sse`).
 - Use `.github/pull_request_template.md`: provide problem/fix summary, scope, linked issue, security impact, repro steps, and evidence.
 - Include human verification notes and clearly state any unverified areas.
+
+## Lithos adoption evaluation
+- On `test/lithos-adoption-effects`, read `GOAL.md`, `docs/AI_FLOW.md`, and `docs/lithos/evaluation-plan.md` before changing the governance surface.
+- Hermes is the controller/verifier/repo operator: scope, worktree/PR operations, evidence arbitration, and final reporting.
+- Claude Code is the implementation/documentation engineer for adoption artifacts and does not self-approve, commit, push, or merge.
+- Codex CLI is the independent primary reviewer/evaluator and performs blocker-only re-review after fixes.
+- Keep the branch under one Lithos `full-lifecycle-governance` model; do not introduce separate conformance tiers.
+- Do not change `pypepper/` runtime behavior, product tests, public ingress, release/publish behavior, or secret handling without explicit human approval.
+- For adoption changes, run `python scripts/verify_lithos_adoption.py`, `uv run make test` when behavior non-regression is claimed, and `git diff --check` before PR updates.
