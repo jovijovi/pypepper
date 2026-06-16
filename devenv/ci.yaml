@@ -37,7 +37,7 @@ services:
 
   postgres:
     container_name: devenv_postgres_pypepper
-    image: postgres:18.2
+    image: postgres:18.4
     restart: 'no'
     environment:
       POSTGRES_USER: postgres
