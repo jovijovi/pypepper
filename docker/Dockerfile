@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.23.0
+# syntax=docker/dockerfile:1.24.0
 
 # Global args
 ARG PYTHON_VER=3.13
