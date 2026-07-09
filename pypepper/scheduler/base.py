@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABCMeta
 
 from pypepper.common.context import Context
@@ -10,7 +12,7 @@ class IBase(metaclass=ABCMeta):
     dag_id: str
     fingerprint: str
     name: str
-    category: str
+    category: str | None
     description: str
     status: str
     created: str

@@ -52,10 +52,7 @@ class Workflow(IWorkflow):
                 return executor.execute(task, task.context)
             except Exception as e:
                 last_error = e
-                log.warn(
-                    f"Task failed: id={task.id}, name={task.name}, "
-                    f"attempt={attempt + 1}/{attempts}, error={e}"
-                )
+                log.warn(f"Task failed: id={task.id}, name={task.name}, attempt={attempt + 1}/{attempts}, error={e}")
                 if attempt + 1 < attempts and task.retry_delay:
                     time.sleep(task.retry_delay)
 
@@ -63,4 +60,4 @@ class Workflow(IWorkflow):
             log.warn(f"Optional task failed, continuing: id={task.id}, error={last_error}")
             return None
 
-        raise last_error if last_error else RuntimeError(f'Task failed: {task.id}')
+        raise last_error if last_error else RuntimeError(f"Task failed: {task.id}")

@@ -29,7 +29,7 @@ class Worker:
     async def _process(self, job: Job):
         job._fsm.on(events.RUN)
         try:
-            workflows = getattr(job, 'workflows', None) or []
+            workflows = getattr(job, "workflows", None) or []
             for workflow in workflows:
                 # Workflow.run is sync; offload to thread if needed later
                 await asyncio.to_thread(workflow.run)

@@ -27,31 +27,33 @@ class Processor:
 class Dispatcher:
     _instance: Dispatcher | None = None
     _init_lock = Lock()
+    _lock: Lock
+    _processors: MutableMapping[str, Processor]
 
-    def __new__(cls):
+    def __new__(cls) -> Dispatcher:
         with cls._init_lock:
             if cls._instance is None:
                 inst = super().__new__(cls)
                 inst._lock = Lock()
-                inst._processors: MutableMapping[str, Processor] = {}
+                inst._processors = {}
                 cls._instance = inst
             return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def _put_processor(self, key: str, processor: Processor) -> None:
-        assert key, 'invalid key'
-        assert processor, 'invalid processor'
+        assert key, "invalid key"
+        assert processor, "invalid processor"
 
         with self._lock:
             self._processors[key] = processor
 
     def _get_processor(self, key) -> Processor | None:
-        assert key, 'invalid key'
+        assert key, "invalid key"
 
         with self._lock:
-            if 0 == len(self._processors):
+            if len(self._processors) == 0:
                 return None
 
             return self._processors.get(key)
@@ -99,9 +101,9 @@ class IJob(IBase, metaclass=ABCMeta):
 
 
 class Job(IJob):
-    def __init__(self, category: str = None, channel_id: str = 'default'):
+    def __init__(self, category: str | None = None, channel_id: str = "default"):
         self.id = uuid.new_uuid()
-        self.category = category
+        self.category: str | None = category
         self.channel_id = channel_id
         self.context = Context(context_id=uuid.new_uuid())
         self.workflows: list[Workflow] = []

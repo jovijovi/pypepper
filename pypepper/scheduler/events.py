@@ -3,15 +3,15 @@ from pypepper.event.event import Event
 from pypepper.fsm import fsm
 from pypepper.scheduler.status import Status
 
-INIT = event.new(name='init', src=Status.UNKNOWN)
-SCHEDULE = event.new(name='schedule', src=Status.INITIALIZING)
-RUN = event.new(name='run', src=Status.SCHEDULED)
-FAIL = event.new(name='fail', src=Status.IN_PROGRESS)
-COMPLETE = event.new(name='complete', src=Status.IN_PROGRESS)
-CANCEL = event.new(name='cancel', src=Status.IN_PROGRESS)
+INIT = event.new(name="init", src=Status.UNKNOWN)
+SCHEDULE = event.new(name="schedule", src=Status.INITIALIZING)
+RUN = event.new(name="run", src=Status.SCHEDULED)
+FAIL = event.new(name="fail", src=Status.IN_PROGRESS)
+COMPLETE = event.new(name="complete", src=Status.IN_PROGRESS)
+CANCEL = event.new(name="cancel", src=Status.IN_PROGRESS)
 
 _OPTIONS = fsm.Options(
-    fsm_id='scheduler_fsm',
+    fsm_id="scheduler_fsm",
     initial=fsm.State(Status.UNKNOWN),
     transitions=[
         fsm.Transition(
@@ -44,7 +44,7 @@ _OPTIONS = fsm.Options(
             from_state=[fsm.State(Status.IN_PROGRESS)],
             to_state=fsm.State(Status.CANCELLED),
         ),
-    ]
+    ],
 )
 
 
