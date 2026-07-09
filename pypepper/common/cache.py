@@ -15,10 +15,11 @@ class Cache(TTLCache):
     default_cache_maxsize = 128
     default_cache_ttl = 60
 
-    def __init__(self,
-                 maxsize: int = default_cache_maxsize,
-                 ttl: float = default_cache_ttl,
-                 ):
+    def __init__(
+        self,
+        maxsize: int = default_cache_maxsize,
+        ttl: float = default_cache_ttl,
+    ):
         super().__init__(maxsize, ttl)
         self._lock = Lock()
 
@@ -36,18 +37,19 @@ class Cache(TTLCache):
             except ValueError:
                 return None
 
-    def get(self, key: Any) -> Any | None:
+    def get(self, key: Any, default: Any = None) -> Any | None:
         """
         Get value
         :param key: cache key
+        :param default: default value when missing
         :return: cache value
         """
 
         with self._lock:
             try:
-                return self[key] if key else None
+                return self[key] if key else default
             except KeyError:
-                return None
+                return default
 
 
 class CacheSet:
@@ -58,11 +60,12 @@ class CacheSet:
     def __init__(self):
         self._cache_store: MutableMapping[str, Cache] = {}
 
-    def new(self,
-            name: str,
-            maxsize: int = Cache.default_cache_maxsize,
-            ttl: float = Cache.default_cache_ttl,
-            ) -> Cache:
+    def new(
+        self,
+        name: str,
+        maxsize: int = Cache.default_cache_maxsize,
+        ttl: float = Cache.default_cache_ttl,
+    ) -> Cache:
         """
         New a cache in cache-set
         :param name: cache name

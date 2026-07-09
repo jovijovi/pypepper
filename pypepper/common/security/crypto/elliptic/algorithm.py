@@ -32,4 +32,4 @@ def get_hash_algorithm(alg_: str) -> HashAlgorithm:
     alg = alg_.lower()
     if alg not in hash_algorithms:
         raise InternalException(ERROR_INVALID_ALGORITHM)
-    return hash_algorithms.get(alg)
+    return hash_algorithms[alg]

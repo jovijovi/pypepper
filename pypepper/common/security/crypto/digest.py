@@ -1,7 +1,6 @@
 import hashlib
-from typing import Union
 
-BinaryLike = Union[str, bytes, bytearray, memoryview]
+BinaryLike = str | bytes | bytearray | memoryview
 
 
 def get(data: BinaryLike, alg: str) -> bytes:
@@ -15,7 +14,7 @@ def get(data: BinaryLike, alg: str) -> bytes:
     h = hashlib.new(alg)
 
     if isinstance(data, str):
-        h.update(bytes(data, 'UTF-8'))
+        h.update(bytes(data, "UTF-8"))
     else:
         h.update(data)
 

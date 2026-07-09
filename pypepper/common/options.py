@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from collections.abc import Callable
-from typing import TypeVar, Any
+from typing import Any
 
 from pypepper.common.context.context import IContext
 from pypepper.common.context.context import new as new_context
@@ -21,11 +21,7 @@ class IOptions(metaclass=ABCMeta):
         self.dryrun = dryrun
 
 
-T = TypeVar("T", bound=IOptions)
-F = TypeVar('F', bound=Callable[..., Any])
-
-
-def new(option_funcs: tuple[F, ...] | None = ()) -> T:
+def new(option_funcs: tuple[Callable[[IOptions], Any], ...] | None = ()) -> IOptions:
     """
     New options.
     :param option_funcs: option functions.
@@ -37,13 +33,13 @@ def new(option_funcs: tuple[F, ...] | None = ()) -> T:
         context=new_context(),
     )
 
-    for func in option_funcs:
+    for func in option_funcs or ():
         func(opts)
 
     return opts
 
 
-def with_context(ctx: IContext) -> F:
+def with_context(ctx: IContext) -> Callable[[IOptions], Any]:
     """
     With context options
     :param ctx: context
@@ -56,7 +52,7 @@ def with_context(ctx: IContext) -> F:
     return f
 
 
-def with_dryrun(is_dryrun: bool) -> F:
+def with_dryrun(is_dryrun: bool) -> Callable[[IOptions], Any]:
     """
     With dryrun options
     :param is_dryrun: dryrun True/False

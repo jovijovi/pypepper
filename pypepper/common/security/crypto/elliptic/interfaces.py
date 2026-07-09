@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABCMeta
+from abc import ABCMeta, abstractmethod
 
 
 class IElliptic(metaclass=ABCMeta):
@@ -6,7 +6,7 @@ class IElliptic(metaclass=ABCMeta):
     def new_key_pair(self): ...
 
     @abstractmethod
-    def sign(self, data: bytes, certificate: bytes, hash_alg: str, passphrase: bytes = None): ...
+    def sign(self, data: bytes, certificate: bytes, hash_alg: str, passphrase: bytes | None = None): ...
 
     @abstractmethod
     def verify(self, data: bytes, certificate: bytes, sig: bytes, hash_alg: str): ...

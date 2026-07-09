@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, TypeVar, ParamSpec
+from typing import Any, ParamSpec, TypeVar
 
 from pypepper.common.context.interfaces import IContext
 from pypepper.common.utils import uuid
+from pypepper.errors import ERROR_CONTEXT_INDEX_NOT_FOUND
+from pypepper.exceptions import InternalException
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -15,10 +17,11 @@ class Context(IContext):
     Context
     """
 
-    def __init__(self,
-                 context_id: str | None = None,
-                 parent: IContext | None = None,
-                 ):
+    def __init__(
+        self,
+        context_id: str | None = None,
+        parent: IContext | None = None,
+    ):
         self.index = 0
         self.context_id = context_id
         self.context = {}
@@ -43,10 +46,14 @@ class Context(IContext):
         Trace to the context by index.
         :param index: context index.
         :return: Context.
+        :raises InternalException: if the index is not present in the chain
         """
 
         if self.index == index:
             return self
+
+        if self.parent is None:
+            raise InternalException(ERROR_CONTEXT_INDEX_NOT_FOUND)
 
         return self.parent.trace(index)
 
@@ -68,8 +75,8 @@ class Context(IContext):
 
 
 def new(
-        context_id: str | None = None,
-        parent: Context | None = None,
+    context_id: str | None = None,
+    parent: Context | None = None,
 ) -> Context:
     """
     New context.
@@ -85,9 +92,9 @@ def new(
 
 
 def born(
-        length: int,
-        parent: Context | None = None,
-        id_provider: Callable[P, T] | None = None,
+    length: int,
+    parent: Context | None = None,
+    id_provider: Callable[P, T] | None = None,
 ) -> Context:
     """
     Born the context chain.
@@ -101,20 +108,13 @@ def born(
         if parent.index == length - 1:
             return parent
 
-        child = new(
-            parent=parent,
-            context_id=id_provider() if id_provider else uuid.new_uuid()
-        )
+        next_id = id_provider() if id_provider is not None else uuid.new_uuid()  # type: ignore[call-arg]
+        child = new(parent=parent, context_id=str(next_id))
 
-        return born(
-            length=length,
-            parent=child,
-            id_provider=id_provider
-        )
+        return born(length=length, parent=child, id_provider=id_provider)
 
-    head = new(
-        context_id=id_provider() if id_provider else uuid.new_uuid()
-    )
+    next_id = id_provider() if id_provider is not None else uuid.new_uuid()  # type: ignore[call-arg]
+    head = new(context_id=str(next_id))
 
     return born(
         length=length,

@@ -2,6 +2,7 @@ import pytest
 
 from pypepper.common.context import context
 from pypepper.common.utils.uuid import new_uuid_32bits
+from pypepper.exceptions import InternalException
 
 
 def test_new_context():
@@ -92,6 +93,20 @@ def test_get_chain_head():
     )
     print("Head=", ctx.head().context_id)
     print("Tail=", ctx.context_id)
+
+
+def test_trace_raises_for_missing_index():
+    root = context.new(context_id="root")
+    child = context.new(parent=root, context_id="child")
+
+    with pytest.raises(InternalException, match="context index not found"):
+        root.trace(1)
+
+    with pytest.raises(InternalException, match="context index not found"):
+        child.trace(99)
+
+    with pytest.raises(InternalException, match="context index not found"):
+        child.trace(-1)
 
 
 if __name__ == '__main__':

@@ -11,8 +11,8 @@ class IContext(metaclass=ABCMeta):
     """
 
     index: int
-    context_id: str
-    context: MutableMapping[Any, Any] | None
+    context_id: str | None
+    context: MutableMapping[Any, Any]
     parent: IContext | None
 
     @abstractmethod
