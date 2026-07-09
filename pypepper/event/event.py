@@ -3,20 +3,20 @@ from __future__ import annotations
 import base64
 import json
 from datetime import datetime
+
 from pypepper.common.security.crypto import digest
 from pypepper.common.security.crypto.elliptic.ecdsa import ecdsa
-from pypepper.common.utils import time
-from pypepper.common.utils import uuid
-from pypepper.event.interfaces import IHeader, IPayload, IData, IEvent
+from pypepper.common.utils import time, uuid
+from pypepper.event.interfaces import IData, IEvent, IHeader, IPayload
 
 
 class Header(IHeader):
-    default_version = '1'
+    default_version = "1"
 
     def __init__(self):
-        self.namespace = ''
-        self.request_id = ''
-        self.sender = ''
+        self.namespace = ""
+        self.request_id = ""
+        self.sender = ""
         self.id = uuid.new_uuid()
         self.timestamp = time.get_utc_datetime()
         self.version = self.default_version
@@ -24,8 +24,8 @@ class Header(IHeader):
 
 class Payload(IPayload):
     def __init__(self, dict_: dict | None = None):
-        self.id = ''
-        self.category = ''
+        self.id = ""
+        self.category = ""
         self.digest = None
         self.raw = None
         if dict_:
@@ -35,9 +35,9 @@ class Payload(IPayload):
 
 class Data(IData):
     def __init__(self):
-        self.flow = ''
-        self.name = ''
-        self.src = ''
+        self.flow = ""
+        self.name = ""
+        self.src = ""
         self.header = Header()
         self.payload = Payload()
 
@@ -46,26 +46,26 @@ def _data_to_dict(data: IData) -> dict:
     header = data.header
     payload = data.payload
     return {
-        'flow': data.flow,
-        'name': data.name,
-        'src': data.src,
-        'header': {
-            'id': header.id,
-            'namespace': header.namespace,
-            'timestamp': header.timestamp.isoformat()
+        "flow": data.flow,
+        "name": data.name,
+        "src": data.src,
+        "header": {
+            "id": header.id,
+            "namespace": header.namespace,
+            "timestamp": header.timestamp.isoformat()
             if isinstance(header.timestamp, datetime)
             else str(header.timestamp),
-            'version': header.version,
-            'request_id': header.request_id,
-            'sender': header.sender,
+            "version": header.version,
+            "request_id": header.request_id,
+            "sender": header.sender,
         },
-        'payload': {
-            'id': payload.id,
-            'category': payload.category,
-            'digest': base64.b64encode(payload.digest).decode('ascii')
+        "payload": {
+            "id": payload.id,
+            "category": payload.category,
+            "digest": base64.b64encode(payload.digest).decode("ascii")
             if isinstance(payload.digest, (bytes, bytearray))
             else payload.digest,
-            'raw': base64.b64encode(payload.raw).decode('ascii')
+            "raw": base64.b64encode(payload.raw).decode("ascii")
             if isinstance(payload.raw, (bytes, bytearray))
             else payload.raw,
         },
@@ -108,9 +108,9 @@ class Event(IEvent):
         self.data.payload = payload
 
     def add_payload(self, payload_id: str, category: str, raw: bytes, hash_alg: str | None = None) -> None:
-        assert payload_id, 'payload ID is empty'
-        assert category, 'category is empty'
-        assert raw, 'payload raw is empty'
+        assert payload_id, "payload ID is empty"
+        assert category, "category is empty"
+        assert raw, "payload raw is empty"
 
         self.data.payload.id = payload_id
         self.data.payload.category = category
@@ -122,27 +122,31 @@ class Event(IEvent):
     def _canonical_bytes(self) -> bytes:
         """Stable JSON encoding used for signing and marshaling."""
         payload = _data_to_dict(self.data)
-        return json.dumps(payload, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+        return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
-    def sign(self, certificate: bytes, hash_alg: str, passphrase: bytes = None) -> bytes:
+    def sign(self, certificate: bytes, hash_alg: str, passphrase: bytes | None = None) -> bytes:
         sig = ecdsa.sign(self._canonical_bytes(), certificate, hash_alg, passphrase)
         self.signature = sig
         return sig
 
     def verify(self, certificate: bytes, hash_alg: str) -> bool:
+        if self.signature is None:
+            return False
         return ecdsa.verify(self._canonical_bytes(), certificate, self.signature, hash_alg)
 
     def marshal(self) -> str:
         body = _data_to_dict(self.data)
         envelope = {
-            'data': body,
-            'signature': base64.b64encode(self.signature).decode('ascii') if self.signature else None,
+            "data": body,
+            "signature": base64.b64encode(self.signature).decode("ascii") if self.signature else None,
         }
-        return json.dumps(envelope, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+        return json.dumps(envelope, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def new(name: str | None = None, src: str | None = None) -> Event:
     evt = Event()
-    evt.set_name(name)
-    evt.set_src(src)
+    if name is not None:
+        evt.set_name(name)
+    if src is not None:
+        evt.set_src(src)
     return evt

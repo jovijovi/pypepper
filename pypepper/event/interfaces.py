@@ -179,17 +179,18 @@ class IEvent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def sign(self, certificate: str, hash_alg: str) -> bytes:
+    def sign(self, certificate: bytes, hash_alg: str, passphrase: bytes | None = None) -> bytes:
         """
         Sign event
         :param certificate: private key (PEM)
         :param hash_alg: hash algorithm
+        :param passphrase: optional private key passphrase
         :return: signature
         """
         pass
 
     @abstractmethod
-    def verify(self, certificate: str, hash_alg: str) -> bool:
+    def verify(self, certificate: bytes, hash_alg: str) -> bool:
         """
         Verify event signature
         :param certificate: public key (PEM)
