@@ -8,11 +8,14 @@
 
 ## Build, Test, and Development Commands
 - `make build-prepare`: clean output and install dev dependencies.
-- `make test`: run `pytest --cov=pypepper tests/` with cache cleared (default local validation).
+- `make lint`: run `ruff check`, `ruff format --check`, and `mypy` on `pypepper/`.
+- `make check`: run `make lint` plus `scripts/check_mutable_class_attrs.py`.
+- `make test`: run `make check` then `pytest --cov=pypepper tests/` with cache cleared (default local validation).
+- `make docs` / `make docs-serve`: build or preview the MkDocs Material site (`mkdocs build --strict`).
 - `make build`: install runtime deps, run `scripts/build.py`, and emit `dist/git.json` version metadata.
 - `make docker`: build and tag a local Docker image (`pypepper:latest` plus versioned tag).
 - `make clean`: remove `dist/`, `.pytest_cache`, and `.coverage`.
-- CI also uses `docker compose -f devenv/ci.yaml up -d` before tests for service-backed cases.
+- CI runs a dedicated lint/docs job first; the test matrix uses `docker compose -f devenv/ci.yaml up -d` for service-backed cases.
 
 ## Coding Style & Naming Conventions
 - Target Python `>=3.10, <=3.14`; use 4-space indentation and PEP 8 style.

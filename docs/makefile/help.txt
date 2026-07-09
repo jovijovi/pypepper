@@ -11,8 +11,20 @@
 - Clean:
   make clean
 
+- Lint (ruff + mypy):
+  make lint
+
+- Check (lint + mutable class attrs):
+  make check
+
 - Test:
   make test
+
+- Docs (mkdocs build --strict):
+  make docs
+
+- Docs preview:
+  make docs-serve
 
 - All:
   make all

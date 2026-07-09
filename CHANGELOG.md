@@ -27,3 +27,5 @@
 - Scheduler `CallableExecutor`, sequential `Workflow.run` with retries/optional tasks, and `Worker` channel consumer.
 - Structured `/metrics` payload (uptime + optional SSE stats).
 - `scripts/check_mutable_class_attrs.py` CI guard; isolation/rollback regression tests.
+- MkDocs Material documentation site (`docs/`, `mkdocs.yml`) with architecture and domain guides.
+- `ruff` + `mypy` lint gate (`make lint` / CI lint job) and `make docs` (`mkdocs build --strict`).
