@@ -20,7 +20,7 @@ APP_TAG=$(VERSION).$(BUILD_TIME)
 VERSION_INFO='{"version":"$(VERSION)","gitCommit":"$(GIT_COMMIT)","commitTime":"$(COMMIT_TIME)","buildTime":"$(BUILD_TIME)","pythonVersion":"$(PYTHON_VER)"}'
 
 
-.PHONY: build-prepare debug test build docker clean publish-test publish help check
+.PHONY: build-prepare debug test build docker clean publish-test publish help check lint docs docs-serve
 
 all: test clean docker
 
@@ -29,7 +29,21 @@ build-prepare: clean
 	mkdir -p $(APP_DIR)
 	uv pip install -r requirements-dev.txt
 
-check:
+lint:
+	@echo "[BUILD] Running ruff and mypy..."
+	ruff check pypepper
+	ruff format --check pypepper
+	mypy pypepper
+
+docs:
+	@echo "[BUILD] Building documentation..."
+	mkdocs build --strict
+
+docs-serve:
+	@echo "[BUILD] Serving documentation..."
+	mkdocs serve
+
+check: lint
 	@echo "[BUILD] Checking mutable class attributes..."
 	python3 ./scripts/check_mutable_class_attrs.py
 
