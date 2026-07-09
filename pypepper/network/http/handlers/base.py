@@ -22,16 +22,17 @@ async def ping():
 async def metrics(request: Request):
     log.request_id().info("Receive MetricsCheck. URL.Path={}", request.url.path)
     data = {
-        'uptime_seconds': round(time.time() - _PROCESS_START, 3),
-        'version': version.get_version_info(),
+        "uptime_seconds": round(time.time() - _PROCESS_START, 3),
+        "version": version.get_version_info(),
     }
     try:
         from pypepper.network.http.sse.connection import connection_manager
+
         stats = connection_manager.get_stats()
-        data['sse'] = {
-            'total_connections': stats.get('total_connections', 0),
-            'active_connections': stats.get('active_connections', 0),
-            'total_dropped_events': stats.get('total_dropped_events', 0),
+        data["sse"] = {
+            "total_connections": stats.get("total_connections", 0),
+            "active_connections": stats.get("active_connections", 0),
+            "total_dropped_events": stats.get("total_dropped_events", 0),
         }
     except Exception:
         pass

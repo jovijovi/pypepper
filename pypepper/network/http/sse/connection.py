@@ -46,7 +46,7 @@ class SSEConnection(ISSEConnection):
 
     @classmethod
     def max_queue_size(cls) -> int:
-        return int(_sse_config_value('maxQueueSize', cls.DEFAULT_MAX_QUEUE_SIZE))
+        return int(_sse_config_value("maxQueueSize", cls.DEFAULT_MAX_QUEUE_SIZE))
 
     async def send(self, event: ISSEEvent) -> bool:
         """
@@ -61,16 +61,13 @@ class SSEConnection(ISSEConnection):
         try:
             # Non-blocking mode: drop event if queue is full
             self._queue.put_nowait(event)
-            log.request_id(self.connection_id).debug(
-                f"SSE event sent: event={event.event}, id={event.id}"
-            )
+            log.request_id(self.connection_id).debug(f"SSE event sent: event={event.event}, id={event.id}")
             return True
 
         except asyncio.QueueFull:
             self._dropped_events += 1
             log.request_id(self.connection_id).warn(
-                f"SSE event dropped (queue full): event={event.event}, "
-                f"total_dropped={self._dropped_events}"
+                f"SSE event dropped (queue full): event={event.event}, total_dropped={self._dropped_events}"
             )
             return False
 
@@ -83,9 +80,7 @@ class SSEConnection(ISSEConnection):
     async def disconnect(self) -> None:
         """Disconnect and cleanup resources"""
         self._closed = True
-        log.request_id(self.connection_id).info(
-            f"SSE connection closed: {self.connection_id}"
-        )
+        log.request_id(self.connection_id).info(f"SSE connection closed: {self.connection_id}")
 
     def is_closed(self) -> bool:
         """
@@ -100,11 +95,11 @@ class SSEConnection(ISSEConnection):
         :return: Statistics dict
         """
         return {
-            'connection_id': self.connection_id,
-            'queue_size': self._queue.qsize(),
-            'dropped_events': self._dropped_events,
-            'is_closed': self._closed,
-            'last_event_id': self.last_event_id,
+            "connection_id": self.connection_id,
+            "queue_size": self._queue.qsize(),
+            "dropped_events": self._dropped_events,
+            "is_closed": self._closed,
+            "last_event_id": self.last_event_id,
         }
 
 
@@ -116,17 +111,19 @@ class SSEConnectionManager(ISSEConnectionManager):
 
     _instance: SSEConnectionManager | None = None
     _init_lock = Lock()
+    _lock: Lock
+    _connections: MutableMapping[str, SSEConnection]
 
-    def __new__(cls):
+    def __new__(cls) -> SSEConnectionManager:
         with cls._init_lock:
             if cls._instance is None:
                 inst = super().__new__(cls)
                 inst._lock = Lock()
-                inst._connections: MutableMapping[str, SSEConnection] = {}
+                inst._connections = {}
                 cls._instance = inst
             return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @property
@@ -136,26 +133,24 @@ class SSEConnectionManager(ISSEConnectionManager):
     @MAX_CONNECTIONS.setter
     def MAX_CONNECTIONS(self, value: int) -> None:
         # Allow tests to override via instance attribute
-        object.__setattr__(self, '_max_connections_override', value)
+        object.__setattr__(self, "_max_connections_override", value)
 
     @property
     def MAX_CONNECTIONS_PER_IP(self) -> int:
-        override = getattr(self, '_max_connections_per_ip_override', None)
+        override = getattr(self, "_max_connections_per_ip_override", None)
         if override is not None:
             return override
-        return int(
-            _sse_config_value('maxConnectionsPerIP', self.DEFAULT_MAX_CONNECTIONS_PER_IP)
-        )
+        return int(_sse_config_value("maxConnectionsPerIP", self.DEFAULT_MAX_CONNECTIONS_PER_IP))
 
     @MAX_CONNECTIONS_PER_IP.setter
     def MAX_CONNECTIONS_PER_IP(self, value: int) -> None:
-        object.__setattr__(self, '_max_connections_per_ip_override', value)
+        object.__setattr__(self, "_max_connections_per_ip_override", value)
 
     def _effective_max_connections(self) -> int:
-        override = getattr(self, '_max_connections_override', None)
+        override = getattr(self, "_max_connections_override", None)
         if override is not None:
             return override
-        return int(_sse_config_value('maxTotalConnections', self.DEFAULT_MAX_CONNECTIONS))
+        return int(_sse_config_value("maxTotalConnections", self.DEFAULT_MAX_CONNECTIONS))
 
     async def connect(
         self,
@@ -177,12 +172,12 @@ class SSEConnectionManager(ISSEConnectionManager):
         if not connection_id:
             connection_id = uuid.new_uuid()
 
-        queue = asyncio.Queue(maxsize=SSEConnection.max_queue_size())
+        queue: asyncio.Queue[ISSEEvent] = asyncio.Queue(maxsize=SSEConnection.max_queue_size())
 
         context = Context(context_id=connection_id)
-        context.with_value('client_ip', client_ip)
-        context.with_value('api_key', api_key)
-        context.with_value('last_event_id', last_event_id)
+        context.with_value("client_ip", client_ip)
+        context.with_value("api_key", api_key)
+        context.with_value("last_event_id", last_event_id)
 
         connection = SSEConnection(
             connection_id=connection_id,
@@ -194,20 +189,14 @@ class SSEConnectionManager(ISSEConnectionManager):
         with self._lock:
             max_connections = self._effective_max_connections()
             if len(self._connections) >= max_connections:
-                raise InternalException(
-                    f"Maximum connections reached: {max_connections}"
-                )
+                raise InternalException(f"Maximum connections reached: {max_connections}")
 
             if client_ip:
                 ip_count = sum(
-                    1
-                    for conn in self._connections.values()
-                    if conn.context.context.get('client_ip') == client_ip
+                    1 for conn in self._connections.values() if conn.context.context.get("client_ip") == client_ip
                 )
                 if ip_count >= self.MAX_CONNECTIONS_PER_IP:
-                    raise InternalException(
-                        f"Maximum connections per IP reached: {self.MAX_CONNECTIONS_PER_IP}"
-                    )
+                    raise InternalException(f"Maximum connections per IP reached: {self.MAX_CONNECTIONS_PER_IP}")
 
             # Replace duplicate id by closing old entry first
             old = self._connections.get(connection_id)
@@ -239,8 +228,7 @@ class SSEConnectionManager(ISSEConnectionManager):
                 remaining = len(self._connections)
 
             log.request_id(connection_id).info(
-                f"SSE connection removed: {connection_id}, "
-                f"remaining_connections={remaining}"
+                f"SSE connection removed: {connection_id}, remaining_connections={remaining}"
             )
 
     def get_connection(self, connection_id: str) -> SSEConnection | None:
@@ -253,7 +241,7 @@ class SSEConnectionManager(ISSEConnectionManager):
         with self._lock:
             return self._connections.get(connection_id)
 
-    def get_all_connections(self) -> list[SSEConnection]:
+    def get_all_connections(self) -> list[ISSEConnection]:
         """
         Get all active connections
 
@@ -279,11 +267,7 @@ class SSEConnectionManager(ISSEConnectionManager):
 
         success_count = sum(1 for result in results if result is True)
 
-        log.info(
-            f"SSE broadcast: event={event.event}, "
-            f"connections={len(active_connections)}, "
-            f"success={success_count}"
-        )
+        log.info(f"SSE broadcast: event={event.event}, connections={len(active_connections)}, success={success_count}")
 
         return success_count
 
@@ -293,14 +277,12 @@ class SSEConnectionManager(ISSEConnectionManager):
 
         :return: Statistics dict
         """
-        connections = self.get_all_connections()
+        connections = [c for c in self.get_all_connections() if isinstance(c, SSEConnection)]
         return {
-            'total_connections': len(connections),
-            'active_connections': len([c for c in connections if not c.is_closed()]),
-            'connection_stats': [conn.get_stats() for conn in connections],
-            'total_dropped_events': sum(
-                conn._dropped_events for conn in connections
-            ),
+            "total_connections": len(connections),
+            "active_connections": len([c for c in connections if not c.is_closed()]),
+            "connection_stats": [conn.get_stats() for conn in connections],
+            "total_dropped_events": sum(conn._dropped_events for conn in connections),
         }
 
 

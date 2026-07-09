@@ -1,9 +1,10 @@
+from collections.abc import Callable
 from functools import wraps
 from hmac import compare_digest
 from threading import Lock
-from typing import Any, Callable
+from typing import Any
 
-from fastapi import Request, HTTPException, status
+from fastapi import HTTPException, Request, status
 
 from pypepper.common.cache import Cache
 from pypepper.common.config import config
@@ -51,7 +52,7 @@ class SSESecurityManager:
             return True
 
         max_requests = sse_config.rateLimit.maxRequestsPerMinute
-        key = f'rate_limit:{client_id}'
+        key = f"rate_limit:{client_id}"
 
         with SSESecurityManager._rate_limit_lock:
             count = SSESecurityManager._rate_limit_cache.get(key) or 0
@@ -80,34 +81,34 @@ def require_sse_api_key(func: Callable) -> Callable:
 
     @wraps(func)
     async def wrapper(request: Request, *args: Any, **kwargs: Any):
-        authorization = request.headers.get('Authorization', '')
-        bearer = ''
-        if authorization.lower().startswith('bearer '):
+        authorization = request.headers.get("Authorization", "")
+        bearer = ""
+        if authorization.lower().startswith("bearer "):
             bearer = authorization[7:].strip()
 
-        api_key = request.headers.get('X-API-Key') or bearer or None
+        api_key = request.headers.get("X-API-Key") or bearer or None
 
         # Validate API Key
         if not SSESecurityManager.validate_api_key(api_key):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Invalid or missing API key',
-                headers={'WWW-Authenticate': 'Bearer'},
+                detail="Invalid or missing API key",
+                headers={"WWW-Authenticate": "Bearer"},
             )
 
         # Rate limit check
-        client_id = api_key  # Use API Key as client identifier
+        client_id = api_key or ""
         if not SSESecurityManager.check_rate_limit(client_id):
             sse_config = config.get_yml_config().sse
             max_requests = sse_config.rateLimit.maxRequestsPerMinute
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f'Rate limit exceeded (max {max_requests} requests/minute)',
+                detail=f"Rate limit exceeded (max {max_requests} requests/minute)",
             )
 
         # Store metadata in request state for later use
         request.state.api_key = api_key
-        request.state.client_ip = request.client.host
+        request.state.client_ip = request.client.host if request.client is not None else None
 
         return await func(request, *args, **kwargs)
 

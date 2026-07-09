@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 from pypepper.common.context import Context
+
+if TYPE_CHECKING:
+    from fastapi.sse import ServerSentEvent
 
 
 class ISSEEvent(metaclass=ABCMeta):
     """SSE Event interface"""
 
+    event: str | None
+    id: str | None
+
     @abstractmethod
-    def to_server_sent_event(self) -> 'ServerSentEvent':
+    def to_server_sent_event(self) -> ServerSentEvent:
         """
         Convert to FastAPI ServerSentEvent
         :return: ServerSentEvent instance
@@ -49,6 +56,14 @@ class ISSEConnection(metaclass=ABCMeta):
         """
         Check if connection is closed
         :return: True if closed
+        """
+        pass
+
+    @abstractmethod
+    def get_stats(self) -> dict:
+        """
+        Get connection statistics
+        :return: Statistics dict
         """
         pass
 
@@ -129,13 +144,13 @@ class ISSEHandler(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def generate_events(
+    def generate_events(
         self,
         connection: ISSEConnection,
-    ) -> AsyncIterable[ISSEEvent]:
+    ) -> AsyncIterator[ISSEEvent]:
         """
         Generate events for the connection (async generator)
         :param connection: SSE connection
-        :return: Async iterable of SSE events
+        :return: Async iterator of SSE events
         """
-        pass
+        ...
