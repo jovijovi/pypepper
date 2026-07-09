@@ -19,6 +19,12 @@
 - Prefer explicit type hints and concise docstrings for public classes/functions.
 - Use `snake_case` for modules, functions, and test files; `PascalCase` for classes; constants in `UPPER_SNAKE_CASE`.
 - Keep imports package-qualified (for example, `from pypepper.common...`).
+- **Do not** declare mutable instance state as class attributes (`_store = {}`, `_lock = Lock()`). Initialize dicts/lists/locks in `__init__` or `__new__`.
+- Global registries (`dispatcher`, `connection_manager`, `loader`, channel `manager`) must be **explicit singletons** (module-level instance and/or `__new__`), never accidental shared class dicts.
+- Run `python scripts/check_mutable_class_attrs.py` (also via `make check` / `make test`) before opening a PR.
+- **Do not** declare mutable instance state as class attributes (`_store = {}`, `_lock = Lock()`). Initialize dicts/lists/locks in `__init__` or `__new__`.
+- Global registries (`dispatcher`, `connection_manager`, `loader`, channel `manager`) must be **explicit singletons** (module-level instance and/or `__new__`), never accidental shared class dicts.
+- Run `python scripts/check_mutable_class_attrs.py` (also via `make check` / `make test`) before opening a PR.
 
 ## Testing Guidelines
 - Test framework: `pytest` with `pytest-cov` (`pytest.ini` enforces `testpaths = tests` and `python_files = test_*.py`).

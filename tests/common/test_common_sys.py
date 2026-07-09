@@ -1,12 +1,9 @@
-import pytest
+import signal
 
 from pypepper.common import system
 
 
-def test_handle_signals():
+def test_handle_signals_registers_handlers():
     system.handle_signals()
-    # signal.raise_signal(signal.SIGINT)
-
-
-if __name__ == '__main__':
-    pytest.main()
+    assert signal.getsignal(signal.SIGINT) is system.handler
+    assert signal.getsignal(signal.SIGTERM) is system.handler

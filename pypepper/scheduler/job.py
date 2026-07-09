@@ -6,7 +6,9 @@ from collections.abc import MutableMapping
 from threading import Lock
 
 from pypepper.common.context import Context
+from pypepper.common.log import log
 from pypepper.common.utils import uuid
+from pypepper.scheduler import events
 from pypepper.scheduler.base import IBase
 from pypepper.scheduler.channel import Channel, manager
 from pypepper.scheduler.workflow import Workflow
@@ -23,9 +25,17 @@ class Processor:
 
 
 class Dispatcher:
-    _lock = Lock()
+    _instance: Dispatcher | None = None
+    _init_lock = Lock()
 
-    _processors: MutableMapping[str, Processor] = {}
+    def __new__(cls):
+        with cls._init_lock:
+            if cls._instance is None:
+                inst = super().__new__(cls)
+                inst._lock = Lock()
+                inst._processors: MutableMapping[str, Processor] = {}
+                cls._instance = inst
+            return cls._instance
 
     def __init__(self):
         pass
@@ -58,20 +68,15 @@ class Dispatcher:
         return self._new_processor(key)
 
     def dispatch(self, job: Job):
-        # TODO: job status FSM
+        job._fsm.on(events.INIT)
+        job._fsm.on(events.SCHEDULE)
 
-        # TODO: save job
         job.save()
-        # TODO: print log
         job.log()
 
         chan = manager.available(job.channel_id)
         processor = self._available_processor(job.channel_id)
         processor.run(job, chan)
-
-        # TODO: scheduler
-
-    pass
 
 
 dispatcher = Dispatcher()
@@ -94,18 +99,19 @@ class IJob(IBase, metaclass=ABCMeta):
 
 
 class Job(IJob):
-    def __init__(self, category: str = None):
+    def __init__(self, category: str = None, channel_id: str = 'default'):
         self.id = uuid.new_uuid()
         self.category = category
+        self.channel_id = channel_id
         self.context = Context(context_id=uuid.new_uuid())
+        self.workflows: list[Workflow] = []
+        self._fsm = events.build_scheduler_fsm()
 
     def save(self):
-        # TODO:
-        pass
+        log.debug(f"Job saved: id={self.id}, channel_id={self.channel_id}")
 
     def log(self):
-        # TODO:
-        pass
+        log.info(f"Job scheduled: id={self.id}, category={self.category}")
 
     def scheduled(self):
         dispatcher.dispatch(self)

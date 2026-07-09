@@ -25,6 +25,9 @@ class ConfHTTPSServer:
     port: int
     mutualTLS: bool
     timeout: int = 30
+    certFile: str = ''
+    keyFile: str = ''
+    caFile: str = ''
 
 
 class ConfHeartbeat:
@@ -52,11 +55,33 @@ class ConfLog:
     colorize: bool
 
 
+class ConfSSEAuthentication:
+    enabled: bool
+    validKeys: list
+
+
+class ConfSSERateLimit:
+    enabled: bool
+    maxRequestsPerMinute: int
+
+
+class ConfSSE:
+    enabled: bool
+    maxTotalConnections: int
+    maxConnectionsPerIP: int
+    maxQueueSize: int
+    streamTimeoutSeconds: int
+    heartbeatIntervalSeconds: int
+    authentication: ConfSSEAuthentication
+    rateLimit: ConfSSERateLimit
+
+
 class YmlConfig:
     cluster: ConfCluster
     network: ConfNetwork
     heartbeat: ConfHeartbeat
     log: ConfLog
+    sse: ConfSSE
     custom: Any
 
 

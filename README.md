@@ -90,6 +90,8 @@ Module loader.
   make test
   ```
 
+  `make test` also runs `scripts/check_mutable_class_attrs.py` to prevent class-level mutable state regressions.
+
 - Build docker image
 
   ```shell
@@ -102,7 +104,17 @@ Module loader.
   make clean
   ```
 
+- SSE example
+
+  Set a local API key (default config ships with empty `validKeys`):
+
+  ```shell
+  export PYPEPPER_SSE_API_KEY=your-local-key
+  python example/sse/app.py
+  ```
+
 ## :bulb: Roadmap
 
 - [ ] Documents
 - [ ] Tracing
+- [x] Harden shared mutable state / FSM rollback / SSE auth defaults

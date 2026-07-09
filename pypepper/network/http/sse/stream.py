@@ -7,9 +7,18 @@ from collections.abc import AsyncIterable
 from fastapi import Request
 from fastapi.sse import ServerSentEvent
 
+from pypepper.common.config import config
 from pypepper.common.log import log
 from pypepper.network.http.sse.connection import SSEConnection, connection_manager
 from pypepper.network.http.sse.interfaces import ISSEHandler
+
+
+def _stream_timeout_seconds() -> float:
+    try:
+        value = config.get_yml_config().sse.streamTimeoutSeconds
+        return float(value) if value is not None else 30.0
+    except Exception:
+        return 30.0
 
 
 def _serialize_sse_event(event: ServerSentEvent) -> str:
@@ -96,7 +105,7 @@ async def sse_stream(
                 # Wait for event with timeout (for heartbeat)
                 event = await asyncio.wait_for(
                     connection._queue.get(),
-                    timeout=30.0,  # 30 seconds timeout
+                    timeout=_stream_timeout_seconds(),
                 )
 
                 # Convert to ServerSentEvent and serialize to SSE format

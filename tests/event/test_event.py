@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from pypepper.common.security.crypto.elliptic.algorithm import HashAlgorithmName
@@ -187,6 +189,13 @@ def test_event_sign_verify():
     print("Verify result=", result)
 
     assert result is True
+
+    marshaled = evt.marshal()
+    payload = json.loads(marshaled)
+    assert 'data' in payload
+    assert payload['data']['payload']['category'] == 'TestCategory'
+    assert payload['signature'] is not None
+    assert isinstance(payload['signature'], str)
 
 
 if __name__ == '__main__':

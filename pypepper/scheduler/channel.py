@@ -7,9 +7,8 @@ from typing import Any
 
 
 class Channel:
-    stop: bool = False
-
     def __init__(self, maxsize=0):
+        self.stop = False
         self._queue = Queue(maxsize)
 
     async def send(self, value: Any) -> bool:
@@ -31,9 +30,17 @@ def new(maxsize: int = 0) -> Channel:
 
 
 class ChannelManager:
-    _lock = Lock()
+    _instance: ChannelManager | None = None
+    _init_lock = Lock()
 
-    _job_channel: MutableMapping[str, Channel] = {}
+    def __new__(cls):
+        with cls._init_lock:
+            if cls._instance is None:
+                inst = super().__new__(cls)
+                inst._lock = Lock()
+                inst._job_channel: MutableMapping[str, Channel] = {}
+                cls._instance = inst
+            return cls._instance
 
     def __init__(self):
         pass
@@ -64,12 +71,12 @@ class ChannelManager:
             return self._job_channel.pop(key)
 
     def new(self, key: str) -> Channel:
-        chan = self.get(key)
-        if chan is None:
-            chan = Channel()
-            self.put(key, chan)
-
-        return chan
+        with self._lock:
+            chan = self._job_channel.get(key)
+            if chan is None:
+                chan = Channel()
+                self._job_channel[key] = chan
+            return chan
 
     def available(self, key: str) -> Channel:
         return self.new(key)

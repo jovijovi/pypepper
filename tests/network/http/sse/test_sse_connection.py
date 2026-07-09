@@ -153,15 +153,18 @@ async def test_connection_manager_get_all():
 async def test_connection_queue_full():
     """Test queue full handling"""
     manager = SSEConnectionManager()
-    original_max_queue_size = SSEConnection.MAX_QUEUE_SIZE
-
     try:
         # Use a smaller queue in tests to keep runtime short.
-        SSEConnection.MAX_QUEUE_SIZE = 20
-        connection = await manager.connect(connection_id='test-conn-10')
+        queue = asyncio.Queue(maxsize=20)
+        connection = SSEConnection(
+            connection_id='test-conn-10',
+            queue=queue,
+        )
+        with manager._lock:
+            manager._connections['test-conn-10'] = connection
 
         # Fill queue to capacity
-        for i in range(SSEConnection.MAX_QUEUE_SIZE):
+        for i in range(20):
             event = SSEEvent(data={'index': i}, event='fill', id=f'evt-{i}')
             success = await connection.send(event)
             assert success is True
@@ -178,7 +181,7 @@ async def test_connection_queue_full():
         # Cleanup
         await manager.disconnect('test-conn-10')
     finally:
-        SSEConnection.MAX_QUEUE_SIZE = original_max_queue_size
+        await manager.disconnect('test-conn-10')
 
 
 @pytest.mark.asyncio

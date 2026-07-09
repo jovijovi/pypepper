@@ -15,13 +15,12 @@ class Cache(TTLCache):
     default_cache_maxsize = 128
     default_cache_ttl = 60
 
-    _lock = Lock()
-
     def __init__(self,
                  maxsize: int = default_cache_maxsize,
                  ttl: float = default_cache_ttl,
                  ):
         super().__init__(maxsize, ttl)
+        self._lock = Lock()
 
     def set(self, key: Any, value: Any) -> None:
         """
@@ -56,7 +55,8 @@ class CacheSet:
     A thread safe TTL cache-set
     """
 
-    _cache_store: MutableMapping[str, Cache] = {}
+    def __init__(self):
+        self._cache_store: MutableMapping[str, Cache] = {}
 
     def new(self,
             name: str,

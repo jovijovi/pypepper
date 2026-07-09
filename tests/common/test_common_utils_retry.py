@@ -1,6 +1,7 @@
 import pytest
 
 from pypepper.common.utils import retry
+from pypepper.exceptions import InternalException
 
 
 def transistor(in_voltage: int) -> int:
@@ -10,12 +11,11 @@ def transistor(in_voltage: int) -> int:
         raise Exception("too high")
     elif delta < 0:
         raise Exception("too low")
-
     return in_voltage
 
 
-def hello_world() -> None:
-    print("Hello, world!")
+def hello_world() -> str:
+    return "Hello, world!"
 
 
 def answer(arg: int = 42) -> int:
@@ -23,12 +23,11 @@ def answer(arg: int = 42) -> int:
 
 
 def test_retry_simple():
-    retry.run(func=hello_world)
+    assert retry.run(func=hello_world, retry_times=1, retry_interval=0) == "Hello, world!"
 
 
 def test_retry_with_default_params():
-    result = retry.run(func=answer, retry_times=3, retry_interval=5, verbose_log=False)
-    print(f"The Answer is {result}, Type={type(result)}")
+    result = retry.run(func=answer, retry_times=3, retry_interval=0, verbose_log=False)
     assert isinstance(result, int)
     assert result == 42
 
@@ -37,61 +36,33 @@ def test_retry_lambda():
     def say(words: str) -> str:
         return words
 
-    result1 = retry.run(func=lambda: say("hi"), retry_times=3, retry_interval=1)
-    print(f'Say "{result1}"')
-
-    result2 = retry.run(func=lambda words='hi': say(words), retry_times=3, retry_interval=1)
-    print(f'Say "{result2}"')
-
-    result3 = retry.run(func=lambda: answer(0), retry_times=3, retry_interval=1)
-    print(f'The Answer is "{result3}"')
+    assert retry.run(func=lambda: say("hi"), retry_times=1, retry_interval=0) == "hi"
+    assert retry.run(func=lambda: answer(0), retry_times=1, retry_interval=0) == 0
 
 
 def test_transistor():
-    try:
-        result = retry.run(func=lambda: transistor(0))
-        print("Result=", result)
-    except Exception as e:
-        print("Expected error=", e)
+    with pytest.raises(InternalException):
+        retry.run(func=lambda: transistor(0), retry_times=2, retry_interval=0, verbose_log=False)
 
-    try:
-        result = retry.run(
+    with pytest.raises(InternalException):
+        retry.run(
             func=lambda: transistor(2),
             retry_times=2,
-            retry_interval=retry.random_retry_interval(),
+            retry_interval=0,
             verbose_log=False,
         )
-        print("Result=", result)
-    except Exception as e:
-        print("Expected error=", e)
 
-    try:
-        result = retry.run(func=lambda: transistor(42))
-        print("Result=", result)
-        assert result == 42
-    except Exception as e:
-        print(e)
+    assert retry.run(func=lambda: transistor(1), retry_times=1, retry_interval=0) == 1
 
 
 def test_invalid_func():
-    try:
+    with pytest.raises(InternalException, match='invalid function'):
         retry.run(None)
-    except Exception as e:
-        print(e)
 
 
 def test_invalid_params():
-    try:
+    with pytest.raises(InternalException, match='invalid retry times'):
         retry.run(func=hello_world, retry_times=0)
-    except Exception as e:
-        print(e)
 
-    try:
-        result = retry.run(func=lambda: transistor(0), retry_interval=-1)
-        print("Result=", result)
-    except Exception as e:
-        print(e)
-
-
-if __name__ == '__main__':
-    pytest.main()
+    with pytest.raises(InternalException, match='invalid retry interval'):
+        retry.run(func=hello_world, retry_interval=-1)

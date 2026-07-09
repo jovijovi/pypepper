@@ -20,7 +20,7 @@ APP_TAG=$(VERSION).$(BUILD_TIME)
 VERSION_INFO='{"version":"$(VERSION)","gitCommit":"$(GIT_COMMIT)","commitTime":"$(COMMIT_TIME)","buildTime":"$(BUILD_TIME)","pythonVersion":"$(PYTHON_VER)"}'
 
 
-.PHONY: build-prepare debug test build docker clean publish-test publish help
+.PHONY: build-prepare debug test build docker clean publish-test publish help check
 
 all: test clean docker
 
@@ -29,9 +29,13 @@ build-prepare: clean
 	mkdir -p $(APP_DIR)
 	uv pip install -r requirements-dev.txt
 
-test: clean
+check:
+	@echo "[BUILD] Checking mutable class attributes..."
+	python3 ./scripts/check_mutable_class_attrs.py
+
+test: clean check
 	@echo "[BUILD] Testing"
-	pytest --cov=pypepper tests/
+	pytest --cov=pypepper --cov-report=xml:coverage.xml --cov-report=term tests/
 
 build: build-prepare
 	@echo "[BUILD] Building binary"

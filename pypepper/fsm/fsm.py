@@ -93,15 +93,12 @@ class FSM(IFSM):
     Finite State Machine
     """
 
-    _id: str
-    _current: IState | None
-    _transitions: MutableMapping[str, ITarget] = {}
-    _events: MutableMapping[str, IEvent] = {}
-    _states: MutableMapping[IState, bool] = {}
-
     def __init__(self, options: IOptions):
         self._id = options.fsm_id
         self._current = options.initial
+        self._transitions: MutableMapping[str, ITarget] = {}
+        self._events: MutableMapping[str, IEvent] = {}
+        self._states: MutableMapping[IState, bool] = {}
 
         for tr in options.transitions:
             for from_state in tr.from_state:
@@ -164,6 +161,7 @@ class FSM(IFSM):
                 error=InternalException(ERROR_INVALID_EVENT),
             )
 
+        prev = self._current
         self._current = target.state
 
         event_handler_result: T = None
@@ -174,6 +172,7 @@ class FSM(IFSM):
                 else:
                     event_handler_result = target.handler()
             except Exception as e:
+                self._current = prev
                 return Response(
                     state=self._current,
                     error=e,
@@ -187,6 +186,7 @@ class FSM(IFSM):
                 else:
                     transition_result = handler()
             except Exception as e:
+                self._current = prev
                 return Response(
                     state=self._current,
                     error=e,

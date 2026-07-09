@@ -1,0 +1,29 @@
+# Changelog
+
+## Unreleased
+
+### Fixed
+- Isolate FSM transition tables per instance; `close()` only clears the current machine.
+- Roll back FSM state when a transition or caller handler raises.
+- Isolate `CacheSet` storage and per-`Cache` locks across instances.
+- Make `Channel.stop` per-instance; enforce explicit singletons for `Dispatcher`, `ChannelManager`, `SSEConnectionManager`, and `Loader`.
+- Give each scheduler `Job` its own FSM via `build_scheduler_fsm()`.
+- Stop mutating the global logger in `log.request_id()` (returns a bound logger).
+- Atomic SSE rate-limit increments; constant-time API key comparison.
+- SSE connection limit checks run under the same lock as registration.
+
+### Security
+- Remove committed default SSE API keys from `conf/app.config.yaml` (inject via deployment / `PYPEPPER_SSE_API_KEY` for the example).
+- Reject query-string `api_key` for SSE (headers only: `X-API-Key` / `Authorization: Bearer`).
+- Protect example `/sse/stats` with API key auth.
+
+### Changed
+- Event `sign`/`verify` use stable JSON canonical bytes instead of `pickle` (existing pickle signatures will not verify).
+- SSE connection/queue/stream limits read from YAML `sse.*` with hardcoded fallbacks.
+- HTTP server registers default request-id middleware and supports TLS via `certFile`/`keyFile`/`caFile`.
+
+### Added
+- `Event.marshal()` JSON envelope.
+- Scheduler `CallableExecutor`, sequential `Workflow.run` with retries/optional tasks, and `Worker` channel consumer.
+- Structured `/metrics` payload (uptime + optional SSE stats).
+- `scripts/check_mutable_class_attrs.py` CI guard; isolation/rollback regression tests.

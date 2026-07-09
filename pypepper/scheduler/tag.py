@@ -2,8 +2,11 @@ from abc import ABCMeta
 
 
 class ITag(metaclass=ABCMeta):
-    pass
+    key: str
+    value: str
 
 
 class Tag(ITag):
-    pass
+    def __init__(self, key: str = '', value: str = ''):
+        self.key = key
+        self.value = value

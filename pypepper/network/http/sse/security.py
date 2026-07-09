@@ -1,4 +1,6 @@
 from functools import wraps
+from hmac import compare_digest
+from threading import Lock
 from typing import Any, Callable
 
 from fastapi import Request, HTTPException, status
@@ -12,6 +14,7 @@ class SSESecurityManager:
 
     # Rate limit cache (TTL 60 seconds)
     _rate_limit_cache = Cache(maxsize=1000, ttl=60)
+    _rate_limit_lock = Lock()
 
     @staticmethod
     def validate_api_key(api_key: str | None) -> bool:
@@ -27,11 +30,11 @@ class SSESecurityManager:
         # Get valid API keys from config
         sse_config = config.get_yml_config().sse
         if not sse_config.authentication.enabled:
-            # Authentication disabled, allow all
+            # Authentication disabled, allow all non-empty keys
             return True
 
-        valid_keys = sse_config.authentication.validKeys
-        return api_key in valid_keys
+        valid_keys = list(sse_config.authentication.validKeys or [])
+        return any(compare_digest(api_key, key) for key in valid_keys if isinstance(key, str))
 
     @staticmethod
     def check_rate_limit(client_id: str) -> bool:
@@ -49,23 +52,24 @@ class SSESecurityManager:
 
         max_requests = sse_config.rateLimit.maxRequestsPerMinute
         key = f'rate_limit:{client_id}'
-        count = SSESecurityManager._rate_limit_cache.get(key) or 0
 
-        if count >= max_requests:
-            return False
-
-        SSESecurityManager._rate_limit_cache.set(key, count + 1)
-        return True
+        with SSESecurityManager._rate_limit_lock:
+            count = SSESecurityManager._rate_limit_cache.get(key) or 0
+            if count >= max_requests:
+                return False
+            SSESecurityManager._rate_limit_cache.set(key, count + 1)
+            return True
 
 
 def require_sse_api_key(func: Callable) -> Callable:
     """
     API Key authentication decorator
 
-    Supports three ways to pass API Key:
+    Supports:
     1. Header: X-API-Key: your-key
-    2. Query: ?api_key=your-key
-    3. Header: Authorization: Bearer your-key
+    2. Header: Authorization: Bearer your-key
+
+    Query-string API keys are rejected to avoid log/Referer leakage.
 
     Usage:
         @app.get('/sse')
@@ -76,12 +80,12 @@ def require_sse_api_key(func: Callable) -> Callable:
 
     @wraps(func)
     async def wrapper(request: Request, *args: Any, **kwargs: Any):
-        # Extract API Key from request
-        api_key = (
-            request.headers.get('X-API-Key')
-            or request.query_params.get('api_key')
-            or request.headers.get('Authorization', '').replace('Bearer ', '').strip()
-        )
+        authorization = request.headers.get('Authorization', '')
+        bearer = ''
+        if authorization.lower().startswith('bearer '):
+            bearer = authorization[7:].strip()
+
+        api_key = request.headers.get('X-API-Key') or bearer or None
 
         # Validate API Key
         if not SSESecurityManager.validate_api_key(api_key):
@@ -94,9 +98,11 @@ def require_sse_api_key(func: Callable) -> Callable:
         # Rate limit check
         client_id = api_key  # Use API Key as client identifier
         if not SSESecurityManager.check_rate_limit(client_id):
+            sse_config = config.get_yml_config().sse
+            max_requests = sse_config.rateLimit.maxRequestsPerMinute
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail='Rate limit exceeded (max 60 requests/minute)',
+                detail=f'Rate limit exceeded (max {max_requests} requests/minute)',
             )
 
         # Store metadata in request state for later use

@@ -5,7 +5,14 @@ from pypepper.exceptions import InternalException
 
 
 class Loader:
-    _module_loader_mapper = {}
+    _instance: "Loader | None" = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            inst = super().__new__(cls)
+            inst._module_loader_mapper = {}
+            cls._instance = inst
+        return cls._instance
 
     def __init__(self):
         pass

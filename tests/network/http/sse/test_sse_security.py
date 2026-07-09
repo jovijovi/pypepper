@@ -95,35 +95,51 @@ def test_check_rate_limit_blocks_requests_over_limit(monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ('headers', 'query_params', 'expected_key'),
+    ('headers', 'expected_key'),
     [
-        ({'X-API-Key': 'header-key'}, {}, 'header-key'),
-        ({}, {'api_key': 'query-key'}, 'query-key'),
-        ({'Authorization': 'Bearer bearer-key'}, {}, 'bearer-key'),
+        ({'X-API-Key': 'header-key'}, 'header-key'),
+        ({'Authorization': 'Bearer bearer-key'}, 'bearer-key'),
     ],
 )
-async def test_require_sse_api_key_accepts_multiple_key_sources(
+async def test_require_sse_api_key_accepts_header_sources(
     monkeypatch,
     headers,
-    query_params,
     expected_key,
 ):
     monkeypatch.setattr(
         config,
         'get_yml_config',
-        lambda: _build_sse_config(valid_keys=['header-key', 'query-key', 'bearer-key']),
+        lambda: _build_sse_config(valid_keys=['header-key', 'bearer-key']),
     )
 
     @require_sse_api_key
     async def handler(request, value):
         return {'ok': True, 'value': value}
 
-    request = _mock_request(headers=headers, query_params=query_params, client_host='10.0.0.1')
+    request = _mock_request(headers=headers, client_host='10.0.0.1')
     result = await handler(request, 42)
 
     assert result == {'ok': True, 'value': 42}
     assert request.state.api_key == expected_key
     assert request.state.client_ip == '10.0.0.1'
+
+
+@pytest.mark.asyncio
+async def test_require_sse_api_key_rejects_query_string_key(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        'get_yml_config',
+        lambda: _build_sse_config(valid_keys=['query-key']),
+    )
+
+    @require_sse_api_key
+    async def handler(request):
+        return {'ok': True}
+
+    with pytest.raises(HTTPException) as exc_info:
+        await handler(_mock_request(query_params={'api_key': 'query-key'}))
+
+    assert exc_info.value.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -166,4 +182,4 @@ async def test_require_sse_api_key_raises_429_when_rate_limit_exceeded(monkeypat
         await handler(request)
 
     assert exc_info.value.status_code == 429
-    assert exc_info.value.detail == 'Rate limit exceeded (max 60 requests/minute)'
+    assert exc_info.value.detail == 'Rate limit exceeded (max 1 requests/minute)'

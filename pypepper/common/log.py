@@ -112,8 +112,13 @@ class Logger:
         return self._logger
 
     def request_id(self, req_id=0):
-        self._logger = self._logger.bind(req_id=req_id)
-        return self
+        """
+        Return a temporary logger bound with request id.
+        Does not mutate the process-wide logger singleton.
+        """
+        bound = Logger()
+        bound._logger = self._logger.bind(req_id=req_id)
+        return bound
 
     def logo(self, msg: str):
         msg += json.dumps(version.get_version_info(), indent=4)
