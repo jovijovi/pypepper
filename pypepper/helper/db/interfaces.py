@@ -11,14 +11,15 @@ class IConfig(metaclass=ABCMeta):
     port: int = 0
     db: str | None
 
-    def __init__(self,
-                 uri: str | None = None,
-                 username: str | None = None,
-                 password: str | None = None,
-                 host: str | None = None,
-                 port: int = 0,
-                 db: str | None = None,
-                 ):
+    def __init__(
+        self,
+        uri: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        host: str | None = None,
+        port: int = 0,
+        db: str | None = None,
+    ):
         self.uri = uri
         self.username = username
         self.password = password
