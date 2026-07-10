@@ -14,6 +14,10 @@ network:
     enable: false
     port: 55650
     mutualTLS: false
+    # Required when httpsServer.enable is true
+    certFile: ''
+    keyFile: ''
+    caFile: ''
 
 # Service info
 serviceInfo:
@@ -52,10 +56,8 @@ sse:
   # API Key authentication
   authentication:
     enabled: true
-    # Valid API Keys (replace with your own keys)
-    validKeys:
-      - "dev-api-key-123"
-      - "test-api-key-456"
+    # Inject keys via deployment config / secrets. Do not commit real keys.
+    validKeys: []
 
   # Rate limiting
   rateLimit:

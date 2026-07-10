@@ -11,11 +11,14 @@ Features:
 - Connection statistics
 
 Usage:
+    export PYPEPPER_SSE_API_KEY=your-local-key
     python example/sse/app.py
 
 Then connect with:
-    curl -N -H "X-API-Key: dev-api-key-123" http://localhost:55550/sse/echo
+    curl -N -H "X-API-Key: $PYPEPPER_SSE_API_KEY" http://localhost:55550/sse/echo
 """
+
+import os
 
 from fastapi import FastAPI, Request
 from fastapi.sse import EventSourceResponse
@@ -119,12 +122,13 @@ async def sse_clock(request: Request):
 
 # Utility Endpoints
 @app.get('/sse/stats')
-async def sse_stats():
+@require_sse_api_key
+async def sse_stats(request: Request):
     """
-    Get SSE connection statistics
+    Get SSE connection statistics (auth required)
 
     Example:
-        curl http://localhost:55550/sse/stats
+        curl -H "X-API-Key: $PYPEPPER_SSE_API_KEY" http://localhost:55550/sse/stats
     """
     return connection_manager.get_stats()
 
@@ -144,11 +148,24 @@ async def root():
             '/sse/echo': 'Echo predefined messages',
             '/sse/counter': 'Count from 0 to 100',
             '/sse/clock': 'Current time every second',
-            '/sse/stats': 'Connection statistics',
+            '/sse/stats': 'Connection statistics (auth required)',
         },
-        'authentication': 'Use X-API-Key header or ?api_key query parameter',
-        'example': 'curl -N -H "X-API-Key: dev-api-key-123" http://localhost:55550/sse/echo',
+        'authentication': 'Use X-API-Key or Authorization: Bearer header',
+        'example': 'curl -N -H "X-API-Key: $PYPEPPER_SSE_API_KEY" http://localhost:55550/sse/echo',
     }
+
+
+def _inject_demo_api_key_from_env() -> str | None:
+    """Load demo API key from env into runtime config (never commit real keys)."""
+    api_key = os.environ.get('PYPEPPER_SSE_API_KEY')
+    if not api_key:
+        return None
+    sse = config.get_yml_config().sse
+    keys = list(sse.authentication.validKeys or [])
+    if api_key not in keys:
+        keys.append(api_key)
+        sse.authentication.validKeys = keys
+    return api_key
 
 
 def main():
@@ -163,12 +180,17 @@ def main():
 
     # Load configuration
     config.load_config()
+    demo_key = _inject_demo_api_key_from_env()
 
     # Log SSE configuration
     sse_config = config.get_yml_config().sse
     log.info(f"SSE enabled: {sse_config.enabled}")
     log.info(f"Max connections: {sse_config.maxTotalConnections}")
     log.info(f"Authentication: {sse_config.authentication.enabled}")
+    if not demo_key and sse_config.authentication.enabled:
+        log.warn(
+            "No PYPEPPER_SSE_API_KEY set; validKeys is empty — SSE auth will reject requests"
+        )
 
     # Get HTTP server configuration
     network_conf = config.get_yml_config().network
@@ -182,7 +204,10 @@ def main():
     log.info(f"  - http://localhost:{port}/sse/stats")
     log.info("")
     log.info("Example usage:")
-    log.info(f'  curl -N -H "X-API-Key: dev-api-key-123" http://localhost:{port}/sse/echo')
+    log.info('  export PYPEPPER_SSE_API_KEY=your-local-key')
+    log.info(
+        f'  curl -N -H "X-API-Key: $PYPEPPER_SSE_API_KEY" http://localhost:{port}/sse/echo'
+    )
 
     # Run server
     uvicorn.run(app, host='0.0.0.0', port=port, timeout_keep_alive=30)

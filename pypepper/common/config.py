@@ -25,6 +25,9 @@ class ConfHTTPSServer:
     port: int
     mutualTLS: bool
     timeout: int = 30
+    certFile: str = ""
+    keyFile: str = ""
+    caFile: str = ""
 
 
 class ConfHeartbeat:
@@ -52,17 +55,39 @@ class ConfLog:
     colorize: bool
 
 
+class ConfSSEAuthentication:
+    enabled: bool
+    validKeys: list
+
+
+class ConfSSERateLimit:
+    enabled: bool
+    maxRequestsPerMinute: int
+
+
+class ConfSSE:
+    enabled: bool
+    maxTotalConnections: int
+    maxConnectionsPerIP: int
+    maxQueueSize: int
+    streamTimeoutSeconds: int
+    heartbeatIntervalSeconds: int
+    authentication: ConfSSEAuthentication
+    rateLimit: ConfSSERateLimit
+
+
 class YmlConfig:
     cluster: ConfCluster
     network: ConfNetwork
     heartbeat: ConfHeartbeat
     log: ConfLog
+    sse: ConfSSE
     custom: Any
 
 
 class Config:
-    _default_config_path = './conf/'
-    _default_config_filename = 'app.config.yaml'
+    _default_config_path = "./conf/"
+    _default_config_filename = "app.config.yaml"
     _default_config_filepath = os.path.join(_default_config_path, _default_config_filename)
     _setting: Any = None
 
@@ -72,28 +97,25 @@ class Config:
     def _get_parser(self, **parser_kwargs):
         parser = argparse.ArgumentParser(**parser_kwargs)
         parser.add_argument(
-            '-c',
-            '--config',
+            "-c",
+            "--config",
             type=str,
             const=True,
             default=os.path.join(self._default_config_filepath),
-            nargs='?',
-            help='config filename & path',
+            nargs="?",
+            help="config filename & path",
         )
         return parser
 
-    def load_config(self, filename: str = None):
+    def load_config(self, filename: str | None = None):
         if filename:
             service_config_filename = os.path.abspath(filename)
         else:
             parser = self._get_parser()
             args = parser.parse_args()
-            if args.config:
-                service_config_filename = args.config
-            else:
-                service_config_filename = os.path.abspath(self._default_config_filepath)
+            service_config_filename = args.config or os.path.abspath(self._default_config_filepath)
 
-        with open(service_config_filename, 'r') as fd:
+        with open(service_config_filename) as fd:
             data = fd.read()
         self._setting = Box(yaml.safe_load(data))
 

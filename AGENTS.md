@@ -8,17 +8,26 @@
 
 ## Build, Test, and Development Commands
 - `make build-prepare`: clean output and install dev dependencies.
-- `make test`: run `pytest --cov=pypepper tests/` with cache cleared (default local validation).
+- `make lint`: run `ruff check`, `ruff format --check`, and `mypy` on `pypepper/`.
+- `make check`: run `make lint` plus `scripts/check_mutable_class_attrs.py`.
+- `make test`: run `make check` then `pytest --cov=pypepper tests/` with cache cleared (default local validation).
+- `make docs` / `make docs-serve`: build or preview the MkDocs Material site (`mkdocs build --strict`). Published at https://jovijovi.github.io/pypepper/ (GitHub Pages from `main`).
 - `make build`: install runtime deps, run `scripts/build.py`, and emit `dist/git.json` version metadata.
 - `make docker`: build and tag a local Docker image (`pypepper:latest` plus versioned tag).
 - `make clean`: remove `dist/`, `.pytest_cache`, and `.coverage`.
-- CI also uses `docker compose -f devenv/ci.yaml up -d` before tests for service-backed cases.
+- CI runs a dedicated lint/docs job first; the test matrix uses `docker compose -f devenv/ci.yaml up -d` for service-backed cases.
 
 ## Coding Style & Naming Conventions
 - Target Python `>=3.10, <=3.14`; use 4-space indentation and PEP 8 style.
 - Prefer explicit type hints and concise docstrings for public classes/functions.
 - Use `snake_case` for modules, functions, and test files; `PascalCase` for classes; constants in `UPPER_SNAKE_CASE`.
 - Keep imports package-qualified (for example, `from pypepper.common...`).
+- **Do not** declare mutable instance state as class attributes (`_store = {}`, `_lock = Lock()`). Initialize dicts/lists/locks in `__init__` or `__new__`.
+- Global registries (`dispatcher`, `connection_manager`, `loader`, channel `manager`) must be **explicit singletons** (module-level instance and/or `__new__`), never accidental shared class dicts.
+- Run `python scripts/check_mutable_class_attrs.py` (also via `make check` / `make test`) before opening a PR.
+- **Do not** declare mutable instance state as class attributes (`_store = {}`, `_lock = Lock()`). Initialize dicts/lists/locks in `__init__` or `__new__`.
+- Global registries (`dispatcher`, `connection_manager`, `loader`, channel `manager`) must be **explicit singletons** (module-level instance and/or `__new__`), never accidental shared class dicts.
+- Run `python scripts/check_mutable_class_attrs.py` (also via `make check` / `make test`) before opening a PR.
 
 ## Testing Guidelines
 - Test framework: `pytest` with `pytest-cov` (`pytest.ini` enforces `testpaths = tests` and `python_files = test_*.py`).

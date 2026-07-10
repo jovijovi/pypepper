@@ -1,7 +1,7 @@
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterator
 
 from pypepper.network.http.sse.event import SSEEvent
-from pypepper.network.http.sse.interfaces import ISSEConnection, ISSEHandler, ISSEEvent
+from pypepper.network.http.sse.interfaces import ISSEConnection, ISSEEvent, ISSEHandler
 
 
 class BaseSSEHandler(ISSEHandler):
@@ -17,10 +17,10 @@ class BaseSSEHandler(ISSEHandler):
         await connection.send(
             SSEEvent(
                 data={
-                    'message': 'Connected',
-                    'connection_id': connection.connection_id,
+                    "message": "Connected",
+                    "connection_id": connection.connection_id,
                 },
-                event='connect',
+                event="connect",
                 id=connection.connection_id,
             )
         )
@@ -37,12 +37,12 @@ class BaseSSEHandler(ISSEHandler):
     async def generate_events(
         self,
         connection: ISSEConnection,
-    ) -> AsyncIterable[ISSEEvent]:
+    ) -> AsyncIterator[ISSEEvent]:
         """
         Generate events for the connection (default: no events)
 
         :param connection: SSE connection
-        :return: Async iterable of SSE events
+        :return: Async iterator of SSE events
         """
         # Default: no events generated
         # Subclasses should override this method
@@ -60,27 +60,27 @@ class EchoSSEHandler(BaseSSEHandler):
         :param messages: List of messages to echo
         :param interval: Interval between messages (seconds)
         """
-        self.messages = messages or ['Hello', 'World', 'SSE', 'Test']
+        self.messages = messages or ["Hello", "World", "SSE", "Test"]
         self.interval = interval
 
     async def generate_events(
         self,
         connection: ISSEConnection,
-    ) -> AsyncIterable[ISSEEvent]:
+    ) -> AsyncIterator[ISSEEvent]:
         """
         Generate echo events
 
         :param connection: SSE connection
-        :return: Async iterable of SSE events
+        :return: Async iterator of SSE events
         """
         import asyncio
 
         for i, msg in enumerate(self.messages):
             await asyncio.sleep(self.interval)
             yield SSEEvent(
-                data={'message': msg, 'index': i},
-                event='echo',
-                id=f'echo-{i}',
+                data={"message": msg, "index": i},
+                event="echo",
+                id=f"echo-{i}",
             )
 
 
@@ -102,19 +102,19 @@ class CounterSSEHandler(BaseSSEHandler):
     async def generate_events(
         self,
         connection: ISSEConnection,
-    ) -> AsyncIterable[ISSEEvent]:
+    ) -> AsyncIterator[ISSEEvent]:
         """
         Generate counter events
 
         :param connection: SSE connection
-        :return: Async iterable of SSE events
+        :return: Async iterator of SSE events
         """
         import asyncio
 
         for count in range(self.start, self.end + 1):
             await asyncio.sleep(self.interval)
             yield SSEEvent(
-                data={'count': count},
-                event='counter',
-                id=f'count-{count}',
+                data={"count": count},
+                event="counter",
+                id=f"count-{count}",
             )

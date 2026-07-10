@@ -7,10 +7,9 @@ from typing import Any
 
 
 class Channel:
-    stop: bool = False
-
-    def __init__(self, maxsize=0):
-        self._queue = Queue(maxsize)
+    def __init__(self, maxsize: int = 0):
+        self.stop = False
+        self._queue: Queue[Any] = Queue(maxsize)
 
     async def send(self, value: Any) -> bool:
         try:
@@ -31,45 +30,55 @@ def new(maxsize: int = 0) -> Channel:
 
 
 class ChannelManager:
-    _lock = Lock()
+    _instance: ChannelManager | None = None
+    _init_lock = Lock()
+    _lock: Lock
+    _job_channel: MutableMapping[str, Channel]
 
-    _job_channel: MutableMapping[str, Channel] = {}
+    def __new__(cls) -> ChannelManager:
+        with cls._init_lock:
+            if cls._instance is None:
+                inst = super().__new__(cls)
+                inst._lock = Lock()
+                inst._job_channel = {}
+                cls._instance = inst
+            return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def put(self, key: str, chan: Channel) -> None:
-        assert key, 'invalid key'
-        assert chan, 'invalid channel'
+        assert key, "invalid key"
+        assert chan, "invalid channel"
 
         with self._lock:
             self._job_channel[key] = chan
 
     def get(self, key: str) -> Channel | None:
-        assert key, 'invalid key'
+        assert key, "invalid key"
 
         with self._lock:
-            if 0 == len(self._job_channel):
+            if len(self._job_channel) == 0:
                 return None
 
             return self._job_channel.get(key)
 
     def remove(self, key: str):
-        assert key, 'invalid key'
+        assert key, "invalid key"
 
         with self._lock:
-            if 0 == len(self._job_channel):
+            if len(self._job_channel) == 0:
                 return None
 
             return self._job_channel.pop(key)
 
     def new(self, key: str) -> Channel:
-        chan = self.get(key)
-        if chan is None:
-            chan = Channel()
-            self.put(key, chan)
-
-        return chan
+        with self._lock:
+            chan = self._job_channel.get(key)
+            if chan is None:
+                chan = Channel()
+                self._job_channel[key] = chan
+            return chan
 
     def available(self, key: str) -> Channel:
         return self.new(key)

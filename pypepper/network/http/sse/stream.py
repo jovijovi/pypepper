@@ -1,15 +1,25 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 from collections.abc import AsyncIterable
 
 from fastapi import Request
 from fastapi.sse import ServerSentEvent
 
+from pypepper.common.config import config
 from pypepper.common.log import log
 from pypepper.network.http.sse.connection import SSEConnection, connection_manager
 from pypepper.network.http.sse.interfaces import ISSEHandler
+
+
+def _stream_timeout_seconds() -> float:
+    try:
+        value = config.get_yml_config().sse.streamTimeoutSeconds
+        return float(value) if value is not None else 30.0
+    except Exception:
+        return 30.0
 
 
 def _serialize_sse_event(event: ServerSentEvent) -> str:
@@ -29,28 +39,28 @@ def _serialize_sse_event(event: ServerSentEvent) -> str:
     lines = []
 
     if event.comment:
-        lines.append(f':{event.comment}')
+        lines.append(f":{event.comment}")
 
     if event.event:
-        lines.append(f'event: {event.event}')
+        lines.append(f"event: {event.event}")
 
     if event.id:
-        lines.append(f'id: {event.id}')
+        lines.append(f"id: {event.id}")
 
     if event.retry is not None:
-        lines.append(f'retry: {event.retry}')
+        lines.append(f"retry: {event.retry}")
 
     if event.raw_data is not None:
         # Raw data mode: send as-is
         for line in event.raw_data.splitlines():
-            lines.append(f'data: {line}')
+            lines.append(f"data: {line}")
     elif event.data is not None:
         # JSON mode: serialize data
         data_str = json.dumps(event.data, ensure_ascii=False)
-        lines.append(f'data: {data_str}')
+        lines.append(f"data: {data_str}")
 
     # SSE spec: events are separated by double newline
-    return '\n'.join(lines) + '\n\n'
+    return "\n".join(lines) + "\n\n"
 
 
 async def sse_stream(
@@ -69,9 +79,10 @@ async def sse_stream(
     :return: AsyncIterable of SSE-formatted strings
     """
     # Extract metadata from request
-    last_event_id = request.headers.get('Last-Event-ID')
-    client_ip = getattr(request.state, 'client_ip', request.client.host)
-    api_key = getattr(request.state, 'api_key', None)
+    last_event_id = request.headers.get("Last-Event-ID")
+    client_host = request.client.host if request.client is not None else None
+    client_ip = getattr(request.state, "client_ip", client_host)
+    api_key = getattr(request.state, "api_key", None)
 
     # Establish connection
     connection = await connection_manager.connect(
@@ -86,9 +97,7 @@ async def sse_stream(
         await handler.on_connect(connection)
 
         # Create event generation task
-        event_gen_task = asyncio.create_task(
-            _consume_handler_events(handler, connection)
-        )
+        event_gen_task = asyncio.create_task(_consume_handler_events(handler, connection))
 
         # Stream events from queue
         while not await request.is_disconnected():
@@ -96,7 +105,7 @@ async def sse_stream(
                 # Wait for event with timeout (for heartbeat)
                 event = await asyncio.wait_for(
                     connection._queue.get(),
-                    timeout=30.0,  # 30 seconds timeout
+                    timeout=_stream_timeout_seconds(),
                 )
 
                 # Convert to ServerSentEvent and serialize to SSE format
@@ -117,10 +126,8 @@ async def sse_stream(
 
         # Cancel event generation task
         event_gen_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await event_gen_task
-        except asyncio.CancelledError:
-            pass
 
     finally:
         # Trigger on_disconnect callback

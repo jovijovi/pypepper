@@ -1,11 +1,10 @@
 import time
-from typing import Union
 
 import arrow
 
 # ISO 8601 is an international standard covering the worldwide exchange and communication of date and time-related data.
 # ref: https://en.wikipedia.org/wiki/ISO_8601
-ISO8601_WITH_TZ_OFFSET = 'YYYY-MM-DDTHH:mm:ss.SSSZZ'
+ISO8601_WITH_TZ_OFFSET = "YYYY-MM-DDTHH:mm:ss.SSSZZ"
 
 # Time units
 TIME_MS = 0.001
@@ -15,7 +14,7 @@ TIME_HOUR = TIME_MINUTE * 60
 TIME_DAY = TIME_HOUR * 24
 
 
-def get_datetime(tz: str = None) -> str:
+def get_datetime(tz: str | None = None) -> str:
     """
     Return datetime by timezone
     :param tz: timezone (optional)
@@ -43,7 +42,7 @@ def get_utc_datetime() -> str:
     return arrow.utcnow().format(ISO8601_WITH_TZ_OFFSET)
 
 
-def get_date(tz: str = None) -> str:
+def get_date(tz: str | None = None) -> str:
     """
     Return date by timezone.
     :param tz: timezone (optional)
@@ -59,7 +58,7 @@ def get_timezone() -> str:
     :return: local timezone name
     """
 
-    return arrow.now().timetz().tzname()
+    return arrow.now().timetz().tzname() or ""
 
 
 def get_unix_timestamp() -> int:
@@ -72,8 +71,8 @@ def get_unix_timestamp() -> int:
 
 
 def parse_unix_timestamp(
-        timestamp: Union[int, float, str],
-        tz: str = None,
+    timestamp: int | float | str,
+    tz: str | None = None,
 ) -> str:
     """
     Parse unix timestamp to datetime

@@ -1,6 +1,6 @@
 APP_NAME:=pypepper
 OS:=linux
-PYTHON_VER:=3.13.13
+PYTHON_VER:=3.13.14
 IMAGE_TAG:=slim-trixie
 
 PROJECT_DIR:=$(shell pwd -L)
@@ -20,7 +20,7 @@ APP_TAG=$(VERSION).$(BUILD_TIME)
 VERSION_INFO='{"version":"$(VERSION)","gitCommit":"$(GIT_COMMIT)","commitTime":"$(COMMIT_TIME)","buildTime":"$(BUILD_TIME)","pythonVersion":"$(PYTHON_VER)"}'
 
 
-.PHONY: build-prepare debug test build docker clean publish-test publish help
+.PHONY: build-prepare debug test build docker clean publish-test publish help check lint docs docs-serve
 
 all: test clean docker
 
@@ -29,9 +29,27 @@ build-prepare: clean
 	mkdir -p $(APP_DIR)
 	uv pip install -r requirements-dev.txt
 
-test: clean
+lint:
+	@echo "[BUILD] Running ruff and mypy..."
+	ruff check pypepper
+	ruff format --check pypepper
+	mypy pypepper
+
+docs:
+	@echo "[BUILD] Building documentation..."
+	mkdocs build --strict
+
+docs-serve:
+	@echo "[BUILD] Serving documentation..."
+	mkdocs serve
+
+check: lint
+	@echo "[BUILD] Checking mutable class attributes..."
+	python3 ./scripts/check_mutable_class_attrs.py
+
+test: clean check
 	@echo "[BUILD] Testing"
-	pytest --cov=pypepper tests/
+	pytest --cov=pypepper --cov-report=xml:coverage.xml --cov-report=term tests/
 
 build: build-prepare
 	@echo "[BUILD] Building binary"

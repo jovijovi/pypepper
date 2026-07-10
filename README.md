@@ -16,6 +16,18 @@ PyPepper is a microservice toolkit.
 
 <https://github.com/jovijovi/pypepper>
 
+## :book: Documentation
+
+Online docs: <https://jovijovi.github.io/pypepper/>
+
+Architecture overview, getting started, and domain guides. Local preview:
+
+```shell
+make docs-serve
+```
+
+Source lives under [`docs/`](docs/index.md) (`mkdocs.yml`). Build with `make docs` (`mkdocs build --strict`).
+
 ## :checkered_flag: Features
 
 ### ***common***
@@ -84,10 +96,25 @@ Module loader.
   make build
   ```
 
+- Lint (ruff + mypy)
+
+  ```shell
+  make lint
+  ```
+
 - Test with coverage
 
   ```shell
   make test
+  ```
+
+  `make test` runs `make check` first (`make lint` + `scripts/check_mutable_class_attrs.py`).
+
+- Docs
+
+  ```shell
+  make docs
+  make docs-serve
   ```
 
 - Build docker image
@@ -102,7 +129,18 @@ Module loader.
   make clean
   ```
 
+- SSE example
+
+  Set a local API key (default config ships with empty `validKeys`):
+
+  ```shell
+  export PYPEPPER_SSE_API_KEY=your-local-key
+  python example/sse/app.py
+  ```
+
 ## :bulb: Roadmap
 
-- [ ] Documents
+- [x] Documents
 - [ ] Tracing
+- [x] Harden shared mutable state / FSM rollback / SSE auth defaults
+- [x] ruff + mypy CI gate

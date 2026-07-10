@@ -1,8 +1,6 @@
 from collections.abc import Callable
 from typing import TypeVar, Any, Generic
 
-import pytest
-
 from pypepper.common import options
 from pypepper.common.context import context
 from pypepper.common.options import IOptions
@@ -34,8 +32,8 @@ def with_score(score: int) -> F:
 
 def test_new_options():
     opts = options.new()
-    print("Options.dryrun=", opts.dryrun)
-    print("Options.context=", opts.context)
+    assert opts.dryrun is False
+    assert opts.context is not None
 
 
 def test_new_custom_options():
@@ -46,16 +44,7 @@ def test_new_custom_options():
         with_score(42),
     ))
 
-    print("Options.context=", opts.context.context.get('key1'))
-    print("Options.dryrun=", opts.dryrun)
-    print("Options.name=", opts.name)
-    print("Options.score=", opts.score)
-
     assert opts.context.context.get('key1') == 'value1'
     assert opts.dryrun is True
     assert opts.name == 'foo'
     assert opts.score == 42
-
-
-if __name__ == '__main__':
-    pytest.main()

@@ -1,55 +1,53 @@
 import pytest
 
-from pypepper.loader import loader
+from pypepper.errors import (
+    ERROR_INVALID_LOADER,
+    ERROR_INVALID_MODULE_NAME,
+    ERROR_NOT_FOUND_MODULE,
+)
+from pypepper.exceptions import InternalException
+from pypepper.loader import Loader, loader
 
 
 def foo_loader():
-    print("Foo is running...")
+    return 'foo'
 
 
 def bar_loader():
-    print("Bar is running...")
+    return 'bar'
 
 
 def test_load():
-    loader.register('foo', foo_loader)
-    loader.register('foo', foo_loader)
-    loader.load('foo')
-    loader.load('foo')
-
-    loader.load('bar', bar_loader)
+    assert loader.load('foo', foo_loader) == 'foo'
+    # Re-register same name is ignored
+    loader.register('foo', bar_loader)
+    assert loader.load('foo') == 'foo'
+    assert loader.load('bar', bar_loader) == 'bar'
 
 
 def test_invalid_module_name():
-    try:
+    with pytest.raises(InternalException) as exc:
         loader.register('', bar_loader)
-    except Exception as e:
-        print("Excepted error=", e)
+    assert str(exc.value) == ERROR_INVALID_MODULE_NAME
 
-    try:
+    with pytest.raises(InternalException):
         loader.load('')
-    except Exception as e:
-        print("Excepted error=", e)
 
-    try:
+    with pytest.raises(InternalException):
         loader.load(None)
-    except Exception as e:
-        print("Excepted error=", e)
 
 
 def test_invalid_loader():
-    try:
-        loader.register('bar', None)
-    except Exception as e:
-        print("Excepted error=", e)
+    with pytest.raises(InternalException) as exc:
+        loader.register('bar_invalid', None)
+    assert str(exc.value) == ERROR_INVALID_LOADER
 
 
 def test_load_not_existed_module():
-    try:
+    with pytest.raises(InternalException) as exc:
         loader.load('not_existed_module')
-    except Exception as e:
-        print("Excepted error=", e)
+    assert str(exc.value) == ERROR_NOT_FOUND_MODULE
 
 
-if __name__ == '__main__':
-    pytest.main()
+def test_loader_is_singleton():
+    assert Loader() is loader

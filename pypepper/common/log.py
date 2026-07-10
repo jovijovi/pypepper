@@ -31,7 +31,7 @@ class LogLevel(str, Enum):
         :return: result
         """
 
-        return name in cls.__members__.keys()
+        return name in cls.__members__
 
     @classmethod
     def has_value(cls, value) -> bool:
@@ -61,9 +61,11 @@ class LogLevelFilter:
 default_log_filter = LogLevelFilter(LogLevel.TRACE)
 
 # Log format
-log_fmt = "[<green>{time:YYYY-MM-DDTHH:mm:ss.SSSZ}</green>][<level>{level:<8}</level>][<cyan>$host:$user</cyan>]" \
-          "[<cyan>pid:{process}|tid:{thread}</cyan>][<cyan>{file.path}:{line}</cyan>]" \
-          "[<cyan>{module}.{function}</cyan>][<magenta>{extra[req_id]}</magenta>][<level>{message}</level>]"
+log_fmt = (
+    "[<green>{time:YYYY-MM-DDTHH:mm:ss.SSSZ}</green>][<level>{level:<8}</level>][<cyan>$host:$user</cyan>]"
+    "[<cyan>pid:{process}|tid:{thread}</cyan>][<cyan>{file.path}:{line}</cyan>]"
+    "[<cyan>{module}.{function}</cyan>][<magenta>{extra[req_id]}</magenta>][<level>{message}</level>]"
+)
 
 # Template of log format
 log_format_template = Template(log_fmt).substitute(host=socket.gethostname(), user=getpass.getuser())
@@ -73,20 +75,15 @@ config = {
     "handlers": [
         {
             "sink": sys.stdout,
-
             # Log format
             "format": log_format_template,
-
             # Default log level
             "level": LogLevel.TRACE,
-
             # Adds colors to logs
             "colorize": True,
-
             # Enqueue the messages to ensure logs integrity
             # Ref: https://loguru.readthedocs.io/en/stable/overview.html#asynchronous-thread-safe-multiprocess-safe
             "enqueue": True,
-
             # Default log filter
             "filter": default_log_filter,
         },
@@ -101,7 +98,7 @@ config = {
 }
 
 logger.remove()
-logger.configure(**config)
+logger.configure(**config)  # type: ignore[arg-type]
 
 
 class Logger:
@@ -112,8 +109,13 @@ class Logger:
         return self._logger
 
     def request_id(self, req_id=0):
-        self._logger = self._logger.bind(req_id=req_id)
-        return self
+        """
+        Return a temporary logger bound with request id.
+        Does not mutate the process-wide logger singleton.
+        """
+        bound = Logger()
+        bound._logger = self._logger.bind(req_id=req_id)
+        return bound
 
     def logo(self, msg: str):
         msg += json.dumps(version.get_version_info(), indent=4)
@@ -154,9 +156,9 @@ class Logger:
 
     @staticmethod
     def set_colorize(colorize=True):
-        config["handlers"][0]["colorize"] = colorize
+        config["handlers"][0]["colorize"] = colorize  # type: ignore[index]
         logger.remove()
-        logger.configure(handlers=config["handlers"])
+        logger.configure(handlers=config["handlers"])  # type: ignore[arg-type]
 
 
 log = Logger()

@@ -59,21 +59,16 @@ def test_cache_set():
     cache2.set('key2', 'value2')
     cache2.set('key3', 'value3')
     cache2.set('key4', 'value4')
-    print("Sleeping for 1 seconds...")
+    assert cache2.get('key2') == 'value2'
     time.sleep(second=1)
-    print("cache2.key2, value=", cache2.get('key2'))
-    print("cache2.key3, value=", cache2.get('key3'))
-    print("cache2.key4, value=", cache2.get('key4'))
-    print("Sleeping for 1 seconds...")
-    time.sleep(second=1)
-    print("cache2.key2, value=", cache2.get('key2'))
-    print("cache2.key3, value=", cache2.get('key3'))
-    print("cache2.key4, value=", cache2.get('key4'))
+    assert cache2.get('key2') == 'value2'
+    time.sleep(second=1.1)
+    assert cache2.get('key2') is None
+    assert cache2.get('key3') is None
+    assert cache2.get('key4') is None
 
     # Clear cache-set
     cache_set.clear()
-    print(f"cache1a.key=key1, value={cache1a.get('key1')}")
-    print(f"cache1b.key=key1, value={cache1b.get('key1')}")
     assert cache1a.get('key1') is None
     assert cache1b.get('key1') is None
 

@@ -18,7 +18,7 @@ def shutdown():
     """
 
     log.close()
-    print("[{}] ### Logger close done.".format(time.get_local_datetime()))
+    print(f"[{time.get_local_datetime()}] ### Logger close done.")
     os.abort()
 
 

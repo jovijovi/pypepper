@@ -124,7 +124,12 @@ def test_fsm():
     print("Error4=", rsp4.error)
     assert str(rsp4.error) == 'A mock Error!'
     print("Current state4=", rsp4.state.value)
-    assert rsp4.state.value == 'Opened'
+    assert rsp4.state.value == 'Closed'
+
+    # Open successfully, then close
+    rsp4b = machine.on(evt1)
+    assert rsp4b.error is None
+    assert rsp4b.state.value == 'Opened'
 
     # Knock Knock again
     rsp5 = machine.on(evt2, lambda: 42)

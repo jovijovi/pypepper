@@ -2,29 +2,31 @@ from __future__ import annotations
 
 from abc import ABCMeta
 
-from mongoengine import connect as connect_db, disconnect_all
+from mongoengine import connect as connect_db
+from mongoengine import disconnect_all
 
 from pypepper.helper.db.interfaces import IConfig
 
 
 class Config(IConfig, metaclass=ABCMeta):
-    auth_source: str = 'admin'
+    auth_source: str = "admin"
 
     # Configuring a UUID Representation
     # Ref 1: https://github.com/MongoEngine/mongoengine/issues/2728
     # Ref 2: https://pymongo.readthedocs.io/en/stable/examples/uuid.html#configuring-uuid-representation
-    uuid_representation: str = 'standard'
+    uuid_representation: str = "standard"
 
-    def __init__(self,
-                 uri: str | None = None,
-                 username: str | None = None,
-                 password: str | None = None,
-                 host: str | None = None,
-                 port: int = 27017,
-                 db: str | None = None,
-                 auth_source: str = 'admin',
-                 uuid_representation: str = 'standard',
-                 ):
+    def __init__(
+        self,
+        uri: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        host: str | None = None,
+        port: int = 27017,
+        db: str | None = None,
+        auth_source: str = "admin",
+        uuid_representation: str = "standard",
+    ):
         super().__init__(
             uri=uri,
             username=username,
@@ -38,7 +40,7 @@ class Config(IConfig, metaclass=ABCMeta):
 
 
 def connect(cfg: Config) -> None:
-    assert cfg, 'invalid database config'
+    assert cfg, "invalid database config"
 
     if cfg.uri:
         connect_db(
