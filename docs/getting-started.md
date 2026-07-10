@@ -62,10 +62,16 @@ curl -N -H "X-API-Key: $PYPEPPER_SSE_API_KEY" http://localhost:55550/sse/echo
 
 ## Documentation site
 
+Online: <https://jovijovi.github.io/pypepper/>
+
+Local preview (same content as the published site):
+
 ```shell
 make docs        # mkdocs build --strict
 make docs-serve  # local preview
 ```
+
+Push to `main` deploys the site via GitHub Pages (`.github/workflows/docs.yml`).
 
 ## Next steps
 

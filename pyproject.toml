@@ -30,6 +30,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/jovijovi/pypepper"
+Documentation = "https://jovijovi.github.io/pypepper/"
 Repository = "https://github.com/jovijovi/pypepper"
 Issues = "https://github.com/jovijovi/pypepper/issues"
 

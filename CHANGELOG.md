@@ -29,3 +29,4 @@
 - `scripts/check_mutable_class_attrs.py` CI guard; isolation/rollback regression tests.
 - MkDocs Material documentation site (`docs/`, `mkdocs.yml`) with architecture and domain guides.
 - `ruff` + `mypy` lint gate (`make lint` / CI lint job) and `make docs` (`mkdocs build --strict`).
+- GitHub Pages documentation site at https://jovijovi.github.io/pypepper/ (deployed from `main` via `.github/workflows/docs.yml`).

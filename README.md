@@ -18,7 +18,9 @@ PyPepper is a microservice toolkit.
 
 ## :book: Documentation
 
-Architecture overview, getting started, and domain guides:
+Online docs: <https://jovijovi.github.io/pypepper/>
+
+Architecture overview, getting started, and domain guides. Local preview:
 
 ```shell
 make docs-serve

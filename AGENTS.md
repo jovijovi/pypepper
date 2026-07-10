@@ -11,7 +11,7 @@
 - `make lint`: run `ruff check`, `ruff format --check`, and `mypy` on `pypepper/`.
 - `make check`: run `make lint` plus `scripts/check_mutable_class_attrs.py`.
 - `make test`: run `make check` then `pytest --cov=pypepper tests/` with cache cleared (default local validation).
-- `make docs` / `make docs-serve`: build or preview the MkDocs Material site (`mkdocs build --strict`).
+- `make docs` / `make docs-serve`: build or preview the MkDocs Material site (`mkdocs build --strict`). Published at https://jovijovi.github.io/pypepper/ (GitHub Pages from `main`).
 - `make build`: install runtime deps, run `scripts/build.py`, and emit `dist/git.json` version metadata.
 - `make docker`: build and tag a local Docker image (`pypepper:latest` plus versioned tag).
 - `make clean`: remove `dist/`, `.pytest_cache`, and `.coverage`.
