@@ -74,16 +74,36 @@ def test_setup_enabled_without_exporters_is_noop():
     shutdown()
 
 
-def test_setup_console_configures_provider():
+def test_setup_service_name_fallback_and_default():
     setup_from_config(
         SimpleNamespace(
             tracing=SimpleNamespace(
                 enabled=True,
-                serviceName="console-cfg",
+                serviceName=None,
+                console=True,
+                otlp=SimpleNamespace(enabled=False, endpoint="http://127.0.0.1:4318"),
+            ),
+            serviceInfo=SimpleNamespace(serviceName="from-service-info"),
+        )
+    )
+    assert trace.get_tracer_provider().__class__.__name__ == "TracerProvider"
+    shutdown()
+
+    setup_from_config(
+        SimpleNamespace(
+            tracing=SimpleNamespace(
+                enabled=True,
+                serviceName=None,
                 console=True,
                 otlp=SimpleNamespace(enabled=False, endpoint="http://127.0.0.1:4318"),
             )
         )
     )
     assert trace.get_tracer_provider().__class__.__name__ == "TracerProvider"
+    shutdown()
+
+
+def test_setup_tracing_cfg_none():
+    setup_from_config(SimpleNamespace(tracing=None))
+    assert isinstance(trace.get_tracer_provider(), trace.NoOpTracerProvider)
     shutdown()
