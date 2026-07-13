@@ -23,6 +23,7 @@
 - HTTP server registers default request-id middleware and supports TLS via `certFile`/`keyFile`/`caFile`.
 
 ### Added
+- `py.typed` PEP 561 marker and `Typing :: Typed` classifier (typed package for consumers after next PyPI release).
 - `Event.marshal()` JSON envelope.
 - Scheduler `CallableExecutor`, sequential `Workflow.run` with retries/optional tasks, and `Worker` channel consumer.
 - Structured `/metrics` payload (uptime + optional SSE stats).
