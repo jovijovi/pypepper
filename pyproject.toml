@@ -11,6 +11,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Typing :: Typed",
 ]
 dependencies = [
     "arrow==1.4.0",
@@ -37,6 +38,9 @@ Issues = "https://github.com/jovijovi/pypepper/issues"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pypepper"]
 
 [dependency-groups]
 dev = [
