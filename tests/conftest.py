@@ -1,6 +1,7 @@
 import pytest
 
 from pypepper.common.cache import Cache
+from pypepper.common.tracing import shutdown as tracing_shutdown
 from pypepper.loader import loader
 from pypepper.network.http.sse.connection import connection_manager
 from pypepper.network.http.sse.security import SSESecurityManager
@@ -24,7 +25,11 @@ def _reset_global_registries():
     # SSE rate-limit cache
     SSESecurityManager._rate_limit_cache = Cache(maxsize=1000, ttl=60)
 
+    tracing_shutdown()
+
     yield
+
+    tracing_shutdown()
 
     with connection_manager._lock:
         connection_manager._connections.clear()

@@ -26,6 +26,7 @@ nav:
       - Event and FSM: guides/event-fsm.md
       - Scheduler: guides/scheduler.md
       - Network and SSE: guides/network-sse.md
+      - Tracing: guides/tracing.md
       - DB Helper: guides/helper-db.md
 
 markdown_extensions:

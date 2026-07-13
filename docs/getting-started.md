@@ -77,3 +77,4 @@ Push to `main` deploys the site via GitHub Pages (`.github/workflows/docs.yml`).
 
 - Read [Architecture](architecture.md) for module boundaries
 - Follow a domain guide under **Guides**
+- Optional: enable [Tracing](guides/tracing.md) (console and/or local Jaeger)

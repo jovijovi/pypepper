@@ -64,6 +64,15 @@ sse:
     enabled: true
     maxRequestsPerMinute: 60
 
+# OpenTelemetry tracing (default off). See docs/guides/tracing.md
+tracing:
+  enabled: false
+  serviceName: pypepper
+  console: false
+  otlp:
+    enabled: false
+    endpoint: http://127.0.0.1:4318
+
 # Custom config (Optional)
 custom:
   foo: "Something interesting"

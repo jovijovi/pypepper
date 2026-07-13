@@ -80,5 +80,10 @@ sequenceDiagram
 
 ## Config surface
 
-Runtime YAML lives in `conf/app.config.yaml` (cluster, network, log, SSE, `custom`).
+Runtime YAML lives in `conf/app.config.yaml` (cluster, network, log, SSE, tracing, `custom`).
 Some config models (for example heartbeat / JSON-RPC proxy) are reserved and not yet wired to servers.
+
+## Observability
+
+Optional OpenTelemetry tracing is configured under `tracing` (default off). See [Tracing](guides/tracing.md).
+HTTP requests and `Workflow.run` emit spans when enabled; Jaeger all-in-one is available via `devenv/dev.yaml` for local UI only.
