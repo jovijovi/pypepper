@@ -37,7 +37,12 @@ class BaseHandlers(ITaskHandler):
         app.get("/metrics")(metrics)
 
     def _use_default_middleware(self, app: FastAPI):
+        # Starlette runs last-added middleware first. Tracing is outer; RequestId runs
+        # inside the span so request_id is available after call_next.
         app.add_middleware(RequestIdMiddleware)
+        from pypepper.common.tracing import TracingMiddleware
+
+        app.add_middleware(TracingMiddleware)
 
 
 base_handlers = BaseHandlers()

@@ -17,6 +17,9 @@ def shutdown():
     :return: None
     """
 
+    from pypepper.common.tracing import shutdown as tracing_shutdown
+
+    tracing_shutdown()
     log.close()
     print(f"[{time.get_local_datetime()}] ### Logger close done.")
     os.abort()

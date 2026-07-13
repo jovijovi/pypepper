@@ -23,6 +23,7 @@
 - HTTP server registers default request-id middleware and supports TLS via `certFile`/`keyFile`/`caFile`.
 
 ### Added
+- OpenTelemetry tracing (opt-in via `tracing` YAML): console exporter and OTLP HTTP to local Jaeger; HTTP + `Workflow.run` spans.
 - `py.typed` PEP 561 marker and `Typing :: Typed` classifier (typed package for consumers after next PyPI release).
 - `Event.marshal()` JSON envelope.
 - Scheduler `CallableExecutor`, sequential `Workflow.run` with retries/optional tasks, and `Worker` channel consumer.

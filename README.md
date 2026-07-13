@@ -141,6 +141,6 @@ Module loader.
 ## :bulb: Roadmap
 
 - [x] Documents
-- [ ] Tracing
+- [x] Tracing
 - [x] Harden shared mutable state / FSM rollback / SSE auth defaults
 - [x] ruff + mypy CI gate

@@ -31,14 +31,17 @@ class Workflow(IWorkflow):
         Respects retry_count / retry_delay / optional.
         Non-optional task failure aborts the workflow.
         """
-        if len(self.tasks) == 0:
-            return []
+        from pypepper.common.tracing import get_tracer
 
-        results = []
-        for task in self.tasks:
-            result = self._run_task(task)
-            results.append(result)
-        return results
+        with get_tracer("pypepper.scheduler").start_as_current_span("scheduler.workflow.run"):
+            if len(self.tasks) == 0:
+                return []
+
+            results = []
+            for task in self.tasks:
+                result = self._run_task(task)
+                results.append(result)
+            return results
 
     def _run_task(self, task: Task):
         attempts = max(1, int(task.retry_count or 0) + 1)

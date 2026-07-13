@@ -76,12 +76,25 @@ class ConfSSE:
     rateLimit: ConfSSERateLimit
 
 
+class ConfTracingOTLP:
+    enabled: bool
+    endpoint: str
+
+
+class ConfTracing:
+    enabled: bool
+    serviceName: str
+    console: bool
+    otlp: ConfTracingOTLP
+
+
 class YmlConfig:
     cluster: ConfCluster
     network: ConfNetwork
     heartbeat: ConfHeartbeat
     log: ConfLog
     sse: ConfSSE
+    tracing: ConfTracing
     custom: Any
 
 
@@ -123,6 +136,10 @@ class Config:
         if hasattr(self.get_yml_config(), "log") and hasattr(self.get_yml_config().log, "level"):
             log.set_log_level(self.get_yml_config().log.level)
             log.set_colorize(self.get_yml_config().log.colorize)
+
+        from pypepper.common.tracing import setup_from_config
+
+        setup_from_config(self.get_yml_config())
 
     def get_yml_config(self) -> YmlConfig:
         return self._setting
