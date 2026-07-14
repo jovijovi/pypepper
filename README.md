@@ -1,146 +1,90 @@
 <div align="center">
+  <img src="docs/logo/logo.svg" alt="PyPepper" width="128" />
 
-![logo](docs/logo/logo.svg)
+  <h1>PyPepper</h1>
 
+  <p>
+    <strong>Composable building blocks for Python microservices.</strong><br />
+    Build faster. Live more.
+  </p>
+
+  <p>
+    <a href="https://pypi.org/project/pypepper/"><img src="https://img.shields.io/pypi/v/pypepper?style=flat-square&logo=pypi&logoColor=white&label=PyPI" alt="PyPI" /></a>
+    <a href="https://jovijovi.github.io/pypepper/"><img src="https://img.shields.io/badge/docs-online-0A7EA4?style=flat-square" alt="Docs" /></a>
+    <a href="https://github.com/jovijovi/pypepper/actions"><img src="https://img.shields.io/github/actions/workflow/status/jovijovi/pypepper/test.yaml?branch=main&style=flat-square&label=CI" alt="CI" /></a>
+    <a href="https://codecov.io/gh/jovijovi/pypepper"><img src="https://img.shields.io/codecov/c/github/jovijovi/pypepper?style=flat-square&logo=codecov&logoColor=white" alt="Coverage" /></a>
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%E2%80%933.14-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2F2F2F?style=flat-square" alt="License" /></a>
+  </p>
 </div>
 
-# PyPepper
+<p align="center"><em>In memory of my father, who passed away in 2023 from COVID-19.</em></p>
 
-[![PyPI](https://img.shields.io/pypi/v/pypepper?label=\&logo=pypi\&logoColor=fff)](https://pypi.org/project/pypepper/)
-[![GitHub Actions](https://github.com/jovijovi/pypepper/workflows/Test/badge.svg)](https://github.com/jovijovi/pypepper)
-[![Coverage](https://img.shields.io/codecov/c/github/jovijovi/pypepper?label=\&logo=codecov\&logoColor=fff)](https://codecov.io/gh/jovijovi/pypepper)
+---
 
-> _In memory of my father, who passed away in 2023 from COVID-19._
+PyPepper packages the pieces you wire into services: **HTTP / SSE**, **FSM**, a **workflow scheduler**, signed **events**, thin **DB helpers**, and optional **OpenTelemetry** tracing — for Python `3.10`–`3.14`.
 
-PyPepper is a microservice toolkit.
+- Project: [https://github.com/jovijovi/pypepper](https://github.com/jovijovi/pypepper)
+- Docs: [https://jovijovi.github.io/pypepper/](https://jovijovi.github.io/pypepper/)
 
-<https://github.com/jovijovi/pypepper>
+## Documentation
 
-## :book: Documentation
+[Getting Started](https://jovijovi.github.io/pypepper/getting-started/) · [Architecture](https://jovijovi.github.io/pypepper/architecture/) · [Guides](https://jovijovi.github.io/pypepper/guides/common/) · [API Reference](https://jovijovi.github.io/pypepper/reference/)
 
-Online docs: <https://jovijovi.github.io/pypepper/>
+Source under [`docs/`](docs/index.md). Local preview: `make docs-serve`.
 
-Architecture overview, getting started, and domain guides. Local preview:
+## Domains
+
+| | Package | Role |
+|:--|:--|:--|
+| **Common** | `pypepper.common` | Config, logging, context, cache, crypto, utilities |
+| **Event** | `pypepper.event` | Signed domain events with JSON marshal |
+| **FSM** | `pypepper.fsm` | Event-triggered state machine with rollback |
+| **Scheduler** | `pypepper.scheduler` | `Job → Channel → Worker → Workflow` |
+| **Network** | `pypepper.network` | FastAPI HTTP server and SSE subsystem |
+| **Helper** | `pypepper.helper` | MySQL / PostgreSQL / MongoDB connectors |
+
+## Highlights
+
+| | |
+|:--|:--|
+| **Network** | FastAPI HTTP + SSE with API-key auth and rate limits → [guide](https://jovijovi.github.io/pypepper/guides/network-sse/) |
+| **FSM & events** | Rollback on handler failure; signed payloads → [guide](https://jovijovi.github.io/pypepper/guides/event-fsm/) |
+| **Scheduler** | Workflow job pipeline with retries → [guide](https://jovijovi.github.io/pypepper/guides/scheduler/) |
+| **Tracing** | Opt-in OpenTelemetry (console / local Jaeger) → [guide](https://jovijovi.github.io/pypepper/guides/tracing/) |
+| **Quality** | PEP 561 `py.typed` · ruff + mypy CI · coverage `≥ 90%` |
+| **Data** | Thin DB helpers → [guide](https://jovijovi.github.io/pypepper/guides/helper-db/) |
+
+## Quick start
+
+Requires Python `3.10`–`3.14` and [uv](https://github.com/astral-sh/uv) `≥ 0.10.7` (recommended).
 
 ```shell
-make docs-serve
+make build-prepare
 ```
 
-Source lives under [`docs/`](docs/index.md) (`mkdocs.yml`). Build with `make docs` (`mkdocs build --strict`).
+```shell
+export PYPEPPER_SSE_API_KEY=your-local-key
+python example/sse/app.py
+```
 
-## :checkered_flag: Features
+HTTP example:
 
-### ***common***
+```shell
+python example/server/app.py --config ./conf/app.config.yaml
+```
 
-Common packages.
+Full walkthrough: [Getting Started](https://jovijovi.github.io/pypepper/getting-started/).
 
-- `context`
-  - `common.context` A powerful chained context
-- `security`
-  - `common.security.crypto.elliptic.ecdsa` Sign/Verify message by ECDSA
-  - `common.security.crypto.digest` Get hash bytes/hex
-  - `common.security.crypto.salt` Generates a random salt of the specified size
-- `utils`
-  - `common.utils.random` A class for generating random values
-  - `common.utils.retry` Retry running the function by random interval, support lambda
-  - `common.utils.time` Get UTC/local datetime/timezone/timestamp, support sleep
-  - `common.utils.uuid` UUID(v4) generator
-- `cache`
-  - `common.cache` A thread safe TTL cache-set
-- `log`
-  - `common.log` A simple logger based on [loguru](https://github.com/Delgan/loguru)
-- `options`
-  - `common.options` An easy-to-use options
-- `system`
-  - `common.system` System signals handler
+<details>
+<summary><strong>Developer commands</strong></summary>
 
-### ***event***
+```shell
+make lint     # ruff + mypy
+make test     # check + pytest (coverage ≥ 90%)
+make docs     # mkdocs build --strict
+make docker   # local image
+make clean
+```
 
-An event package with payload, support sign/verify signature.
-
-### ***fsm***
-
-An out-of-box FSM with event trigger, support custom state.
-
-### ***helper***
-
-Database helper.
-
-- `helper.db.mongodb` MongoDB helper
-- `helper.db.mysql` MySQL helper
-- `helper.db.postgres` PostgreSQL helper
-
-### ***network***
-
-- `network.http` RESTFul API server based on [FastAPI](https://github.com/tiangolo/fastapi). 
-
-### ***scheduler***
-
-A Workflow-based job scheduler.
-
-### ***loader***
-
-Module loader.
-
-## :computer: Quick Guide
-
-- Development Environment
-  - python `3.10`,`3.11`,`3.12`,`3.13`,`3.14`
-  - uv >= `0.10.7`
-
-- Build code
-
-  Install all dependencies and compile code.
-
-  ```shell
-  make build
-  ```
-
-- Lint (ruff + mypy)
-
-  ```shell
-  make lint
-  ```
-
-- Test with coverage
-
-  ```shell
-  make test
-  ```
-
-  `make test` runs `make check` first (`make lint` + `scripts/check_mutable_class_attrs.py`).
-
-- Docs
-
-  ```shell
-  make docs
-  make docs-serve
-  ```
-
-- Build docker image
-
-  ```shell
-  make docker
-  ```
-
-- Clean
-
-  ```shell
-  make clean
-  ```
-
-- SSE example
-
-  Set a local API key (default config ships with empty `validKeys`):
-
-  ```shell
-  export PYPEPPER_SSE_API_KEY=your-local-key
-  python example/sse/app.py
-  ```
-
-## :bulb: Roadmap
-
-- [x] Documents
-- [x] Tracing
-- [x] Harden shared mutable state / FSM rollback / SSE auth defaults
-- [x] ruff + mypy CI gate
+</details>

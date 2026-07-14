@@ -18,6 +18,7 @@
 - Protect example `/sse/stats` with API key auth.
 
 ### Changed
+- README refreshed as the project landing page (domains, highlights, quick start; details stay in MkDocs).
 - Event `sign`/`verify` use stable JSON canonical bytes instead of `pickle` (existing pickle signatures will not verify).
 - SSE connection/queue/stream limits read from YAML `sse.*` with hardcoded fallbacks.
 - HTTP server registers default request-id middleware and supports TLS via `certFile`/`keyFile`/`caFile`.
