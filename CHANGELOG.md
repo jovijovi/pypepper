@@ -24,6 +24,8 @@
 - Tighten mypy on TOP3 static paths (`crypto`, HTTP/SSE skeleton, scheduler structure) with `disallow_untyped_defs` + `warn_return_any` (scoped overrides; dynamic/third-party modules unchanged).
 
 ### Added
+- Coverage gate: `fail_under = 90` / `--cov-fail-under=90` on local `make test` and CI.
+- Dependabot weekly updates for pip (`requirements*.txt` / `pyproject.toml`) and GitHub Actions (not Docker images).
 - MkDocs API Reference via `mkdocstrings` (`docs/reference/`, curated public modules).
 - OpenTelemetry tracing (opt-in via `tracing` YAML): console exporter and OTLP HTTP to local Jaeger; HTTP + `Workflow.run` spans.
 - `py.typed` PEP 561 marker and `Typing :: Typed` classifier (typed package for consumers after next PyPI release).
