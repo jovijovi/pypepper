@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import MutableMapping
 from threading import Lock
+from typing import TypeVar, cast
 
 from pypepper.common.config import config
 from pypepper.common.context import Context
@@ -15,12 +16,14 @@ from pypepper.network.http.sse.interfaces import (
     ISSEEvent,
 )
 
+T = TypeVar("T")
 
-def _sse_config_value(name: str, default):
+
+def _sse_config_value(name: str, default: T) -> T:
     try:
         sse = config.get_yml_config().sse
         value = getattr(sse, name, None)
-        return default if value is None else value
+        return default if value is None else cast(T, value)
     except Exception:
         return default
 
@@ -139,7 +142,7 @@ class SSEConnectionManager(ISSEConnectionManager):
     def MAX_CONNECTIONS_PER_IP(self) -> int:
         override = getattr(self, "_max_connections_per_ip_override", None)
         if override is not None:
-            return override
+            return int(override)
         return int(_sse_config_value("maxConnectionsPerIP", self.DEFAULT_MAX_CONNECTIONS_PER_IP))
 
     @MAX_CONNECTIONS_PER_IP.setter
@@ -149,7 +152,7 @@ class SSEConnectionManager(ISSEConnectionManager):
     def _effective_max_connections(self) -> int:
         override = getattr(self, "_max_connections_override", None)
         if override is not None:
-            return override
+            return int(override)
         return int(_sse_config_value("maxTotalConnections", self.DEFAULT_MAX_CONNECTIONS))
 
     async def connect(

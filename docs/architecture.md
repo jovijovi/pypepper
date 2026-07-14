@@ -87,3 +87,7 @@ Some config models (for example heartbeat / JSON-RPC proxy) are reserved and not
 
 Optional OpenTelemetry tracing is configured under `tracing` (default off). See [Tracing](guides/tracing.md).
 HTTP requests and `Workflow.run` emit spans when enabled; Jaeger all-in-one is available via `devenv/dev.yaml` for local UI only.
+
+## Type checking
+
+`make lint` runs mypy on `pypepper/`. Selected static paths (crypto, HTTP/SSE skeleton, scheduler structure) additionally enable `disallow_untyped_defs` and `warn_return_any` via `[[tool.mypy.overrides]]` in `pyproject.toml`. Dynamic boundaries (config/`Box`, FSM handlers, loader, executor/channel) and third-party stubs remain on the looser global settings.

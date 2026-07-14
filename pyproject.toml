@@ -96,3 +96,40 @@ module = [
     "arrow.*",
 ]
 ignore_missing_imports = true
+
+# TOP3: tighten static paths only (crypto / HTTP-SSE skeleton / scheduler structure).
+[[tool.mypy.overrides]]
+module = [
+    "pypepper.common.security.crypto",
+    "pypepper.common.security.crypto.*",
+]
+disallow_untyped_defs = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pypepper.network.http.server",
+    "pypepper.network.http.interfaces",
+    "pypepper.network.http.handlers",
+    "pypepper.network.http.handlers.*",
+    "pypepper.network.http.sse.connection",
+    "pypepper.network.http.sse.stream",
+    "pypepper.network.http.sse.handlers",
+    "pypepper.network.http.sse.interfaces",
+]
+disallow_untyped_defs = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pypepper.scheduler.task",
+    "pypepper.scheduler.job",
+    "pypepper.scheduler.worker",
+    "pypepper.scheduler.workflow",
+    "pypepper.scheduler.status",
+    "pypepper.scheduler.tag",
+    "pypepper.scheduler.events",
+    "pypepper.scheduler.base",
+]
+disallow_untyped_defs = true
+warn_return_any = true

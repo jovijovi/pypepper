@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from abc import ABCMeta
+from typing import cast
 
 from pypepper.common.log import log
 from pypepper.scheduler.base import IBase
@@ -13,19 +14,19 @@ class IWorkflow(IBase, metaclass=ABCMeta):
 
 
 class Workflow(IWorkflow):
-    def __init__(self):
+    def __init__(self) -> None:
         self.tasks: list[Task] = []
 
-    def add_task(self, task: Task):
+    def add_task(self, task: Task) -> None:
         self.tasks.append(task)
 
-    def add_tasks(self, tasks: list[Task]):
+    def add_tasks(self, tasks: list[Task]) -> None:
         self.tasks.extend(tasks)
 
     def get_tasks(self) -> list[Task]:
         return self.tasks
 
-    def run(self) -> list:
+    def run(self) -> list[object]:
         """
         Sequentially execute tasks.
         Respects retry_count / retry_delay / optional.
@@ -37,13 +38,13 @@ class Workflow(IWorkflow):
             if len(self.tasks) == 0:
                 return []
 
-            results = []
+            results: list[object] = []
             for task in self.tasks:
                 result = self._run_task(task)
                 results.append(result)
             return results
 
-    def _run_task(self, task: Task):
+    def _run_task(self, task: Task) -> object | None:
         attempts = max(1, int(task.retry_count or 0) + 1)
         last_error: Exception | None = None
 
@@ -52,7 +53,7 @@ class Workflow(IWorkflow):
                 executor = task.executor
                 if executor is None:
                     return None
-                return executor.execute(task, task.context)
+                return cast(object | None, executor.execute(task, task.context))
             except Exception as e:
                 last_error = e
                 log.warn(f"Task failed: id={task.id}, name={task.name}, attempt={attempt + 1}/{attempts}, error={e}")

@@ -5,9 +5,9 @@ from fastapi import FastAPI
 
 class ITaskHandler(metaclass=ABCMeta):
     @abstractmethod
-    def register_handlers(self, app: FastAPI):
+    def register_handlers(self, app: FastAPI) -> None:
         pass
 
     @abstractmethod
-    def use_middleware(self, app: FastAPI):
+    def use_middleware(self, app: FastAPI) -> None:
         pass

@@ -1,5 +1,10 @@
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from pypepper.common.log import log
 from pypepper.common.utils import uuid
@@ -10,7 +15,7 @@ from pypepper.network.http.interfaces import ITaskHandler
 class RequestIdMiddleware(BaseHTTPMiddleware):
     """Inject X-Request-ID and emit a basic access log line."""
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         req_id = request.headers.get("X-Request-ID") or uuid.new_uuid()
         request.state.request_id = req_id
         response = await call_next(request)
@@ -20,23 +25,23 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 
 
 class BaseHandlers(ITaskHandler):
-    def register_handlers(self, app: FastAPI):
+    def register_handlers(self, app: FastAPI) -> None:
         self._register_health_check(app)
         self._register_metrics_check(app)
 
-    def use_middleware(self, app: FastAPI):
+    def use_middleware(self, app: FastAPI) -> None:
         self._use_default_middleware(app)
 
     @staticmethod
-    def _register_health_check(app: FastAPI):
+    def _register_health_check(app: FastAPI) -> None:
         app.get("/health")(health)
         app.get("/ping")(ping)
 
     @staticmethod
-    def _register_metrics_check(app: FastAPI):
+    def _register_metrics_check(app: FastAPI) -> None:
         app.get("/metrics")(metrics)
 
-    def _use_default_middleware(self, app: FastAPI):
+    def _use_default_middleware(self, app: FastAPI) -> None:
         # Starlette runs last-added middleware first. Tracing is outer; RequestId runs
         # inside the span so request_id is available after call_next.
         app.add_middleware(RequestIdMiddleware)
@@ -48,13 +53,13 @@ class BaseHandlers(ITaskHandler):
 base_handlers = BaseHandlers()
 
 
-def register_handlers(app: FastAPI, private_handlers: ITaskHandler | None = None):
+def register_handlers(app: FastAPI, private_handlers: ITaskHandler | None = None) -> None:
     base_handlers.register_handlers(app)
     if private_handlers:
         private_handlers.register_handlers(app)
 
 
-def use_middleware(app: FastAPI, private_handlers: ITaskHandler | None = None):
+def use_middleware(app: FastAPI, private_handlers: ITaskHandler | None = None) -> None:
     base_handlers.use_middleware(app)
     if private_handlers:
         private_handlers.use_middleware(app)

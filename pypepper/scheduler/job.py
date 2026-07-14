@@ -15,11 +15,11 @@ from pypepper.scheduler.workflow import Workflow
 
 
 class Processor:
-    def run(self, job: Job, chan: Channel):
+    def run(self, job: Job, chan: Channel) -> None:
         asyncio.run(self.async_run(job, chan))
 
     @staticmethod
-    async def async_run(job: Job, chan: Channel):
+    async def async_run(job: Job, chan: Channel) -> None:
         await chan.send(job)
         print("[Processor] JobID=", job.id, "Channel Length=", chan.length())
 
@@ -49,7 +49,7 @@ class Dispatcher:
         with self._lock:
             self._processors[key] = processor
 
-    def _get_processor(self, key) -> Processor | None:
+    def _get_processor(self, key: str) -> Processor | None:
         assert key, "invalid key"
 
         with self._lock:
@@ -69,7 +69,7 @@ class Dispatcher:
     def _available_processor(self, key: str) -> Processor:
         return self._new_processor(key)
 
-    def dispatch(self, job: Job):
+    def dispatch(self, job: Job) -> None:
         job._fsm.on(events.INIT)
         job._fsm.on(events.SCHEDULE)
 
@@ -88,20 +88,20 @@ class IJob(IBase, metaclass=ABCMeta):
     workflows: list[Workflow]
 
     @abstractmethod
-    def save(self):
+    def save(self) -> None:
         pass
 
     @abstractmethod
-    def log(self):
+    def log(self) -> None:
         pass
 
     @abstractmethod
-    def scheduled(self):
+    def scheduled(self) -> None:
         pass
 
 
 class Job(IJob):
-    def __init__(self, category: str | None = None, channel_id: str = "default"):
+    def __init__(self, category: str | None = None, channel_id: str = "default") -> None:
         self.id = uuid.new_uuid()
         self.category: str | None = category
         self.channel_id = channel_id
@@ -109,11 +109,11 @@ class Job(IJob):
         self.workflows: list[Workflow] = []
         self._fsm = events.build_scheduler_fsm()
 
-    def save(self):
+    def save(self) -> None:
         log.debug(f"Job saved: id={self.id}, channel_id={self.channel_id}")
 
-    def log(self):
+    def log(self) -> None:
         log.info(f"Job scheduled: id={self.id}, category={self.category}")
 
-    def scheduled(self):
+    def scheduled(self) -> None:
         dispatcher.dispatch(self)

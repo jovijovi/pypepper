@@ -1,6 +1,7 @@
 from pypepper.event import event
 from pypepper.event.event import Event
 from pypepper.fsm import fsm
+from pypepper.fsm.interfaces import IResponse
 from pypepper.scheduler.status import Status
 
 INIT = event.new(name="init", src=Status.UNKNOWN)
@@ -56,8 +57,8 @@ def build_scheduler_fsm() -> fsm.FSM:
 class FSM:
     """Per-instance scheduler FSM wrapper (backward-compatible API)."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._machine = build_scheduler_fsm()
 
-    def on(self, evt: Event):
+    def on(self, evt: Event) -> IResponse:
         return self._machine.on(evt)

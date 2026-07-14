@@ -21,6 +21,7 @@
 - Event `sign`/`verify` use stable JSON canonical bytes instead of `pickle` (existing pickle signatures will not verify).
 - SSE connection/queue/stream limits read from YAML `sse.*` with hardcoded fallbacks.
 - HTTP server registers default request-id middleware and supports TLS via `certFile`/`keyFile`/`caFile`.
+- Tighten mypy on TOP3 static paths (`crypto`, HTTP/SSE skeleton, scheduler structure) with `disallow_untyped_defs` + `warn_return_any` (scoped overrides; dynamic/third-party modules unchanged).
 
 ### Added
 - OpenTelemetry tracing (opt-in via `tracing` YAML): console exporter and OTLP HTTP to local Jaeger; HTTP + `Workflow.run` spans.

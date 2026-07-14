@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import time
 
 from fastapi import Request
+from starlette.responses import JSONResponse
 
 from pypepper.common.log import log
 from pypepper.common.version import version
@@ -9,17 +12,17 @@ from pypepper.network.http import response
 _PROCESS_START = time.time()
 
 
-async def health(request: Request):
+async def health(request: Request) -> JSONResponse:
     log.request_id().trace("Receive HealthCheck. URL.Path={}", request.url.path)
     return response.build_response(code="200", data=version.get_version_info(), msg="OK")
 
 
-async def ping():
+async def ping() -> str:
     log.request_id().debug("pong")
     return "pong"
 
 
-async def metrics(request: Request):
+async def metrics(request: Request) -> JSONResponse:
     log.request_id().info("Receive MetricsCheck. URL.Path={}", request.url.path)
     data = {
         "uptime_seconds": round(time.time() - _PROCESS_START, 3),
