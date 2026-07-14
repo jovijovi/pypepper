@@ -29,6 +29,7 @@ nav:
       - Network and SSE: guides/network-sse.md
       - Tracing: guides/tracing.md
       - DB Helper: guides/helper-db.md
+      - Release: guides/release.md
   - API Reference:
       - reference/index.md
       - Common: reference/common.md

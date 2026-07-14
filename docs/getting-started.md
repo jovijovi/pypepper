@@ -73,9 +73,16 @@ make docs-serve  # local preview
 
 Push to `main` deploys the site via GitHub Pages (`.github/workflows/docs.yml`).
 
+## Release
+
+Tag-triggered PyPI publishing: see [Release](guides/release.md).
+
+Summary: bump `version` in `pyproject.toml`, merge to `main`, then `git tag vX.Y.Z && git push origin vX.Y.Z` (tag must match the pyproject version). Configure PyPI Trusted Publisher once as described in that guide.
+
 ## Next steps
 
 - Read [Architecture](architecture.md) for module boundaries
 - Follow a domain guide under **Guides**
 - Browse the [API Reference](reference/index.md) for signatures and types
 - Optional: enable [Tracing](guides/tracing.md) (console and/or local Jaeger)
+- Maintainers: [Release](guides/release.md) to PyPI via Git tag
