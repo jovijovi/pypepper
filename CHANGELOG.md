@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.0
+
 ### Fixed
 - Isolate FSM transition tables per instance; `close()` only clears the current machine.
 - Roll back FSM state when a transition or caller handler raises.
