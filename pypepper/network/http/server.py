@@ -8,13 +8,13 @@ from pypepper.network.http.interfaces import ITaskHandler
 app = FastAPI()
 
 
-def run_without_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0"):
+def run_without_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0") -> None:
     handlers.register_handlers(app, handlers_)
     handlers.use_middleware(app, handlers_)
     uvicorn.run(app, host=host, port=port, timeout_keep_alive=30)
 
 
-def run_with_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0"):
+def run_with_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0") -> None:
     network_conf = config.get_yml_config().network
     https = network_conf.httpsServer
     cert_file = getattr(https, "certFile", None) or ""
@@ -48,7 +48,7 @@ def run_with_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0
         )
 
 
-def run(handlers_: ITaskHandler | None = None):
+def run(handlers_: ITaskHandler | None = None) -> None:
     network_conf = config.get_yml_config().network
     host = getattr(network_conf, "ip", None) or "0.0.0.0"
     if network_conf.httpServer.enable:

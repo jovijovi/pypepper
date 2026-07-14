@@ -33,7 +33,7 @@ class Task(ITask):
         retry_delay: int = 0,
         retry_until_completed: bool = False,
         optional: bool = False,
-    ):
+    ) -> None:
         self.channel_id = channel_id
         self.dag_id = dag_id
         self.fingerprint = fingerprint

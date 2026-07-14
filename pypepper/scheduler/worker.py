@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import cast
 
 from pypepper.common.log import log
 from pypepper.scheduler import events
@@ -11,22 +12,22 @@ from pypepper.scheduler.job import Job
 class Worker:
     """Consume jobs from a channel and run their workflows."""
 
-    def __init__(self, channel: Channel):
+    def __init__(self, channel: Channel) -> None:
         self.channel = channel
 
     async def run_once(self) -> Job | None:
         if self.channel.stop:
             return None
 
-        job = await self.channel.receive()
+        job = cast(Job, await self.channel.receive())
         await self._process(job)
         return job
 
-    async def run_forever(self):
+    async def run_forever(self) -> None:
         while not self.channel.stop:
             await self.run_once()
 
-    async def _process(self, job: Job):
+    async def _process(self, job: Job) -> None:
         job._fsm.on(events.RUN)
         try:
             workflows = getattr(job, "workflows", None) or []

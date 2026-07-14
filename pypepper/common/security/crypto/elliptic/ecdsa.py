@@ -11,7 +11,7 @@ class ECDSA(IElliptic):
     def new_key_pair(self) -> ec.EllipticCurvePrivateKey:
         return ec.generate_private_key(ec.SECP256K1())
 
-    def sign(self, data: bytes, certificate: bytes, hash_alg: str, passphrase: bytes | None = None):
+    def sign(self, data: bytes, certificate: bytes, hash_alg: str, passphrase: bytes | None = None) -> bytes:
         private_key = serialization.load_pem_private_key(certificate, passphrase)
         if not isinstance(private_key, ec.EllipticCurvePrivateKey):
             raise TypeError("certificate must be an elliptic curve private key")

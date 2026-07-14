@@ -7,6 +7,6 @@ class ITag(metaclass=ABCMeta):
 
 
 class Tag(ITag):
-    def __init__(self, key: str = "", value: str = ""):
+    def __init__(self, key: str = "", value: str = "") -> None:
         self.key = key
         self.value = value
