@@ -1,3 +1,5 @@
+"""HTTP task handler and middleware interfaces."""
+
 from abc import ABCMeta, abstractmethod
 
 from fastapi import FastAPI

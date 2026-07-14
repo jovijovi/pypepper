@@ -1,3 +1,5 @@
+"""Random salt generation."""
+
 import secrets
 
 from pypepper.exceptions import InternalException

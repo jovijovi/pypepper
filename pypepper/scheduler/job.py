@@ -1,3 +1,5 @@
+"""Job model, processor, and dispatcher."""
+
 from __future__ import annotations
 
 import asyncio

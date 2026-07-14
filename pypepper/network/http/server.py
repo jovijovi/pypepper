@@ -1,3 +1,5 @@
+"""FastAPI HTTP server run helpers (plain and TLS)."""
+
 import uvicorn
 from fastapi import FastAPI
 

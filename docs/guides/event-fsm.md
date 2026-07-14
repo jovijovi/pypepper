@@ -69,3 +69,5 @@ assert resp.error is not None
 ```
 
 Unknown transitions return `Response.error` without raising.
+
+See also: [API Reference / Event and FSM](../reference/event-fsm.md).

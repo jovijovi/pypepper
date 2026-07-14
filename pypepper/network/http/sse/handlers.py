@@ -1,3 +1,5 @@
+"""SSE route handlers."""
+
 from collections.abc import AsyncIterator
 
 from pypepper.network.http.sse.event import SSEEvent

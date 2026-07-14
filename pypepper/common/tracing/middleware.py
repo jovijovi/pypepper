@@ -1,3 +1,5 @@
+"""Starlette/FastAPI middleware that creates SERVER spans."""
+
 from __future__ import annotations
 
 from opentelemetry.trace import SpanKind, Status, StatusCode

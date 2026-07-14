@@ -24,6 +24,7 @@
 - Tighten mypy on TOP3 static paths (`crypto`, HTTP/SSE skeleton, scheduler structure) with `disallow_untyped_defs` + `warn_return_any` (scoped overrides; dynamic/third-party modules unchanged).
 
 ### Added
+- MkDocs API Reference via `mkdocstrings` (`docs/reference/`, curated public modules).
 - OpenTelemetry tracing (opt-in via `tracing` YAML): console exporter and OTLP HTTP to local Jaeger; HTTP + `Workflow.run` spans.
 - `py.typed` PEP 561 marker and `Typing :: Typed` classifier (typed package for consumers after next PyPI release).
 - `Event.marshal()` JSON envelope.

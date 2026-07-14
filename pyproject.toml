@@ -51,6 +51,7 @@ dev = [
     "coverage==7.15.1",
     "httpx>=0.28.1",
     "mkdocs-material>=9.6",
+    "mkdocstrings[python]>=0.29",
     "mypy==2.3.0",
     "packaging==26.2",
     "pip==26.1.2",

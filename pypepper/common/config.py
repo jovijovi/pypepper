@@ -1,3 +1,5 @@
+"""YAML config loading and typed configuration models."""
+
 import argparse
 import os.path
 from typing import Any

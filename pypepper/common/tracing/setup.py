@@ -1,3 +1,5 @@
+"""Tracer provider setup, shutdown, and test helpers."""
+
 from __future__ import annotations
 
 import atexit

@@ -82,3 +82,5 @@ export PYPEPPER_SSE_API_KEY=your-local-key
 python example/sse/app.py
 curl -N -H "X-API-Key: $PYPEPPER_SSE_API_KEY" http://localhost:55550/sse/echo
 ```
+
+See also: [API Reference / Network and SSE](../reference/network.md).

@@ -82,3 +82,5 @@ Open http://localhost:16686 → search service **pypepper**.
 ## Correlation with request_id
 
 HTTP access logs still use `X-Request-ID` / `log.request_id()`. The same value is set as span attribute `request_id` so you can join logs and traces.
+
+See also: [API Reference / Common](../reference/common.md) (tracing section).

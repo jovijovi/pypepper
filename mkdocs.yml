@@ -14,6 +14,7 @@ theme:
   features:
     - navigation.sections
     - navigation.expand
+    - navigation.indexes
     - content.code.copy
     - toc.follow
 
@@ -28,6 +29,14 @@ nav:
       - Network and SSE: guides/network-sse.md
       - Tracing: guides/tracing.md
       - DB Helper: guides/helper-db.md
+  - API Reference:
+      - reference/index.md
+      - Common: reference/common.md
+      - Event and FSM: reference/event-fsm.md
+      - Scheduler: reference/scheduler.md
+      - Network and SSE: reference/network.md
+      - DB Helper: reference/helper.md
+      - Loader: reference/loader.md
 
 markdown_extensions:
   - admonition
@@ -46,3 +55,18 @@ markdown_extensions:
 
 plugins:
   - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: auto
+            filters: ["!^_"]
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_if_no_docstring: true
