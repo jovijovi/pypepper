@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.0
+
 ### Fixed
 - Isolate FSM transition tables per instance; `close()` only clears the current machine.
 - Roll back FSM state when a transition or caller handler raises.
@@ -18,12 +20,14 @@
 - Protect example `/sse/stats` with API key auth.
 
 ### Changed
+- README refreshed as the project landing page (domains, highlights, quick start; details stay in MkDocs).
 - Event `sign`/`verify` use stable JSON canonical bytes instead of `pickle` (existing pickle signatures will not verify).
 - SSE connection/queue/stream limits read from YAML `sse.*` with hardcoded fallbacks.
 - HTTP server registers default request-id middleware and supports TLS via `certFile`/`keyFile`/`caFile`.
 - Tighten mypy on TOP3 static paths (`crypto`, HTTP/SSE skeleton, scheduler structure) with `disallow_untyped_defs` + `warn_return_any` (scoped overrides; dynamic/third-party modules unchanged).
 
 ### Added
+- Tag-triggered PyPI publish workflow (`.github/workflows/publish.yml`) via Trusted Publisher when `v*` matches `pyproject.toml`.
 - Coverage gate: `fail_under = 90` / `--cov-fail-under=90` on local `make test` and CI.
 - Dependabot weekly updates for pip (`requirements*.txt` / `pyproject.toml`) and GitHub Actions (not Docker images).
 - MkDocs API Reference via `mkdocstrings` (`docs/reference/`, curated public modules).
