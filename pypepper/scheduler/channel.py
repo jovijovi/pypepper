@@ -1,3 +1,5 @@
+"""Async job channels and channel manager."""
+
 from __future__ import annotations
 
 from asyncio import Queue, QueueFull

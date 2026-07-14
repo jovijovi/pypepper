@@ -1,3 +1,5 @@
+"""Scheduler FSM events and builder."""
+
 from pypepper.event import event
 from pypepper.event.event import Event
 from pypepper.fsm import fsm

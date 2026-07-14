@@ -1,3 +1,5 @@
+"""Scheduler task data structures."""
+
 from abc import ABCMeta
 
 from pypepper.common.context import Context

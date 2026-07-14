@@ -1,3 +1,5 @@
+"""Event-triggered finite state machine with rollback."""
+
 from __future__ import annotations
 
 import json

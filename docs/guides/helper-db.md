@@ -66,3 +66,5 @@ mongodb.close()
 
 !!! tip
     Prefer environment-specific secrets outside the repo. The devenv passwords are for local/CI only.
+
+See also: [API Reference / DB Helper](../reference/helper.md).

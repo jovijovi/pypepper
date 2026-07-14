@@ -1,3 +1,5 @@
+"""Hash digest helpers (bytes and hex)."""
+
 import hashlib
 
 BinaryLike = str | bytes | bytearray | memoryview

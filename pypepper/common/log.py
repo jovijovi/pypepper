@@ -1,3 +1,5 @@
+"""Loguru-based process logger helpers."""
+
 import getpass
 import json
 import socket

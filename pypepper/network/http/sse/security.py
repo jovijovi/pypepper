@@ -1,3 +1,5 @@
+"""SSE API key authentication helpers."""
+
 from collections.abc import Callable
 from functools import wraps
 from hmac import compare_digest

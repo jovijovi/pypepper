@@ -76,3 +76,5 @@ Each `Job` owns an FSM from `build_scheduler_fsm()`:
 ## Persistence stub
 
 `Job.save()` currently logs only; there is no durable job store.
+
+See also: [API Reference / Scheduler](../reference/scheduler.md).

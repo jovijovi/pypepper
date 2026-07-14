@@ -1,3 +1,5 @@
+"""Sequential workflow runner over tasks."""
+
 from __future__ import annotations
 
 import time

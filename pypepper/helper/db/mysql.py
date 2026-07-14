@@ -1,3 +1,5 @@
+"""MySQL SQLAlchemy connector helper."""
+
 from __future__ import annotations
 
 from abc import ABCMeta

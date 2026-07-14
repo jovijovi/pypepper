@@ -1,3 +1,5 @@
+"""MongoDB / mongoengine connector helper."""
+
 from __future__ import annotations
 
 from abc import ABCMeta
