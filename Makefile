@@ -49,7 +49,7 @@ check: lint
 
 test: clean check
 	@echo "[BUILD] Testing"
-	pytest --cov=pypepper --cov-report=xml:coverage.xml --cov-report=term tests/
+	pytest --cov=pypepper --cov-report=xml:coverage.xml --cov-report=term --cov-fail-under=90 tests/
 
 build: build-prepare
 	@echo "[BUILD] Building binary"

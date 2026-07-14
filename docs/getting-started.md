@@ -25,7 +25,7 @@ uv pip install -r requirements.txt
 ```shell
 make lint    # ruff + mypy on pypepper/
 make check   # lint + mutable class-attr guard
-make test    # check + pytest with coverage
+make test    # check + pytest with coverage (line coverage must be >= 90%)
 ```
 
 DB-backed helper tests expect services from `devenv/ci.yaml` on localhost:
