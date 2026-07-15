@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.1
+
 ### Added
 - Pluggable scheduler `Job.save` store with `memory` (default), `postgres`, `mysql`, and `mongodb` backends.
 - Curated domain re-exports (for example `from pypepper.scheduler import Job`); `common.config` / `common.log` stay submodule imports to avoid shadowing.
