@@ -78,7 +78,7 @@ async def clock(request: Request):
 ### Security notes
 
 - **Production:** keep `sse.authentication.enabled: true` and inject `validKeys` (do not commit real keys).
-- **Auth off is not anonymous access.** When `authentication.enabled` is `false`, any **non-empty** API key is accepted. The library logs a warning when this path is used.
+- **Auth off is not anonymous access.** When `authentication.enabled` is `false`, any **non-empty** API key is accepted. The library logs a **one-shot** warning (once per process) when this path is used.
 - **Rate limiting is not a security boundary when auth is off.** Limits are bucketed by the presented key string, so clients can rotate keys to bypass quotas. Treat rate limits as abuse soft-control only when authentication is enabled.
 
 See the full working app in [`example/sse/app.py`](https://github.com/jovijovi/pypepper/blob/main/example/sse/app.py).

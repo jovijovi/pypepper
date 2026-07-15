@@ -37,7 +37,7 @@ class ConfHTTPSServer:
 
 
 class ConfHeartbeat:
-    """Reserved: not wired to a heartbeat server yet (see P2)."""
+    """Reserved: not wired to a heartbeat server yet."""
 
     enable: bool
     port: int
@@ -45,7 +45,7 @@ class ConfHeartbeat:
 
 
 class ConfJsonRPCProxy:
-    """Reserved: not wired to a JSON-RPC proxy yet (see P2)."""
+    """Reserved: not wired to a JSON-RPC proxy yet."""
 
     enable: bool
     port: int
@@ -56,7 +56,7 @@ class ConfNetwork:
     ip: str
     httpServer: ConfHTTPServer
     httpsServer: ConfHTTPSServer
-    jsonRPCProxy: ConfJsonRPCProxy  # reserved
+    jsonRPCProxy: ConfJsonRPCProxy
 
 
 class ConfLog:
@@ -117,9 +117,9 @@ class ConfScheduler:
 
 
 class YmlConfig:
-    cluster: ConfCluster  # reserved / unused by runtime
+    cluster: ConfCluster
     network: ConfNetwork
-    heartbeat: ConfHeartbeat  # reserved
+    heartbeat: ConfHeartbeat
     log: ConfLog
     sse: ConfSSE
     tracing: ConfTracing

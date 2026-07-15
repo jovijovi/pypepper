@@ -55,6 +55,23 @@ def test_validate_api_key_returns_false_for_empty_key(monkeypatch):
     assert SSESecurityManager.validate_api_key('') is False
 
 
+def test_auth_disabled_empty_key_does_not_warn(monkeypatch):
+    from pypepper.common.log import log
+    from pypepper.network.http.sse import security as sse_security
+
+    warns: list[str] = []
+    monkeypatch.setattr(log, 'warn', lambda msg, *a, **k: warns.append(str(msg)))
+    monkeypatch.setattr(
+        config,
+        'get_yml_config',
+        lambda: _build_sse_config(auth_enabled=False),
+    )
+    sse_security.reset_auth_disabled_warning()
+    assert SSESecurityManager.validate_api_key(None) is False
+    assert SSESecurityManager.validate_api_key('') is False
+    assert warns == []
+
+
 def test_validate_api_key_allows_any_key_when_auth_disabled(monkeypatch):
     from pypepper.common.log import log
     from pypepper.network.http.sse import security as sse_security

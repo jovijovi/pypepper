@@ -22,6 +22,22 @@ def test_build_postgres_uri_quotes_special_password():
     assert unquote_plus(parts.password or "") == "p@ss:w/ord"
 
 
+def test_build_postgres_uri_quotes_hash_and_plus():
+    uri = build_postgres_uri(
+        username="u+name",
+        password="a#b+c",
+        host="localhost",
+        port=5432,
+        db="app",
+    )
+    parts = urlsplit(uri)
+    assert parts.fragment == ""
+    assert unquote_plus(parts.username or "") == "u+name"
+    assert unquote_plus(parts.password or "") == "a#b+c"
+    assert "%23" in (parts.password or "")
+    assert "%2B" in (parts.username or "") or "%2B" in (parts.password or "")
+
+
 def test_build_postgres_uri_sslmode_query():
     uri = build_postgres_uri(
         username="u",
@@ -32,6 +48,17 @@ def test_build_postgres_uri_sslmode_query():
         sslmode="require",
     )
     assert uri.endswith("?sslmode=require")
+
+
+def test_build_postgres_uri_omits_query_without_sslmode():
+    uri = build_postgres_uri(
+        username="u",
+        password="p",
+        host="db.example",
+        port=5432,
+        db="app",
+    )
+    assert "?" not in uri
 
 
 def test_build_mysql_uri_quotes_special_password():

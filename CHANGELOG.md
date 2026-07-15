@@ -11,7 +11,7 @@
 - `config.load_config()` no longer configures the scheduler job store; apps call `scheduler.store.setup_from_config` explicitly after load.
 - `config.load_config()` warns when YAML declares a non-`memory` `scheduler.jobStore.backend` that has not been applied.
 - `Job.scheduled()` / `Processor.run` raise `RuntimeError` when an event loop is already running; async callers must `INIT`→`SCHEDULE`, `save()`, then `await Channel.send` + `Worker`.
-- Helper DB connectors raise `ValueError` (not `assert`) for incomplete config; discrete SQL URIs use `quote_plus` for credentials.
+- Helper DB connectors raise `ValueError` (not `assert`) for falsy config / incomplete SQL discrete fields (Mongo only rejects falsy `cfg`); discrete SQL URIs use `quote_plus` for credentials.
 - SSE warns once when authentication is disabled; guide documents auth-off / rate-limit footguns.
 
 ### Fixed
