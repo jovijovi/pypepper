@@ -73,8 +73,61 @@ Each `Job` owns an FSM from `build_scheduler_fsm()`:
 
     Prefer `retry_count` / `retry_delay` / `optional` until those semantics land.
 
-## Persistence stub
+## Persistence
 
-`Job.save()` currently logs only; there is no durable job store.
+`Job.save()` upserts a **metadata snapshot** (`JobRecord`) into the process-wide job store.
+Workflows / executors are **not** serialized.
+
+Default backend is **in-memory**. Switch to a database with `configure_job_store` (or YAML `scheduler.jobStore`):
+
+| Backend | Notes |
+|---------|--------|
+| `memory` | Default; process-local |
+| `postgres` | SQLAlchemy table `scheduler_jobs` |
+| `mysql` | Same table via PyMySQL |
+| `mongodb` | mongoengine collection `scheduler_jobs` |
+
+```python
+from pypepper.scheduler.job import Job
+from pypepper.scheduler.store import configure_job_store, get_job_store
+
+configure_job_store(
+    "postgres",
+    uri="postgresql+psycopg://postgres:example@localhost:5432/mock_pypepper",
+)
+
+job = Job(category="demo", channel_id="demo-channel")
+job.scheduled()  # INIT → SCHEDULE → save()
+
+saved = Job.get_saved(job.id)
+assert saved is not None
+assert saved.status == "Scheduled"
+
+# Or query the store directly
+assert get_job_store().get(job.id) is not None
+```
+
+YAML (optional):
+
+```yaml
+scheduler:
+  jobStore:
+    backend: postgres   # memory | postgres | mysql | mongodb
+    uri: postgresql+psycopg://postgres:example@localhost:5432/mock_pypepper
+```
+
+Connections reuse [`helper.db`](helper-db.md) settings style (`uri` or discrete host/user/password/db).
+`Worker` also calls `save()` after `RUN` / `COMPLETE` / `FAIL`.
+
+### Persist-failure rules
+
+- **Schedule** (`INIT`/`SCHEDULE` + `save` in `dispatch`): roll back FSM and `Job.status` so `scheduled()` can retry (no store delete needed if `save` never succeeded).
+- **Enqueue** (channel/processor setup or send rejected): roll back FSM/`Job.status` and best-effort delete the Scheduled store row. If delete fails, a Scheduled row may remain (ghost). After the job is successfully sent to the channel, do **not** roll back — a raised error then is a committed enqueue plus secondary failure (the job may still run); do not treat it as “nothing queued.”
+- **Start (`RUN`)**: if Running snapshot fails, do not run workflows; prefer persist `Failed`, else restore pre-RUN.
+- **After work** (COMPLETE/FAIL): keep the terminal FSM; retry `job.save()` only — do not re-run workflows because the snapshot write failed.
+- `Job.save()` updates in-memory `status`/`updated` only after the store `put` succeeds.
+- `Job.to_record()` reports FSM status (authoritative), which may lead last durable store status and in-memory `Job.status` when a terminal persist fails.
+- `IJobStore.put` upserts by `id` and must not overwrite an existing row's `created`.
+- Invalid FSM transitions raise; do not persist or run work after a failed transition.
 
 See also: [API Reference / Scheduler](../reference/scheduler.md).

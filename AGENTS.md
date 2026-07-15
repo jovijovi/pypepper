@@ -29,6 +29,24 @@
 - Global registries (`dispatcher`, `connection_manager`, `loader`, channel `manager`) must be **explicit singletons** (module-level instance and/or `__new__`), never accidental shared class dicts.
 - Run `python scripts/check_mutable_class_attrs.py` (also via `make check` / `make test`) before opening a PR.
 
+## Scheduler persistence semantics
+Job snapshots (`JobRecord`) are metadata-only (workflows/executors are not serialized). Treat side effects as the source of truth when deciding rollback vs keep-terminal:
+
+| Stage | Persist failure | Required behavior |
+|-------|-----------------|-------------------|
+| Pre-execution (`INIT`/`SCHEDULE` in `dispatch`) | `INIT`/`SCHEDULE`/`save()` fails before enqueue | **Roll back** FSM/`Job.status` so `scheduled()` can retry |
+| Pre-execution (channel enqueue) | Enqueue fails before job lands on channel | **Roll back** FSM/`Job.status`, best-effort **delete** Scheduled row, re-raise. Ghost may remain if delete fails. After successful `send`, do **not** roll back (exception still means the job may run). |
+| Start (`RUN`) | Running snapshot fails | Do **not** run workflows; prefer persist `Failed`, else restore pre-`RUN` |
+| Terminal success (`COMPLETE`) | Work already finished | **Keep** Completed FSM; retry `job.save()` only — **never** re-run workflows because the terminal write failed |
+| Terminal failure (`FAIL`) | Work already failed | **Keep** Failed FSM; retry `job.save()` only |
+| `Job.save()` field updates | `put()` raises | Do **not** mutate in-memory `status`/`updated` until `put` succeeds |
+| `Job.to_record()` | — | Status comes from the **FSM** (authoritative view); may lead last durable `Job.status` and in-memory `Job.status` after a failed terminal `save` |
+| `IJobStore.put` | Upsert by `id` | Must **not** overwrite existing ``created`` (memory/SQL/Mongo) |
+| SQL/Mongo job store config | Missing `uri` and discrete fields | Raise `ValueError` with a clear message (not bare `assert`) |
+| FSM transitions | Invalid event / transition | Raise; do not `save()` or run workflows |
+
+Schedule and pre-channel enqueue failures are retry-safe. A raised error **after** successful channel `send` is a committed enqueue plus secondary failure — do **not** treat it as “nothing queued,” and do **not** blindly re-`scheduled()` the same job. After work finishes (or fails), store lag means retry `save` only — not automatic redelivery. Prefer idempotent executors if callers manually re-dispatch in-flight jobs after a crash.
+
 ## Testing Guidelines
 - Test framework: `pytest` with `pytest-cov` (`pytest.ini` enforces `testpaths = tests` and `python_files = test_*.py`).
 - Place tests in the matching domain folder and name files/functions descriptively (`test_<unit>_<behavior>`).

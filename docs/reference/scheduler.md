@@ -29,3 +29,7 @@ Workflow-based job pipeline. Narrative guide: [Scheduler](../guides/scheduler.md
 ## Events
 
 ::: pypepper.scheduler.events
+
+## Job store
+
+::: pypepper.scheduler.store

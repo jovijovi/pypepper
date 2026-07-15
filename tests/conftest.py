@@ -6,6 +6,7 @@ from pypepper.loader import loader
 from pypepper.network.http.sse.connection import connection_manager
 from pypepper.network.http.sse.security import SSESecurityManager
 from pypepper.scheduler.channel import manager as channel_manager
+from pypepper.scheduler.store import reset_job_store
 
 
 @pytest.fixture(autouse=True)
@@ -22,6 +23,9 @@ def _reset_global_registries():
     # Loader registry
     loader._module_loader_mapper.clear()
 
+    # Scheduler job store
+    reset_job_store()
+
     # SSE rate-limit cache
     SSESecurityManager._rate_limit_cache = Cache(maxsize=1000, ttl=60)
 
@@ -30,6 +34,8 @@ def _reset_global_registries():
     yield
 
     tracing_shutdown()
+
+    reset_job_store()
 
     with connection_manager._lock:
         connection_manager._connections.clear()

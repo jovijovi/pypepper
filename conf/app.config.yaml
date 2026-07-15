@@ -73,6 +73,14 @@ tracing:
     enabled: false
     endpoint: http://127.0.0.1:4318
 
+# Scheduler job persistence (default memory). See docs/guides/scheduler.md
+scheduler:
+  jobStore:
+    backend: memory
+    # uri: postgresql+psycopg://postgres:example@localhost:5432/mock_pypepper
+    # uri: mysql+pymysql://root:example@localhost:3306/mock_pypepper?charset=utf8mb4
+    # uri: mongodb://test:test@localhost:27017/test
+
 # Custom config (Optional)
 custom:
   foo: "Something interesting"
