@@ -10,6 +10,28 @@ from fastapi import HTTPException, Request, status
 
 from pypepper.common.cache import Cache
 from pypepper.common.config import config
+from pypepper.common.log import log
+
+_auth_disabled_warned = False
+
+
+def _warn_auth_disabled_once() -> None:
+    """Log once that auth-off accepts any non-empty key and is not a security boundary."""
+    global _auth_disabled_warned
+    if _auth_disabled_warned:
+        return
+    _auth_disabled_warned = True
+    log.warn(
+        "sse.authentication.enabled is false: any non-empty API key is accepted; "
+        "rate limiting buckets by presented key and is not a security boundary. "
+        "Enable authentication and inject validKeys for production."
+    )
+
+
+def reset_auth_disabled_warning() -> None:
+    """Reset the one-shot auth-off warning (tests)."""
+    global _auth_disabled_warned
+    _auth_disabled_warned = False
 
 
 class SSESecurityManager:
@@ -34,6 +56,7 @@ class SSESecurityManager:
         sse_config = config.get_yml_config().sse
         if not sse_config.authentication.enabled:
             # Authentication disabled, allow all non-empty keys
+            _warn_auth_disabled_once()
             return True
 
         valid_keys = list(sse_config.authentication.validKeys or [])

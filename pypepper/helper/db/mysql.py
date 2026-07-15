@@ -7,6 +7,7 @@ from abc import ABCMeta
 from sqlalchemy import Connection, create_engine
 
 from pypepper.helper.db.interfaces import IConfig
+from pypepper.helper.db.uri import build_mysql_uri
 
 
 class Config(IConfig, metaclass=ABCMeta):
@@ -34,20 +35,33 @@ class Config(IConfig, metaclass=ABCMeta):
 
 
 def connect(cfg: Config) -> Connection:
-    assert cfg, "invalid database config"
+    if not cfg:
+        raise ValueError("invalid database config")
 
     if cfg.uri:
         return create_engine(cfg.uri).connect()
 
-    assert cfg.username, "invalid username"
-    assert cfg.password, "invalid password"
-    assert cfg.host, "invalid host"
-    assert cfg.db, "invalid db"
+    if not cfg.username:
+        raise ValueError("invalid username")
+    if not cfg.password:
+        raise ValueError("invalid password")
+    if not cfg.host:
+        raise ValueError("invalid host")
+    if not cfg.db:
+        raise ValueError("invalid db")
 
-    uri = f"mysql+pymysql://{cfg.username}:{cfg.password}@{cfg.host}:{cfg.port}/{cfg.db}?charset={cfg.charset}"
+    uri = build_mysql_uri(
+        username=cfg.username,
+        password=cfg.password,
+        host=cfg.host,
+        port=cfg.port,
+        db=cfg.db,
+        charset=cfg.charset,
+    )
     return create_engine(uri).connect()
 
 
 def ping(engine: Connection) -> bool:
-    assert engine, "invalid engine"
+    if not engine:
+        raise ValueError("invalid engine")
     return not engine.closed

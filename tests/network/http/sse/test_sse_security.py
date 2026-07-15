@@ -43,7 +43,10 @@ def _mock_request(
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limit_cache():
+    from pypepper.network.http.sse import security as sse_security
+
     SSESecurityManager._rate_limit_cache = Cache(maxsize=1000, ttl=60)
+    sse_security.reset_auth_disabled_warning()
 
 
 def test_validate_api_key_returns_false_for_empty_key(monkeypatch):
@@ -53,12 +56,23 @@ def test_validate_api_key_returns_false_for_empty_key(monkeypatch):
 
 
 def test_validate_api_key_allows_any_key_when_auth_disabled(monkeypatch):
+    from pypepper.common.log import log
+    from pypepper.network.http.sse import security as sse_security
+
+    warns: list[str] = []
+    monkeypatch.setattr(log, 'warn', lambda msg, *a, **k: warns.append(str(msg)))
     monkeypatch.setattr(
         config,
         'get_yml_config',
         lambda: _build_sse_config(auth_enabled=False),
     )
+    sse_security.reset_auth_disabled_warning()
     assert SSESecurityManager.validate_api_key('any-key') is True
+    assert any('authentication.enabled is false' in w for w in warns)
+    # Second call does not spam another warn.
+    warns.clear()
+    assert SSESecurityManager.validate_api_key('other-key') is True
+    assert warns == []
 
 
 def test_validate_api_key_checks_allow_list_when_auth_enabled(monkeypatch):

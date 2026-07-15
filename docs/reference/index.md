@@ -2,6 +2,11 @@
 
 Machine-generated reference from the `pypepper` package (signatures, types, and existing docstrings).
 
+Stable curated imports live on domain packages (for example `from pypepper.scheduler import Job`).
+For `common`, use submodule paths (`from pypepper.common.config import config`) so package-level
+names do not shadow `pypepper.common.config` / `pypepper.common.log`. Deep module paths elsewhere
+remain usable but are not a long-term stability guarantee.
+
 | Section | Package focus |
 |---------|---------------|
 | [Common](common.md) | Config, log, context, cache, crypto, tracing |

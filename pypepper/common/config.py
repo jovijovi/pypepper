@@ -11,6 +11,8 @@ from pypepper.common.log import log
 
 
 class ConfCluster:
+    """Loaded from YAML ``cluster``; currently unused by runtime servers (reserved)."""
+
     name: str
     id: str
     description: str
@@ -19,6 +21,7 @@ class ConfCluster:
 class ConfHTTPServer:
     enable: bool
     port: int
+    # Reserved: HTTP server currently hardcodes keep-alive timeout.
     timeout: int = 30
 
 
@@ -26,6 +29,7 @@ class ConfHTTPSServer:
     enable: bool
     port: int
     mutualTLS: bool
+    # Reserved: HTTPS server currently hardcodes keep-alive timeout.
     timeout: int = 30
     certFile: str = ""
     keyFile: str = ""
@@ -33,12 +37,16 @@ class ConfHTTPSServer:
 
 
 class ConfHeartbeat:
+    """Reserved: not wired to a heartbeat server yet (see P2)."""
+
     enable: bool
     port: int
     logger: bool
 
 
 class ConfJsonRPCProxy:
+    """Reserved: not wired to a JSON-RPC proxy yet (see P2)."""
+
     enable: bool
     port: int
     mutualTLS: bool
@@ -48,10 +56,11 @@ class ConfNetwork:
     ip: str
     httpServer: ConfHTTPServer
     httpsServer: ConfHTTPSServer
-    jsonRPCProxy: ConfJsonRPCProxy
+    jsonRPCProxy: ConfJsonRPCProxy  # reserved
 
 
 class ConfLog:
+    # Reserved: only ``level`` and ``colorize`` are applied by load_config.
     mode: str
     level: str
     colorize: bool
@@ -98,6 +107,9 @@ class ConfSchedulerJobStore:
     username: str | None
     password: str | None
     db: str | None
+    sslmode: str | None
+    charset: str | None
+    auth_source: str | None
 
 
 class ConfScheduler:
@@ -105,9 +117,9 @@ class ConfScheduler:
 
 
 class YmlConfig:
-    cluster: ConfCluster
+    cluster: ConfCluster  # reserved / unused by runtime
     network: ConfNetwork
-    heartbeat: ConfHeartbeat
+    heartbeat: ConfHeartbeat  # reserved
     log: ConfLog
     sse: ConfSSE
     tracing: ConfTracing

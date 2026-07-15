@@ -42,7 +42,8 @@ class Config(IConfig, metaclass=ABCMeta):
 
 
 def connect(cfg: Config) -> None:
-    assert cfg, "invalid database config"
+    if not cfg:
+        raise ValueError("invalid database config")
 
     if cfg.uri:
         connect_db(

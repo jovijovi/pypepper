@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine
 
 from pypepper.helper.db import mysql, postgres
+from pypepper.helper.db.uri import build_mysql_uri, build_postgres_uri
 from pypepper.scheduler.store.interfaces import IJobStore, JobRecord
 
 TABLE_NAME = "scheduler_jobs"
@@ -45,10 +46,16 @@ def _engine_from_config(backend: Literal["postgres", "mysql"], **kwargs: Any) ->
             return create_engine(cfg.uri)
         if not (cfg.username and cfg.password and cfg.host and cfg.db):
             raise ValueError("postgres job store requires uri=... or username, password, host, and db")
-        uri = f"postgresql+psycopg://{cfg.username}:{cfg.password}@{cfg.host}:{cfg.port}/{cfg.db}"
-        if cfg.sslmode:
-            uri = f"{uri}?sslmode={cfg.sslmode}"
-        return create_engine(uri)
+        return create_engine(
+            build_postgres_uri(
+                username=cfg.username,
+                password=cfg.password,
+                host=cfg.host,
+                port=cfg.port,
+                db=cfg.db,
+                sslmode=cfg.sslmode,
+            )
+        )
 
     mysql_cfg = mysql.Config(
         uri=kwargs.get("uri"),
@@ -63,11 +70,16 @@ def _engine_from_config(backend: Literal["postgres", "mysql"], **kwargs: Any) ->
         return create_engine(mysql_cfg.uri)
     if not (mysql_cfg.username and mysql_cfg.password and mysql_cfg.host and mysql_cfg.db):
         raise ValueError("mysql job store requires uri=... or username, password, host, and db")
-    uri = (
-        f"mysql+pymysql://{mysql_cfg.username}:{mysql_cfg.password}"
-        f"@{mysql_cfg.host}:{mysql_cfg.port}/{mysql_cfg.db}?charset={mysql_cfg.charset}"
+    return create_engine(
+        build_mysql_uri(
+            username=mysql_cfg.username,
+            password=mysql_cfg.password,
+            host=mysql_cfg.host,
+            port=mysql_cfg.port,
+            db=mysql_cfg.db,
+            charset=mysql_cfg.charset,
+        )
     )
-    return create_engine(uri)
 
 
 def _row_to_record(row: Any) -> JobRecord:

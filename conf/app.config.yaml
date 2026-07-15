@@ -1,4 +1,4 @@
-# Cluster settings
+# Cluster settings (loaded; unused by runtime servers — reserved metadata)
 cluster:
   name: cluster-name
   id: 5dd31f84-5df2-48c7-b84b-32d25b17a930
