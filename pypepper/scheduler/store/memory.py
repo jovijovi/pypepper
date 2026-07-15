@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from threading import Lock
 
 from pypepper.scheduler.store.interfaces import IJobStore, JobRecord
@@ -16,6 +17,9 @@ class InMemoryJobStore(IJobStore):
 
     def put(self, record: JobRecord) -> None:
         with self._lock:
+            existing = self._store.get(record.id)
+            if existing is not None:
+                record = replace(record, created=existing.created)
             self._store[record.id] = record
 
     def get(self, job_id: str) -> JobRecord | None:

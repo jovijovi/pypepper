@@ -35,12 +35,13 @@ Job snapshots (`JobRecord`) are metadata-only (workflows/executors are not seria
 | Stage | Persist failure | Required behavior |
 |-------|-----------------|-------------------|
 | Pre-execution (`INIT`/`SCHEDULE` in `dispatch`) | `save()` fails before enqueue | **Roll back** FSM/`Job.status` so `scheduled()` can retry |
-| Pre-execution (channel enqueue) | Enqueue fails (channel full or other) | **Roll back** FSM/`Job.status`, best-effort **delete** Scheduled row, re-raise. Ghost Scheduled row may remain if delete fails. |
+| Pre-execution (channel enqueue) | Enqueue fails before job lands on channel | **Roll back** FSM/`Job.status`, best-effort **delete** Scheduled row, re-raise. Ghost may remain if delete fails. After successful `send`, do **not** roll back. |
 | Start (`RUN`) | Running snapshot fails | Do **not** run workflows; prefer persist `Failed`, else restore pre-`RUN` |
 | Terminal success (`COMPLETE`) | Work already finished | **Keep** Completed FSM; retry `job.save()` only — **never** re-run workflows because the terminal write failed |
 | Terminal failure (`FAIL`) | Work already failed | **Keep** Failed FSM; retry `job.save()` only |
 | `Job.save()` field updates | `put()` raises | Do **not** mutate in-memory `status`/`updated` until `put` succeeds |
-| `Job.to_record()` | — | Status comes from the **FSM** (authoritative view); may lead last durable `Job.status` after a failed terminal `save` |
+| `Job.to_record()` | — | Status comes from the **FSM** (authoritative view); may lead last durable `Job.status` and in-memory `Job.status` after a failed terminal `save` |
+| `IJobStore.put` | Upsert by `id` | Must **not** overwrite existing ``created`` (memory/SQL/Mongo) |
 | SQL/Mongo job store config | Missing `uri` and discrete fields | Raise `ValueError` with a clear message (not bare `assert`) |
 | FSM transitions | Invalid event / transition | Raise; do not `save()` or run workflows |
 

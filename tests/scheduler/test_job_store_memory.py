@@ -66,7 +66,7 @@ def test_memory_put_upserts():
             category="b",
             channel_id="ch",
             status=Status.COMPLETED.value,
-            created="t0",
+            created="should-not-overwrite",
             updated="t1",
         )
     )
@@ -74,6 +74,7 @@ def test_memory_put_upserts():
     assert got is not None
     assert got.category == "b"
     assert got.status == Status.COMPLETED.value
+    assert got.created == "t0"
 
 
 def test_scheduled_persists_scheduled_status():
@@ -508,7 +509,7 @@ def test_channel_full_delete_failure_still_raises_channel_full():
 def test_enqueue_failure_rolls_back_for_any_error(monkeypatch):
     from pypepper.scheduler.job import Processor
 
-    def boom(self, job, chan):
+    def boom(self, job, chan, *, on_enqueued=None):
         raise RuntimeError("enqueue-boom")
 
     monkeypatch.setattr(Processor, "run", boom)
@@ -519,3 +520,50 @@ def test_enqueue_failure_rolls_back_for_any_error(monkeypatch):
     assert job._fsm.current().value == Status.UNKNOWN
     assert job.status == Status.UNKNOWN.value
     assert Job.get_saved(job.id) is None
+
+
+def test_post_enqueue_error_does_not_rollback(monkeypatch):
+    from pypepper.scheduler.job import Processor
+
+    async def send_then_boom(job, chan, *, on_enqueued=None):
+        ok = await chan.send(job)
+        assert ok is True
+        if on_enqueued is not None:
+            on_enqueued()
+        raise RuntimeError("after-send")
+
+    monkeypatch.setattr(Processor, "async_run", staticmethod(send_then_boom))
+    job = Job(category="x", channel_id="post-enqueue")
+    with pytest.raises(RuntimeError, match="after-send"):
+        job.scheduled()
+
+    assert job._fsm.current().value == Status.SCHEDULED
+    assert job.status == Status.SCHEDULED.value
+    assert Job.get_saved(job.id) is not None
+    assert Job.get_saved(job.id).status == Status.SCHEDULED.value
+
+
+def test_channel_full_then_retry_succeeds():
+    import asyncio
+
+    from pypepper.scheduler.channel import manager
+    from pypepper.scheduler.job import ChannelFullError
+
+    channel_id = "bounded-retry"
+    bounded = Channel(maxsize=1)
+    assert asyncio.run(bounded.send("occupier")) is True
+    manager.put(channel_id, bounded)
+    try:
+        job = Job(category="x", channel_id=channel_id)
+        with pytest.raises(ChannelFullError):
+            job.scheduled()
+        assert job._fsm.current().value == Status.UNKNOWN
+        assert Job.get_saved(job.id) is None
+
+        assert asyncio.run(bounded.receive()) == "occupier"
+        job.scheduled()
+        assert job._fsm.current().value == Status.SCHEDULED
+        assert Job.get_saved(job.id) is not None
+        assert Job.get_saved(job.id).status == Status.SCHEDULED.value
+    finally:
+        manager.remove(channel_id)

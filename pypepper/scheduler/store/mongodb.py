@@ -66,12 +66,13 @@ class MongoJobStore(IJobStore):
         try:
             disconnect(alias=self._alias)
         except Exception as exc:
-            log_msg = str(exc).lower()
-            if "not been created" in log_msg or "alias" in log_msg or "does not exist" in log_msg:
-                pass
-            else:
-                from pypepper.common.log import log
+            from pypepper.common.log import log
 
+            log_msg = str(exc).lower()
+            # Only treat "alias not registered" as benign; never match bare "alias".
+            if "not been created" in log_msg or "does not exist" in log_msg:
+                log.debug(f"MongoJobStore disconnect({self._alias}) skipped: {exc}")
+            else:
                 log.warn(f"MongoJobStore disconnect({self._alias}) failed: {exc}")
         if cfg.uri:
             mongo_connect(
@@ -93,16 +94,26 @@ class MongoJobStore(IJobStore):
 
     def put(self, record: JobRecord) -> None:
         with switch_db(SchedulerJobDoc, self._alias):
-            doc = SchedulerJobDoc(
-                id=record.id,
-                category=record.category,
-                channel_id=record.channel_id,
-                status=record.status,
-                created=record.created,
-                updated=record.updated,
-                workflow_count=record.workflow_count,
-                version=record.version,
-            )
+            doc = SchedulerJobDoc.objects(id=record.id).first()
+            if doc is None:
+                SchedulerJobDoc(
+                    id=record.id,
+                    category=record.category,
+                    channel_id=record.channel_id,
+                    status=record.status,
+                    created=record.created,
+                    updated=record.updated,
+                    workflow_count=record.workflow_count,
+                    version=record.version,
+                ).save()
+                return
+            # Preserve original created (SQL upsert semantics).
+            doc.category = record.category
+            doc.channel_id = record.channel_id
+            doc.status = record.status
+            doc.updated = record.updated
+            doc.workflow_count = record.workflow_count
+            doc.version = record.version
             doc.save()
 
     def get(self, job_id: str) -> JobRecord | None:

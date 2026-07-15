@@ -25,6 +25,7 @@ class IJobStore(metaclass=ABCMeta):
 
     @abstractmethod
     def put(self, record: JobRecord) -> None:
+        """Upsert by ``id``. Must not overwrite an existing row's ``created``."""
         pass
 
     @abstractmethod

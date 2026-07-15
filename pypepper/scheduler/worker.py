@@ -59,7 +59,10 @@ class Worker:
                     f"Job RUN persist failed: id={job.id}, error={save_exc}; FAIL persist also failed: {fail_save_exc}"
                 )
                 raise save_exc from fail_save_exc
-            log.error(f"Job RUN persist failed: id={job.id}, error={save_exc}")
+            log.error(
+                f"Job RUN persist failed: id={job.id}, error={save_exc}; "
+                f"persisted Failed instead (do not re-run workflows)"
+            )
             raise
 
         try:

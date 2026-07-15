@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABCMeta, abstractmethod
-from collections.abc import MutableMapping
+from collections.abc import Callable, MutableMapping
 from threading import Lock
 
 from pypepper.common.context import Context
@@ -34,15 +34,23 @@ def _raise_if_transition_failed(resp_error: object) -> None:
 
 
 class Processor:
-    def run(self, job: Job, chan: Channel) -> None:
-        asyncio.run(self.async_run(job, chan))
+    def run(self, job: Job, chan: Channel, *, on_enqueued: Callable[[], None] | None = None) -> None:
+        asyncio.run(self.async_run(job, chan, on_enqueued=on_enqueued))
 
     @staticmethod
-    async def async_run(job: Job, chan: Channel) -> None:
+    async def async_run(
+        job: Job,
+        chan: Channel,
+        *,
+        on_enqueued: Callable[[], None] | None = None,
+    ) -> None:
         ok = await chan.send(job)
         if not ok:
             raise ChannelFullError(f"channel full: channel_id={job.channel_id}, job_id={job.id}")
-        print("[Processor] JobID=", job.id, "Channel Length=", chan.length())
+        # Job is on the channel: callers must not roll back schedule/store after this.
+        if on_enqueued is not None:
+            on_enqueued()
+        log.debug(f"Job enqueued: id={job.id}, channel_length={chan.length()}")
 
 
 class Dispatcher:
@@ -105,12 +113,24 @@ class Dispatcher:
 
         job.log()
 
-        chan = manager.available(job.channel_id)
-        processor = self._available_processor(job.channel_id)
+        # Setup + enqueue: roll back only if the job never landed on the channel.
+        enqueued = False
+
+        def _mark_enqueued() -> None:
+            nonlocal enqueued
+            enqueued = True
+
         try:
-            processor.run(job, chan)
+            chan = manager.available(job.channel_id)
+            processor = self._available_processor(job.channel_id)
+            processor.run(job, chan, on_enqueued=_mark_enqueued)
         except Exception as enqueue_exc:
-            # Any pre-execution enqueue failure: roll back so scheduled() can retry.
+            if enqueued:
+                log.error(
+                    f"Job post-enqueue error (not rolled back): id={job.id}, "
+                    f"channel_id={job.channel_id}, error={enqueue_exc}"
+                )
+                raise
             job.restore_lifecycle(prev_state, prev_status)
             try:
                 get_job_store().delete(job.id)
