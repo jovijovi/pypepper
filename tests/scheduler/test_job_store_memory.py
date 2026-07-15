@@ -506,6 +506,38 @@ def test_channel_full_delete_failure_still_raises_channel_full():
         manager.remove(channel_id)
 
 
+def test_channel_full_ghost_then_retry_upserts():
+    """Ghost Scheduled row after failed cleanup must not block a later successful schedule."""
+    import asyncio
+
+    from pypepper.scheduler.channel import manager
+    from pypepper.scheduler.job import ChannelFullError
+
+    set_job_store(_FailDeleteStore())
+    channel_id = "bounded-ghost-retry"
+    bounded = Channel(maxsize=1)
+    assert asyncio.run(bounded.send("occupier")) is True
+    manager.put(channel_id, bounded)
+    try:
+        job = Job(category="x", channel_id=channel_id)
+        with pytest.raises(ChannelFullError):
+            job.scheduled()
+        ghost = Job.get_saved(job.id)
+        assert ghost is not None
+        ghost_created = ghost.created
+
+        assert asyncio.run(bounded.receive()) == "occupier"
+        job.scheduled()
+        saved = Job.get_saved(job.id)
+        assert saved is not None
+        assert saved.status == Status.SCHEDULED.value
+        assert saved.created == ghost_created
+        assert job._fsm.current().value == Status.SCHEDULED
+        assert job.status == Status.SCHEDULED.value
+    finally:
+        manager.remove(channel_id)
+
+
 def test_enqueue_failure_rolls_back_for_any_error(monkeypatch):
     from pypepper.scheduler.job import Processor
 
@@ -523,6 +555,9 @@ def test_enqueue_failure_rolls_back_for_any_error(monkeypatch):
 
 
 def test_post_enqueue_error_does_not_rollback(monkeypatch):
+    import asyncio
+
+    from pypepper.scheduler.channel import manager
     from pypepper.scheduler.job import Processor
 
     async def send_then_boom(job, chan, *, on_enqueued=None):
@@ -533,14 +568,52 @@ def test_post_enqueue_error_does_not_rollback(monkeypatch):
         raise RuntimeError("after-send")
 
     monkeypatch.setattr(Processor, "async_run", staticmethod(send_then_boom))
-    job = Job(category="x", channel_id="post-enqueue")
-    with pytest.raises(RuntimeError, match="after-send"):
-        job.scheduled()
+    channel_id = "post-enqueue"
+    chan = Channel()
+    manager.put(channel_id, chan)
+    try:
+        job = Job(category="x", channel_id=channel_id)
+        with pytest.raises(RuntimeError, match="after-send"):
+            job.scheduled()
 
-    assert job._fsm.current().value == Status.SCHEDULED
-    assert job.status == Status.SCHEDULED.value
-    assert Job.get_saved(job.id) is not None
-    assert Job.get_saved(job.id).status == Status.SCHEDULED.value
+        assert job._fsm.current().value == Status.SCHEDULED
+        assert job.status == Status.SCHEDULED.value
+        assert Job.get_saved(job.id) is not None
+        assert Job.get_saved(job.id).status == Status.SCHEDULED.value
+        # Committed enqueue: job remains receivable on the channel.
+        received = asyncio.run(chan.receive())
+        assert received is job
+    finally:
+        manager.remove(channel_id)
+
+
+def test_mongo_disconnect_benign_continues(monkeypatch):
+    from pypepper.scheduler.store import mongodb as mongodb_mod
+
+    connects: list[dict] = []
+
+    def fake_disconnect(alias=None):
+        raise RuntimeError(f"Connection with alias '{alias}' has not been created")
+
+    def fake_connect(**kwargs):
+        connects.append(kwargs)
+
+    monkeypatch.setattr(mongodb_mod, "disconnect", fake_disconnect)
+    monkeypatch.setattr(mongodb_mod, "mongo_connect", fake_connect)
+    mongodb_mod.MongoJobStore(uri="mongodb://localhost/test", alias="benign-alias")
+    assert connects and connects[0].get("alias") == "benign-alias"
+
+
+def test_mongo_disconnect_non_benign_raises(monkeypatch):
+    from pypepper.scheduler.store import mongodb as mongodb_mod
+
+    def fake_disconnect(alias=None):
+        raise RuntimeError("authentication failed during close")
+
+    monkeypatch.setattr(mongodb_mod, "disconnect", fake_disconnect)
+    monkeypatch.setattr(mongodb_mod, "mongo_connect", lambda **kwargs: None)
+    with pytest.raises(RuntimeError, match="authentication failed"):
+        mongodb_mod.MongoJobStore(uri="mongodb://localhost/test", alias="hard-fail-alias")
 
 
 def test_channel_full_then_retry_succeeds():

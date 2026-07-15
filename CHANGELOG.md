@@ -10,6 +10,7 @@
 - SQL job store raises `ValueError` for incomplete connection config instead of `AssertionError`.
 - Harden FSM transition checks; preserve `created` on upsert across memory/SQL/Mongo; validate Mongo config.
 - Roll back on enqueue failure (channel full or other) with best-effort delete (ghost possible); do not roll back after successful channel send.
+- Document post-enqueue raise as committed enqueue (job may still run); Mongo disconnect hard-fails on non-benign errors.
 - `Job.to_record()` uses FSM status.
 
 ## 0.6.0

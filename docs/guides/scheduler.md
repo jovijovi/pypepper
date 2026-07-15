@@ -122,11 +122,11 @@ Connections reuse [`helper.db`](helper-db.md) settings style (`uri` or discrete 
 ### Persist-failure rules
 
 - **Schedule** (`INIT`/`SCHEDULE` + `save` in `dispatch`): roll back FSM and `Job.status` so `scheduled()` can retry (no store delete needed if `save` never succeeded).
-- **Enqueue** (channel/processor setup or send rejected): roll back FSM/`Job.status` and best-effort delete the Scheduled store row. If delete fails, a Scheduled row may remain (ghost). After the job is successfully sent to the channel, do **not** roll back.
+- **Enqueue** (channel/processor setup or send rejected): roll back FSM/`Job.status` and best-effort delete the Scheduled store row. If delete fails, a Scheduled row may remain (ghost). After the job is successfully sent to the channel, do **not** roll back — a raised error then is a committed enqueue plus secondary failure (the job may still run); do not treat it as “nothing queued.”
 - **Start (`RUN`)**: if Running snapshot fails, do not run workflows; prefer persist `Failed`, else restore pre-RUN.
 - **After work** (COMPLETE/FAIL): keep the terminal FSM; retry `job.save()` only — do not re-run workflows because the snapshot write failed.
 - `Job.save()` updates in-memory `status`/`updated` only after the store `put` succeeds.
-- `Job.to_record()` reports FSM status (authoritative), which may lead durable store and in-memory `Job.status` when a terminal persist fails.
+- `Job.to_record()` reports FSM status (authoritative), which may lead last durable store status and in-memory `Job.status` when a terminal persist fails.
 - `IJobStore.put` upserts by `id` and must not overwrite an existing row's `created`.
 - Invalid FSM transitions raise; do not persist or run work after a failed transition.
 

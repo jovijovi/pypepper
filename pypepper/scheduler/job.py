@@ -99,7 +99,7 @@ class Dispatcher:
         return self._new_processor(key)
 
     def dispatch(self, job: Job) -> None:
-        # Pre-execution: schedule/enqueue failure must roll back so retry can re-enter.
+        # Pre-channel schedule/enqueue failure must roll back so retry can re-enter.
         prev_state = job._fsm.current()
         prev_status = job.status
         try:
@@ -114,6 +114,7 @@ class Dispatcher:
         job.log()
 
         # Setup + enqueue: roll back only if the job never landed on the channel.
+        # After successful send, exceptions are committed-enqueue + secondary failure.
         enqueued = False
 
         def _mark_enqueued() -> None:
@@ -127,7 +128,7 @@ class Dispatcher:
         except Exception as enqueue_exc:
             if enqueued:
                 log.error(
-                    f"Job post-enqueue error (not rolled back): id={job.id}, "
+                    f"Job post-enqueue error (committed; job may still run): id={job.id}, "
                     f"channel_id={job.channel_id}, error={enqueue_exc}"
                 )
                 raise

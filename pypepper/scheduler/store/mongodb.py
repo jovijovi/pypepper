@@ -69,11 +69,17 @@ class MongoJobStore(IJobStore):
             from pypepper.common.log import log
 
             log_msg = str(exc).lower()
-            # Only treat "alias not registered" as benign; never match bare "alias".
-            if "not been created" in log_msg or "does not exist" in log_msg:
+            # Only treat missing-alias as benign; never match bare "alias" alone.
+            benign = (
+                "not been created" in log_msg
+                or "has not been defined" in log_msg
+                or ("does not exist" in log_msg and "alias" in log_msg)
+            )
+            if benign:
                 log.debug(f"MongoJobStore disconnect({self._alias}) skipped: {exc}")
             else:
-                log.warn(f"MongoJobStore disconnect({self._alias}) failed: {exc}")
+                log.error(f"MongoJobStore disconnect({self._alias}) failed: {exc}")
+                raise
         if cfg.uri:
             mongo_connect(
                 host=cfg.uri,
