@@ -108,7 +108,7 @@ assert get_job_store().get(job.id) is not None
 ```
 
 YAML (optional). `config.load_config()` does **not** apply this automatically — call
-`setup_from_config` after load:
+`setup_from_config` after load (a durable `backend` without that call logs a warning):
 
 ```python
 from pypepper.common.config import config
@@ -129,8 +129,8 @@ Connections reuse [`helper.db`](helper-db.md) settings style (`uri` or discrete 
 `Worker` also calls `save()` after `RUN` / `COMPLETE` / `FAIL`.
 
 `Job.scheduled()` / `Processor.run` must be called from a **sync** context. They raise
-`RuntimeError` if an event loop is already running; from async code, enqueue with
-`await Channel.send(job)` and consume with `Worker` instead.
+`RuntimeError` if an event loop is already running. From async code: apply `INIT` then
+`SCHEDULE`, call `job.save()`, then `await Channel.send(job)` and consume with `Worker`.
 
 ### Persist-failure rules
 

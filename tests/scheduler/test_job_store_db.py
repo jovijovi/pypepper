@@ -181,37 +181,43 @@ class _FailDeleteProxy(IJobStore):
 
 
 @pytest.mark.parametrize(("backend", "uri"), _BACKENDS)
-def test_db_put_failure_propagates(backend: str, uri: str):
+def test_db_scheduled_put_failure_rolls_back(backend: str, uri: str):
+    """Schedule-path put failure must not leave a durable row or advanced lifecycle."""
     inner = configure_job_store(backend, uri=uri)
     inner.clear()
     set_job_store(_FailPutProxy(inner))
-    record = JobRecord(
-        id=f"fail-put-{backend}",
-        category="x",
-        channel_id=f"ch-{backend}",
-        status=Status.SCHEDULED.value,
-        created="t0",
-        updated="t0",
-    )
+    job = Job(category="x", channel_id=f"ch-fail-put-{backend}")
     with pytest.raises(RuntimeError, match="proxy-put-failed"):
-        get_job_store().put(record)
-    assert inner.get(record.id) is None
+        job.scheduled()
+    assert job._fsm.current().value == Status.UNKNOWN
+    assert job.status == Status.UNKNOWN.value
+    assert inner.get(job.id) is None
 
 
 @pytest.mark.parametrize(("backend", "uri"), _BACKENDS)
-def test_db_delete_failure_propagates(backend: str, uri: str):
+def test_db_enqueue_delete_failure_leaves_ghost(backend: str, uri: str):
+    """Channel-full cleanup delete failure may leave a Scheduled ghost on the DB store."""
+    import asyncio
+
+    from pypepper.scheduler.channel import manager
+    from pypepper.scheduler.job import ChannelFullError
+
     inner = configure_job_store(backend, uri=uri)
     inner.clear()
-    record = JobRecord(
-        id=f"fail-del-{backend}",
-        category="x",
-        channel_id=f"ch-{backend}",
-        status=Status.SCHEDULED.value,
-        created="t0",
-        updated="t0",
-    )
-    inner.put(record)
     set_job_store(_FailDeleteProxy(inner))
-    with pytest.raises(RuntimeError, match="proxy-delete-failed"):
-        get_job_store().delete(record.id)
-    assert inner.get(record.id) is not None
+    channel_id = f"db-full-del-{backend}"
+    bounded = Channel(maxsize=1)
+    assert asyncio.run(bounded.send("occupier")) is True
+    manager.put(channel_id, bounded)
+    try:
+        job = Job(category="x", channel_id=channel_id)
+        with pytest.raises(ChannelFullError, match="channel full"):
+            job.scheduled()
+        assert job._fsm.current().value == Status.UNKNOWN
+        assert job.status == Status.UNKNOWN.value
+        ghost = inner.get(job.id)
+        assert ghost is not None
+        assert ghost.status == Status.SCHEDULED.value
+    finally:
+        manager.remove(channel_id)
+        inner.clear()

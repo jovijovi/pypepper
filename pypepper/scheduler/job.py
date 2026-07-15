@@ -38,13 +38,13 @@ class Processor:
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            pass
-        else:
-            raise RuntimeError(
-                "Processor.run / Job.scheduled() must be called from a sync context "
-                "(no running event loop); use Channel.send + Worker from async code instead"
-            )
-        asyncio.run(self.async_run(job, chan, on_enqueued=on_enqueued))
+            asyncio.run(self.async_run(job, chan, on_enqueued=on_enqueued))
+            return
+        raise RuntimeError(
+            "Processor.run / Job.scheduled() must be called from a sync context "
+            "(no running event loop); from async code apply INIT→SCHEDULE, call "
+            "job.save(), then await Channel.send(job) and consume with Worker"
+        )
 
     @staticmethod
     async def async_run(

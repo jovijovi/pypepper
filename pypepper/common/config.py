@@ -157,6 +157,26 @@ class Config:
         from pypepper.common.tracing import setup_from_config
 
         setup_from_config(self.get_yml_config())
+        self._warn_if_scheduler_job_store_deferred()
+
+    def _warn_if_scheduler_job_store_deferred(self) -> None:
+        """Warn when YAML declares a durable jobStore that load_config does not apply."""
+        yml = self.get_yml_config()
+        if yml is None or not hasattr(yml, "scheduler") or yml.scheduler is None:
+            return
+        job_store = getattr(yml.scheduler, "jobStore", None)
+        if job_store is None:
+            return
+        backend = getattr(job_store, "backend", None)
+        if backend is None:
+            return
+        name = str(backend).strip().lower()
+        if name in ("", "memory"):
+            return
+        log.warn(
+            f"scheduler.jobStore.backend={backend!r} is present in YAML but not applied by "
+            "load_config; call pypepper.scheduler.store.setup_from_config(...) after load"
+        )
 
     def get_yml_config(self) -> YmlConfig:
         return self._setting

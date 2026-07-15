@@ -16,7 +16,9 @@ print(yml.sse.authentication.enabled)
 `load_config()` without a path uses CLI `--config` or the default `./conf/app.config.yaml`.
 It applies log level and optional tracing setup. It does **not** configure the scheduler job
 store — call `pypepper.scheduler.store.setup_from_config(config.get_yml_config())` after load
-when YAML includes `scheduler.jobStore` (see [Scheduler](scheduler.md)).
+when YAML includes `scheduler.jobStore` (see [Scheduler](scheduler.md)). If YAML declares a
+non-`memory` `jobStore.backend`, `load_config` logs a warning until you call
+`setup_from_config`.
 
 ## Logging
 
