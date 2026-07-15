@@ -13,6 +13,7 @@ services:
       - ../.data/mysql_data:/var/lib/mysql
       - ./init/mysql/schema.sql:/docker-entrypoint-initdb.d/1_schema.sql
       - ./init/mysql/table.sql:/docker-entrypoint-initdb.d/2_table.sql
+      - ./init/mysql/scheduler_jobs.sql:/docker-entrypoint-initdb.d/3_scheduler_jobs.sql
     ports:
       - "3306:3306"
     networks:

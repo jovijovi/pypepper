@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- Pluggable scheduler `Job.save` store with `memory` (default), `postgres`, `mysql`, and `mongodb` backends.
+
+### Fixed
+- Scheduler persist-failure semantics: roll back pre-execution schedule failures; keep terminal COMPLETE/FAIL when snapshot write fails (retry `save` only).
+- SQL job store raises `ValueError` for incomplete connection config instead of `AssertionError`.
+- Roll back and delete Scheduled snapshot when a bounded channel rejects enqueue; `Job.to_record()` uses FSM status.
+
 ## 0.6.0
 
 ### Fixed

@@ -29,6 +29,22 @@
 - Global registries (`dispatcher`, `connection_manager`, `loader`, channel `manager`) must be **explicit singletons** (module-level instance and/or `__new__`), never accidental shared class dicts.
 - Run `python scripts/check_mutable_class_attrs.py` (also via `make check` / `make test`) before opening a PR.
 
+## Scheduler persistence semantics
+Job lifecycle is **at-least-once** with snapshots (`JobRecord`); workflows/executors are not serialized. Treat side effects as the source of truth when deciding rollback vs keep-terminal:
+
+| Stage | Persist failure | Required behavior |
+|-------|-----------------|-------------------|
+| Pre-execution (`INIT`/`SCHEDULE` in `dispatch`) | `save()` fails before enqueue | **Roll back** FSM/`Job.status` so `scheduled()` can retry |
+| Pre-execution (channel enqueue) | Bounded channel rejects send | **Roll back** FSM/`Job.status`, **delete** the Scheduled store row, raise (no ghost jobs) |
+| Start (`RUN`) | Running snapshot fails | Do **not** run workflows; prefer persist `Failed`, else restore pre-`RUN` |
+| Terminal success (`COMPLETE`) | Work already finished | **Keep** Completed FSM; retry `job.save()` only — **never** re-run workflows because the terminal write failed |
+| Terminal failure (`FAIL`) | Work already failed | **Keep** Failed FSM; retry `job.save()` only |
+| `Job.save()` field updates | `put()` raises | Do **not** mutate in-memory `status`/`updated` until `put` succeeds |
+| `Job.to_record()` | — | Status comes from the **FSM** (authoritative view); may lead last durable `Job.status` after a failed terminal `save` |
+| SQL job store config | Missing `uri` and discrete fields | Raise `ValueError` with a clear message (not bare `assert`) |
+
+Prefer idempotent task executors when workers may retry after crashes (store can lag behind in-memory terminal state until `save` is retried).
+
 ## Testing Guidelines
 - Test framework: `pytest` with `pytest-cov` (`pytest.ini` enforces `testpaths = tests` and `python_files = test_*.py`).
 - Place tests in the matching domain folder and name files/functions descriptively (`test_<unit>_<behavior>`).

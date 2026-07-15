@@ -1,0 +1,367 @@
+"""Unit tests for in-memory job store and Job.save lifecycle."""
+
+from __future__ import annotations
+
+import pytest
+from pypepper.scheduler import events
+from pypepper.scheduler.channel import Channel
+from pypepper.scheduler.executor import CallableExecutor
+from pypepper.scheduler.job import Job
+from pypepper.scheduler.status import Status
+from pypepper.scheduler.store import (
+    JobRecord,
+    configure_job_store,
+    get_job_store,
+    reset_job_store,
+    set_job_store,
+)
+from pypepper.scheduler.store.memory import InMemoryJobStore
+from pypepper.scheduler.task import Task
+from pypepper.scheduler.worker import Worker
+from pypepper.scheduler.workflow import Workflow
+
+
+@pytest.fixture(autouse=True)
+def _fresh_job_store():
+    reset_job_store()
+    yield
+    reset_job_store()
+
+
+def test_memory_put_get_list_delete():
+    store = get_job_store()
+    record = JobRecord(
+        id="job-1",
+        category="demo",
+        channel_id="ch-a",
+        status=Status.SCHEDULED.value,
+        created="t0",
+        updated="t1",
+        workflow_count=2,
+        version=1,
+    )
+    store.put(record)
+    assert store.get("job-1") == record
+    assert store.list(channel_id="ch-a") == [record]
+    assert store.list(channel_id="other") == []
+    store.delete("job-1")
+    assert store.get("job-1") is None
+
+
+def test_memory_put_upserts():
+    store = get_job_store()
+    store.put(
+        JobRecord(
+            id="job-1",
+            category="a",
+            channel_id="ch",
+            status=Status.SCHEDULED.value,
+            created="t0",
+            updated="t0",
+        )
+    )
+    store.put(
+        JobRecord(
+            id="job-1",
+            category="b",
+            channel_id="ch",
+            status=Status.COMPLETED.value,
+            created="t0",
+            updated="t1",
+        )
+    )
+    got = store.get("job-1")
+    assert got is not None
+    assert got.category == "b"
+    assert got.status == Status.COMPLETED.value
+
+
+def test_scheduled_persists_scheduled_status():
+    job = Job(category="Foo", channel_id="mem-sched")
+    job.scheduled()
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.SCHEDULED.value
+    assert saved.channel_id == "mem-sched"
+    assert saved.category == "Foo"
+
+
+@pytest.mark.asyncio
+async def test_worker_persists_completed_status():
+    def work(task, context):
+        return "ok"
+
+    workflow = Workflow()
+    workflow.add_task(
+        Task(
+            channel_id="ch",
+            dag_id="dag",
+            fingerprint="fp",
+            name="step1",
+            category="c",
+            description="",
+            tags=[],
+            executor=CallableExecutor(work),
+        )
+    )
+    job = Job(category="test", channel_id="mem-worker-ok")
+    job.workflows = [workflow]
+    assert job._fsm.on(events.INIT).error is None
+    assert job._fsm.on(events.SCHEDULE).error is None
+    job.save()
+
+    chan = Channel()
+    await chan.send(job)
+    await Worker(chan).run_once()
+
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.COMPLETED.value
+
+
+@pytest.mark.asyncio
+async def test_worker_persists_failed_status():
+    def boom(task, context):
+        raise RuntimeError("boom")
+
+    workflow = Workflow()
+    workflow.add_task(
+        Task(
+            channel_id="ch",
+            dag_id="dag",
+            fingerprint="fp",
+            name="step1",
+            category="c",
+            description="",
+            tags=[],
+            executor=CallableExecutor(boom),
+            retry_count=0,
+        )
+    )
+    job = Job(category="test", channel_id="mem-worker-fail")
+    job.workflows = [workflow]
+    assert job._fsm.on(events.INIT).error is None
+    assert job._fsm.on(events.SCHEDULE).error is None
+    job.save()
+
+    chan = Channel()
+    await chan.send(job)
+    with pytest.raises(RuntimeError, match="boom"):
+        await Worker(chan).run_once()
+
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.FAILED.value
+
+
+def test_set_and_configure_job_store():
+    custom = InMemoryJobStore()
+    set_job_store(custom)
+    assert get_job_store() is custom
+
+    configured = configure_job_store("memory")
+    assert isinstance(configured, InMemoryJobStore)
+    assert get_job_store() is configured
+
+
+class _FailingStore(InMemoryJobStore):
+    def put(self, record: JobRecord) -> None:
+        if record.status in (Status.COMPLETED.value, Status.FAILED.value):
+            raise RuntimeError("persist-failed")
+        super().put(record)
+
+
+class _FailOnInProgressStore(InMemoryJobStore):
+    def put(self, record: JobRecord) -> None:
+        if record.status == Status.IN_PROGRESS.value:
+            raise RuntimeError("run-persist-failed")
+        super().put(record)
+
+
+class _AlwaysFailStore(InMemoryJobStore):
+    def put(self, record: JobRecord) -> None:
+        raise RuntimeError("always-fail")
+
+
+def _job_with_workflow(executor):
+    workflow = Workflow()
+    workflow.add_task(
+        Task(
+            channel_id="ch",
+            dag_id="dag",
+            fingerprint="fp",
+            name="step1",
+            category="c",
+            description="",
+            tags=[],
+            executor=CallableExecutor(executor),
+            retry_count=0,
+        )
+    )
+    job = Job(category="test", channel_id="mem-save-err")
+    job.workflows = [workflow]
+    assert job._fsm.on(events.INIT).error is None
+    assert job._fsm.on(events.SCHEDULE).error is None
+    return job
+
+
+@pytest.mark.asyncio
+async def test_run_save_failure_marks_job_failed():
+    set_job_store(_FailOnInProgressStore())
+    executed = []
+
+    def work(task, context):
+        executed.append(task.name)
+        return "ok"
+
+    job = _job_with_workflow(work)
+    job.save()
+    chan = Channel()
+    await chan.send(job)
+
+    with pytest.raises(RuntimeError, match="run-persist-failed"):
+        await Worker(chan).run_once()
+
+    assert executed == []
+    assert job._fsm.current().value == Status.FAILED
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.FAILED.value
+
+
+@pytest.mark.asyncio
+async def test_complete_save_failure_keeps_completed_fsm():
+    set_job_store(_FailingStore())
+
+    def work(task, context):
+        return "ok"
+
+    job = _job_with_workflow(work)
+    job.save()
+    chan = Channel()
+    await chan.send(job)
+
+    with pytest.raises(RuntimeError, match="persist-failed"):
+        await Worker(chan).run_once()
+
+    # Work finished: keep Completed; retry job.save() only (store may still be InProgress).
+    assert job._fsm.current().value == Status.COMPLETED
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.IN_PROGRESS.value
+
+
+@pytest.mark.asyncio
+async def test_fail_path_save_failure_keeps_failed_fsm():
+    set_job_store(_FailingStore())
+
+    def boom(task, context):
+        raise RuntimeError("boom")
+
+    job = _job_with_workflow(boom)
+    job.save()
+    chan = Channel()
+    await chan.send(job)
+
+    with pytest.raises(RuntimeError, match="boom") as exc_info:
+        await Worker(chan).run_once()
+
+    assert "persist-failed" not in str(exc_info.value)
+    # Terminal failure kept; retry job.save() only.
+    assert job._fsm.current().value == Status.FAILED
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.IN_PROGRESS.value
+
+
+def test_dispatch_save_failure_rolls_back_for_retry():
+    set_job_store(_AlwaysFailStore())
+    job = Job(category="x", channel_id="dispatch-rollback")
+
+    with pytest.raises(RuntimeError, match="always-fail"):
+        job.scheduled()
+
+    assert job._fsm.current().value == Status.UNKNOWN
+    assert Job.get_saved(job.id) is None
+
+    reset_job_store()
+    job.scheduled()
+    assert Job.get_saved(job.id) is not None
+    assert Job.get_saved(job.id).status == Status.SCHEDULED.value
+
+
+def test_sql_missing_connection_raises_value_error():
+    from pypepper.scheduler.store.sql import SqlJobStore
+
+    with pytest.raises(ValueError, match="postgres job store requires"):
+        SqlJobStore(backend="postgres", host="localhost")
+    with pytest.raises(ValueError, match="mysql job store requires"):
+        SqlJobStore(backend="mysql", host="localhost")
+
+
+def test_setup_from_config_memory_preserves_existing_store():
+    from types import SimpleNamespace
+
+    from pypepper.scheduler.store import setup_from_config
+
+    store = get_job_store()
+    store.put(
+        JobRecord(
+            id="keep-me",
+            category="c",
+            channel_id="ch",
+            status=Status.SCHEDULED.value,
+            created="t0",
+            updated="t0",
+        )
+    )
+    setup_from_config(SimpleNamespace(scheduler=SimpleNamespace(jobStore=SimpleNamespace(backend="memory"))))
+    assert get_job_store() is store
+    assert get_job_store().get("keep-me") is not None
+
+
+def test_save_failure_does_not_mutate_job_fields():
+    set_job_store(_AlwaysFailStore())
+    job = Job(category="x", channel_id="ch")
+    assert job._fsm.on(events.INIT).error is None
+    assert job._fsm.on(events.SCHEDULE).error is None
+    before_status = job.status
+    before_updated = job.updated
+
+    with pytest.raises(RuntimeError, match="always-fail"):
+        job.save()
+
+    assert job.status == before_status
+    assert job.updated == before_updated
+    assert Job.get_saved(job.id) is None
+
+
+def test_to_record_uses_fsm_status():
+    job = Job(category="x", channel_id="ch")
+    assert job.status == Status.UNKNOWN.value
+    assert job._fsm.on(events.INIT).error is None
+    assert job._fsm.on(events.SCHEDULE).error is None
+    # FSM advanced; durable Job.status not updated until save succeeds.
+    assert job.status == Status.UNKNOWN.value
+    assert job.to_record().status == Status.SCHEDULED.value
+
+
+def test_channel_full_rolls_back_and_deletes_scheduled():
+    import asyncio
+
+    from pypepper.scheduler.channel import manager
+    from pypepper.scheduler.job import ChannelFullError
+
+    channel_id = "bounded-full"
+    bounded = Channel(maxsize=1)
+    assert asyncio.run(bounded.send("occupier")) is True
+    manager.put(channel_id, bounded)
+    try:
+        job = Job(category="x", channel_id=channel_id)
+        with pytest.raises(ChannelFullError, match="channel full"):
+            job.scheduled()
+
+        assert job._fsm.current().value == Status.UNKNOWN
+        assert Job.get_saved(job.id) is None
+    finally:
+        manager.remove(channel_id)

@@ -67,4 +67,7 @@ mongodb.close()
 !!! tip
     Prefer environment-specific secrets outside the repo. The devenv passwords are for local/CI only.
 
+Scheduler job persistence builds on these connectors via
+[`configure_job_store`](scheduler.md#persistence) (`postgres` / `mysql` / `mongodb`).
+
 See also: [API Reference / DB Helper](../reference/helper.md).

@@ -90,6 +90,20 @@ class ConfTracing:
     otlp: ConfTracingOTLP
 
 
+class ConfSchedulerJobStore:
+    backend: str
+    uri: str | None
+    host: str | None
+    port: int | None
+    username: str | None
+    password: str | None
+    db: str | None
+
+
+class ConfScheduler:
+    jobStore: ConfSchedulerJobStore
+
+
 class YmlConfig:
     cluster: ConfCluster
     network: ConfNetwork
@@ -97,6 +111,7 @@ class YmlConfig:
     log: ConfLog
     sse: ConfSSE
     tracing: ConfTracing
+    scheduler: ConfScheduler
     custom: Any
 
 
@@ -140,8 +155,10 @@ class Config:
             log.set_colorize(self.get_yml_config().log.colorize)
 
         from pypepper.common.tracing import setup_from_config
+        from pypepper.scheduler.store import setup_from_config as setup_job_store_from_config
 
         setup_from_config(self.get_yml_config())
+        setup_job_store_from_config(self.get_yml_config())
 
     def get_yml_config(self) -> YmlConfig:
         return self._setting

@@ -10,10 +10,18 @@ from threading import Lock
 from pypepper.common.context import Context
 from pypepper.common.log import log
 from pypepper.common.utils import uuid
+from pypepper.common.utils.time import get_utc_datetime
+from pypepper.fsm.interfaces import IState
 from pypepper.scheduler import events
 from pypepper.scheduler.base import IBase
 from pypepper.scheduler.channel import Channel, manager
+from pypepper.scheduler.status import Status
+from pypepper.scheduler.store import JobRecord, get_job_store
 from pypepper.scheduler.workflow import Workflow
+
+
+class ChannelFullError(RuntimeError):
+    """Bounded channel rejected an enqueue (pre-execution; safe to roll back)."""
 
 
 class Processor:
@@ -22,7 +30,9 @@ class Processor:
 
     @staticmethod
     async def async_run(job: Job, chan: Channel) -> None:
-        await chan.send(job)
+        ok = await chan.send(job)
+        if not ok:
+            raise ChannelFullError(f"channel full: channel_id={job.channel_id}, job_id={job.id}")
         print("[Processor] JobID=", job.id, "Channel Length=", chan.length())
 
 
@@ -72,15 +82,27 @@ class Dispatcher:
         return self._new_processor(key)
 
     def dispatch(self, job: Job) -> None:
+        # Pre-execution: schedule/enqueue failure must roll back so retry can re-enter.
+        prev_state = job._fsm.current()
+        prev_status = job.status
         job._fsm.on(events.INIT)
         job._fsm.on(events.SCHEDULE)
+        try:
+            job.save()
+        except Exception:
+            job.restore_lifecycle(prev_state, prev_status)
+            raise
 
-        job.save()
         job.log()
 
         chan = manager.available(job.channel_id)
         processor = self._available_processor(job.channel_id)
-        processor.run(job, chan)
+        try:
+            processor.run(job, chan)
+        except ChannelFullError:
+            job.restore_lifecycle(prev_state, prev_status)
+            get_job_store().delete(job.id)
+            raise
 
 
 dispatcher = Dispatcher()
@@ -104,15 +126,67 @@ class IJob(IBase, metaclass=ABCMeta):
 
 class Job(IJob):
     def __init__(self, category: str | None = None, channel_id: str = "default") -> None:
+        now = get_utc_datetime()
         self.id = uuid.new_uuid()
         self.category: str | None = category
         self.channel_id = channel_id
         self.context = Context(context_id=uuid.new_uuid())
         self.workflows: list[Workflow] = []
         self._fsm = events.build_scheduler_fsm()
+        self.status: str = Status.UNKNOWN.value
+        self.created: str = now
+        self.updated: str = now
+        self.version: int = 1
+
+    def _current_status(self) -> str:
+        current = self._fsm.current()
+        if current is None:
+            return Status.UNKNOWN.value
+        value = current.value
+        if isinstance(value, Status):
+            return value.value
+        return str(value)
+
+    def restore_lifecycle(self, state: IState | None, status: str) -> None:
+        """Restore FSM current state and Job.status (pre-execution rollback only)."""
+        self._fsm._current = state
+        self.status = status
+
+    def to_record(self) -> JobRecord:
+        """Authoritative lifecycle snapshot from the FSM (may lead durable ``status``)."""
+        return JobRecord(
+            id=self.id,
+            category=self.category,
+            channel_id=self.channel_id,
+            status=self._current_status(),
+            created=self.created,
+            updated=self.updated,
+            workflow_count=len(self.workflows),
+            version=self.version,
+        )
 
     def save(self) -> None:
-        log.debug(f"Job saved: id={self.id}, channel_id={self.channel_id}")
+        status = self._current_status()
+        updated = get_utc_datetime()
+        record = JobRecord(
+            id=self.id,
+            category=self.category,
+            channel_id=self.channel_id,
+            status=status,
+            created=self.created,
+            updated=updated,
+            workflow_count=len(self.workflows),
+            version=self.version,
+        )
+        get_job_store().put(record)
+        # Mutate in-memory fields only after durable persist succeeds.
+        self.status = status
+        self.updated = updated
+        log.debug(f"Job saved: id={self.id}, channel_id={self.channel_id}, status={self.status}")
+
+    @staticmethod
+    def get_saved(job_id: str) -> JobRecord | None:
+        return get_job_store().get(job_id)
 
     def log(self) -> None:
         log.info(f"Job scheduled: id={self.id}, category={self.category}")
