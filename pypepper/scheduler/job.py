@@ -11,6 +11,7 @@ from pypepper.common.context import Context
 from pypepper.common.log import log
 from pypepper.common.utils import uuid
 from pypepper.common.utils.time import get_utc_datetime
+from pypepper.event.interfaces import IEvent
 from pypepper.fsm.interfaces import IState
 from pypepper.scheduler import events
 from pypepper.scheduler.base import IBase
@@ -22,6 +23,14 @@ from pypepper.scheduler.workflow import Workflow
 
 class ChannelFullError(RuntimeError):
     """Bounded channel rejected an enqueue (pre-execution; safe to roll back)."""
+
+
+def _raise_if_transition_failed(resp_error: object) -> None:
+    if resp_error is None:
+        return
+    if isinstance(resp_error, BaseException):
+        raise resp_error
+    raise RuntimeError(str(resp_error))
 
 
 class Processor:
@@ -85,12 +94,13 @@ class Dispatcher:
         # Pre-execution: schedule/enqueue failure must roll back so retry can re-enter.
         prev_state = job._fsm.current()
         prev_status = job.status
-        job._fsm.on(events.INIT)
-        job._fsm.on(events.SCHEDULE)
         try:
+            job.apply_event(events.INIT)
+            job.apply_event(events.SCHEDULE)
             job.save()
-        except Exception:
+        except Exception as exc:
             job.restore_lifecycle(prev_state, prev_status)
+            log.error(f"Job schedule failed: id={job.id}, error={exc}")
             raise
 
         job.log()
@@ -101,7 +111,11 @@ class Dispatcher:
             processor.run(job, chan)
         except ChannelFullError:
             job.restore_lifecycle(prev_state, prev_status)
-            get_job_store().delete(job.id)
+            try:
+                get_job_store().delete(job.id)
+            except Exception as delete_exc:
+                log.error(f"Job channel-full cleanup delete failed: id={job.id}, error={delete_exc}")
+            log.error(f"Job enqueue failed (channel full): id={job.id}, channel_id={job.channel_id}")
             raise
 
 
@@ -148,9 +162,14 @@ class Job(IJob):
         return str(value)
 
     def restore_lifecycle(self, state: IState | None, status: str) -> None:
-        """Restore FSM current state and Job.status (pre-execution rollback only)."""
+        """Restore FSM/`status` after a failed lifecycle persist (schedule/enqueue or RUN-start)."""
         self._fsm._current = state
         self.status = status
+
+    def apply_event(self, event: IEvent) -> None:
+        """Apply an FSM event or raise if the transition is invalid."""
+        resp = self._fsm.on(event)
+        _raise_if_transition_failed(resp.error)
 
     def to_record(self) -> JobRecord:
         """Authoritative lifecycle snapshot from the FSM (may lead durable ``status``)."""

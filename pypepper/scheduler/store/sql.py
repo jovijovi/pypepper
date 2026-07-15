@@ -106,7 +106,6 @@ class SqlJobStore(IJobStore):
             "category": record.category,
             "channel_id": record.channel_id,
             "status": record.status,
-            "created": record.created,
             "updated": record.updated,
             "workflow_count": record.workflow_count,
             "version": record.version,

@@ -9,6 +9,7 @@
 - Scheduler persist-failure semantics: roll back pre-execution schedule failures; keep terminal COMPLETE/FAIL when snapshot write fails (retry `save` only).
 - SQL job store raises `ValueError` for incomplete connection config instead of `AssertionError`.
 - Roll back and delete Scheduled snapshot when a bounded channel rejects enqueue; `Job.to_record()` uses FSM status.
+- Harden channel-full cleanup and FSM transition checks; preserve SQL `created` on upsert; validate Mongo config.
 
 ## 0.6.0
 

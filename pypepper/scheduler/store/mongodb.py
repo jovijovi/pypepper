@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 from typing import Any
 
 from mongoengine import Document, IntField, StringField, disconnect
@@ -62,8 +61,18 @@ class MongoJobStore(IJobStore):
             uuid_representation=kwargs.get("uuid_representation") or "standard",
         )
         self._alias = kwargs.get("alias") or _DEFAULT_ALIAS
-        with contextlib.suppress(Exception):
+        if not cfg.uri and not (cfg.username and cfg.password and cfg.host and cfg.db):
+            raise ValueError("mongodb job store requires uri=... or username, password, host, and db")
+        try:
             disconnect(alias=self._alias)
+        except Exception as exc:
+            log_msg = str(exc).lower()
+            if "not been created" in log_msg or "alias" in log_msg or "does not exist" in log_msg:
+                pass
+            else:
+                from pypepper.common.log import log
+
+                log.warn(f"MongoJobStore disconnect({self._alias}) failed: {exc}")
         if cfg.uri:
             mongo_connect(
                 host=cfg.uri,

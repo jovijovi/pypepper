@@ -121,9 +121,11 @@ Connections reuse [`helper.db`](helper-db.md) settings style (`uri` or discrete 
 
 ### Persist-failure rules
 
-- **Before work** (`dispatch` schedule / enqueue): roll back FSM (and remove Scheduled store row on channel-full) so `scheduled()` can retry.
+- **Before work** (`dispatch` schedule / enqueue): roll back FSM and `Job.status` (and best-effort delete Scheduled store row on channel-full) so `scheduled()` can retry.
+- **Start (`RUN`)**: if Running snapshot fails, do not run workflows; prefer persist `Failed`, else restore pre-RUN.
 - **After work** (COMPLETE/FAIL): keep the terminal FSM; retry `job.save()` only — do not re-run workflows because the snapshot write failed.
 - `Job.save()` updates in-memory `status`/`updated` only after the store `put` succeeds.
 - `Job.to_record()` reports FSM status (authoritative), which may lead durable `Job.status` when a terminal persist fails.
+- Invalid FSM transitions raise; do not persist or run work after a failed transition.
 
 See also: [API Reference / Scheduler](../reference/scheduler.md).

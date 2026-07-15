@@ -20,7 +20,7 @@ def _transition_and_save_terminal(job: Job, event: IEvent) -> None:
     persistence fails. Callers should retry ``job.save()`` only — never re-run
     workflows solely because the terminal snapshot write failed.
     """
-    job._fsm.on(event)
+    job.apply_event(event)
     job.save()
 
 
@@ -45,13 +45,13 @@ class Worker:
     async def _process(self, job: Job) -> None:
         prev_state = job._fsm.current()
         prev_status = job.status
-        job._fsm.on(events.RUN)
+        job.apply_event(events.RUN)
         try:
             job.save()
         except Exception as save_exc:
             # Prefer persisting Failed; if that also fails, restore pre-RUN state.
             try:
-                job._fsm.on(events.FAIL)
+                job.apply_event(events.FAIL)
                 job.save()
             except Exception as fail_save_exc:
                 job.restore_lifecycle(prev_state, prev_status)
@@ -65,7 +65,7 @@ class Worker:
         try:
             workflows = getattr(job, "workflows", None) or []
             for workflow in workflows:
-                # Workflow.run is sync; offload to thread if needed later
+                # Workflow.run is sync; run it in a worker thread.
                 await asyncio.to_thread(workflow.run)
         except Exception as e:
             try:

@@ -232,8 +232,10 @@ async def test_run_save_failure_marks_job_failed():
 @pytest.mark.asyncio
 async def test_complete_save_failure_keeps_completed_fsm():
     set_job_store(_FailingStore())
+    executed = []
 
     def work(task, context):
+        executed.append(task.name)
         return "ok"
 
     job = _job_with_workflow(work)
@@ -245,10 +247,33 @@ async def test_complete_save_failure_keeps_completed_fsm():
         await Worker(chan).run_once()
 
     # Work finished: keep Completed; retry job.save() only (store may still be InProgress).
+    assert executed == ["step1"]
     assert job._fsm.current().value == Status.COMPLETED
+    assert job.status == Status.IN_PROGRESS.value
+    assert job.to_record().status == Status.COMPLETED.value
     saved = Job.get_saved(job.id)
     assert saved is not None
     assert saved.status == Status.IN_PROGRESS.value
+
+    # Retry save only (no re-run) after store accepts COMPLETED.
+    reset_job_store()
+    # Seed last durable InProgress then overwrite via save from Completed FSM.
+    get_job_store().put(
+        JobRecord(
+            id=job.id,
+            category=job.category,
+            channel_id=job.channel_id,
+            status=Status.IN_PROGRESS.value,
+            created=job.created,
+            updated=job.updated,
+            workflow_count=1,
+            version=1,
+        )
+    )
+    job.save()
+    assert executed == ["step1"]
+    assert Job.get_saved(job.id).status == Status.COMPLETED.value
+    assert job.status == Status.COMPLETED.value
 
 
 @pytest.mark.asyncio
@@ -267,11 +292,87 @@ async def test_fail_path_save_failure_keeps_failed_fsm():
         await Worker(chan).run_once()
 
     assert "persist-failed" not in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
+    assert "persist-failed" in str(exc_info.value.__cause__)
     # Terminal failure kept; retry job.save() only.
     assert job._fsm.current().value == Status.FAILED
+    assert job.status == Status.IN_PROGRESS.value
+    assert job.to_record().status == Status.FAILED.value
     saved = Job.get_saved(job.id)
     assert saved is not None
     assert saved.status == Status.IN_PROGRESS.value
+
+    reset_job_store()
+    get_job_store().put(
+        JobRecord(
+            id=job.id,
+            category=job.category,
+            channel_id=job.channel_id,
+            status=Status.IN_PROGRESS.value,
+            created=job.created,
+            updated=job.updated,
+            workflow_count=1,
+            version=1,
+        )
+    )
+    job.save()
+    assert Job.get_saved(job.id).status == Status.FAILED.value
+
+
+class _FailOnInProgressAndFailedStore(InMemoryJobStore):
+    def put(self, record: JobRecord) -> None:
+        if record.status in (Status.IN_PROGRESS.value, Status.FAILED.value):
+            raise RuntimeError("run-and-fail-persist-failed")
+        super().put(record)
+
+
+@pytest.mark.asyncio
+async def test_run_and_fail_persist_both_fail_restores_pre_run():
+    set_job_store(_FailOnInProgressAndFailedStore())
+    executed = []
+
+    def work(task, context):
+        executed.append(task.name)
+        return "ok"
+
+    job = _job_with_workflow(work)
+    job.save()
+    assert job.status == Status.SCHEDULED.value
+    chan = Channel()
+    await chan.send(job)
+
+    with pytest.raises(RuntimeError, match="run-and-fail-persist-failed"):
+        await Worker(chan).run_once()
+
+    assert executed == []
+    assert job._fsm.current().value == Status.SCHEDULED
+    assert job.status == Status.SCHEDULED.value
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.SCHEDULED.value
+
+
+@pytest.mark.asyncio
+async def test_invalid_run_transition_does_not_execute_workflows():
+    from pypepper.exceptions import InternalException
+
+    executed = []
+
+    def work(task, context):
+        executed.append(task.name)
+        return "ok"
+
+    job = _job_with_workflow(work)
+    # Leave job Scheduled in store/FSM but force FSM to Completed so RUN is invalid.
+    job.apply_event(events.RUN)
+    job.apply_event(events.COMPLETE)
+    chan = Channel()
+    await chan.send(job)
+
+    with pytest.raises(InternalException):
+        await Worker(chan).run_once()
+
+    assert executed == []
 
 
 def test_dispatch_save_failure_rolls_back_for_retry():
@@ -282,21 +383,26 @@ def test_dispatch_save_failure_rolls_back_for_retry():
         job.scheduled()
 
     assert job._fsm.current().value == Status.UNKNOWN
+    assert job.status == Status.UNKNOWN.value
     assert Job.get_saved(job.id) is None
 
     reset_job_store()
     job.scheduled()
     assert Job.get_saved(job.id) is not None
     assert Job.get_saved(job.id).status == Status.SCHEDULED.value
+    assert job.status == Status.SCHEDULED.value
 
 
 def test_sql_missing_connection_raises_value_error():
+    from pypepper.scheduler.store.mongodb import MongoJobStore
     from pypepper.scheduler.store.sql import SqlJobStore
 
     with pytest.raises(ValueError, match="postgres job store requires"):
         SqlJobStore(backend="postgres", host="localhost")
     with pytest.raises(ValueError, match="mysql job store requires"):
         SqlJobStore(backend="mysql", host="localhost")
+    with pytest.raises(ValueError, match="mongodb job store requires"):
+        MongoJobStore(host="localhost")
 
 
 def test_setup_from_config_memory_preserves_existing_store():
@@ -362,6 +468,7 @@ def test_channel_full_rolls_back_and_deletes_scheduled():
             job.scheduled()
 
         assert job._fsm.current().value == Status.UNKNOWN
+        assert job.status == Status.UNKNOWN.value
         assert Job.get_saved(job.id) is None
     finally:
         manager.remove(channel_id)

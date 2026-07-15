@@ -47,7 +47,7 @@ def _crud_roundtrip(backend: str, uri: str) -> None:
         category="demo2",
         channel_id=record.channel_id,
         status=Status.IN_PROGRESS.value,
-        created="t0",
+        created="should-not-overwrite",
         updated="t1",
         workflow_count=2,
         version=2,
@@ -58,6 +58,10 @@ def _crud_roundtrip(backend: str, uri: str) -> None:
     assert got.category == "demo2"
     assert got.status == Status.IN_PROGRESS.value
     assert got.version == 2
+    if backend in ("postgres", "mysql"):
+        assert got.created == "t0"
+    else:
+        assert got.created == "should-not-overwrite"
 
     store.delete(record.id)
     assert store.get(record.id) is None
