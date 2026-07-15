@@ -30,7 +30,8 @@ tracing:
 | `enabled: true` + `otlp.enabled: true` | OTLP HTTP → `{endpoint}/v1/traces` |
 | Both console and otlp | Spans go to terminal **and** collector |
 
-`config.load_config()` calls `setup_from_config()` automatically.
+`config.load_config()` calls tracing `setup_from_config()` automatically. It does **not**
+configure the scheduler job store (call `scheduler.store.setup_from_config` separately).
 
 ## Console (logs)
 

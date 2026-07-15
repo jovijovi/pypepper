@@ -24,10 +24,10 @@ flowchart TB
 
 | Package | Depends on | Notes |
 |---------|------------|-------|
-| `common` | (none of other domains) | Shared kernel |
+| `common` | (none of other domains) | Shared kernel; does not import `scheduler` |
 | `event` | `common` | Signed events |
 | `fsm` | `event`, `errors` | Generic state machine |
-| `scheduler` | `common`, `event`, `fsm` | Job pipeline |
+| `scheduler` | `common`, `event`, `fsm` | Job pipeline; job store wired via `setup_from_config` / `configure_job_store` (not by `config.load_config`) |
 | `network` | `common` | HTTP + SSE; no scheduler coupling |
 | `helper` | (standalone) | DB connect helpers only |
 

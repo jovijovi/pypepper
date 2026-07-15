@@ -155,10 +155,8 @@ class Config:
             log.set_colorize(self.get_yml_config().log.colorize)
 
         from pypepper.common.tracing import setup_from_config
-        from pypepper.scheduler.store import setup_from_config as setup_job_store_from_config
 
         setup_from_config(self.get_yml_config())
-        setup_job_store_from_config(self.get_yml_config())
 
     def get_yml_config(self) -> YmlConfig:
         return self._setting

@@ -5,6 +5,10 @@
 ### Added
 - Pluggable scheduler `Job.save` store with `memory` (default), `postgres`, `mysql`, and `mongodb` backends.
 
+### Changed
+- `config.load_config()` no longer configures the scheduler job store; apps call `scheduler.store.setup_from_config` explicitly after load.
+- `Job.scheduled()` / `Processor.run` raise `RuntimeError` when an event loop is already running.
+
 ### Fixed
 - Scheduler persist-failure semantics: roll back pre-execution schedule failures; keep terminal COMPLETE/FAIL when snapshot write fails (retry `save` only).
 - SQL job store raises `ValueError` for incomplete connection config instead of `AssertionError`.

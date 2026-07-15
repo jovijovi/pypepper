@@ -32,7 +32,7 @@ from pypepper.network.http.sse.handlers import EchoSSEHandler, CounterSSEHandler
 from pypepper.network.http.sse.interfaces import ISSEConnection, ISSEHandler, ISSEEvent
 from pypepper.network.http.sse.security import require_sse_api_key
 from pypepper.network.http.sse.stream import sse_stream
-
+from pypepper.scheduler.store import setup_from_config as setup_job_store_from_config
 app = FastAPI(title="PyPepper SSE Example")
 
 
@@ -180,6 +180,7 @@ def main():
 
     # Load configuration
     config.load_config()
+    setup_job_store_from_config(config.get_yml_config())
     demo_key = _inject_demo_api_key_from_env()
 
     # Log SSE configuration

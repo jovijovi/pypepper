@@ -35,6 +35,15 @@ def _raise_if_transition_failed(resp_error: object) -> None:
 
 class Processor:
     def run(self, job: Job, chan: Channel, *, on_enqueued: Callable[[], None] | None = None) -> None:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError(
+                "Processor.run / Job.scheduled() must be called from a sync context "
+                "(no running event loop); use Channel.send + Worker from async code instead"
+            )
         asyncio.run(self.async_run(job, chan, on_enqueued=on_enqueued))
 
     @staticmethod

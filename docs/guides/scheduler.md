@@ -107,7 +107,16 @@ assert saved.status == "Scheduled"
 assert get_job_store().get(job.id) is not None
 ```
 
-YAML (optional):
+YAML (optional). `config.load_config()` does **not** apply this automatically — call
+`setup_from_config` after load:
+
+```python
+from pypepper.common.config import config
+from pypepper.scheduler.store import setup_from_config
+
+config.load_config("./conf/app.config.yaml")
+setup_from_config(config.get_yml_config())
+```
 
 ```yaml
 scheduler:
@@ -118,6 +127,10 @@ scheduler:
 
 Connections reuse [`helper.db`](helper-db.md) settings style (`uri` or discrete host/user/password/db).
 `Worker` also calls `save()` after `RUN` / `COMPLETE` / `FAIL`.
+
+`Job.scheduled()` / `Processor.run` must be called from a **sync** context. They raise
+`RuntimeError` if an event loop is already running; from async code, enqueue with
+`await Channel.send(job)` and consume with `Worker` instead.
 
 ### Persist-failure rules
 

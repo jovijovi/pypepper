@@ -9,7 +9,14 @@ from pypepper.scheduler.channel import Channel
 from pypepper.scheduler.executor import CallableExecutor
 from pypepper.scheduler.job import Job
 from pypepper.scheduler.status import Status
-from pypepper.scheduler.store import JobRecord, configure_job_store, get_job_store, reset_job_store
+from pypepper.scheduler.store import (
+    JobRecord,
+    configure_job_store,
+    get_job_store,
+    reset_job_store,
+    set_job_store,
+)
+from pypepper.scheduler.store.interfaces import IJobStore
 from pypepper.scheduler.task import Task
 from pypepper.scheduler.worker import Worker
 from pypepper.scheduler.workflow import Workflow
@@ -17,6 +24,12 @@ from pypepper.scheduler.workflow import Workflow
 POSTGRES_URI = "postgresql+psycopg://postgres:example@localhost:5432/mock_pypepper"
 MYSQL_URI = "mysql+pymysql://root:example@localhost:3306/mock_pypepper?charset=utf8mb4"
 MONGO_URI = "mongodb://test:test@localhost:27017/test"
+
+_BACKENDS = (
+    ("postgres", POSTGRES_URI),
+    ("mysql", MYSQL_URI),
+    ("mongodb", MONGO_URI),
+)
 
 
 @pytest.fixture(autouse=True)
@@ -76,9 +89,8 @@ def test_mongodb_crud():
     _crud_roundtrip("mongodb", MONGO_URI)
 
 
-@pytest.mark.asyncio
-async def test_postgres_worker_lifecycle():
-    configure_job_store("postgres", uri=POSTGRES_URI)
+async def _worker_lifecycle(backend: str, uri: str, channel_id: str) -> None:
+    configure_job_store(backend, uri=uri)
     get_job_store().clear()
 
     def work(task, context):
@@ -97,7 +109,7 @@ async def test_postgres_worker_lifecycle():
             executor=CallableExecutor(work),
         )
     )
-    job = Job(category="pg", channel_id="pg-lifecycle")
+    job = Job(category=backend, channel_id=channel_id)
     job.workflows = [workflow]
     assert job._fsm.on(events.INIT).error is None
     assert job._fsm.on(events.SCHEDULE).error is None
@@ -114,35 +126,92 @@ async def test_postgres_worker_lifecycle():
 
 
 @pytest.mark.asyncio
+async def test_postgres_worker_lifecycle():
+    await _worker_lifecycle("postgres", POSTGRES_URI, "pg-lifecycle")
+
+
+@pytest.mark.asyncio
+async def test_mysql_worker_lifecycle():
+    await _worker_lifecycle("mysql", MYSQL_URI, "mysql-lifecycle")
+
+
+@pytest.mark.asyncio
 async def test_mongodb_worker_lifecycle():
-    configure_job_store("mongodb", uri=MONGO_URI)
-    get_job_store().clear()
+    await _worker_lifecycle("mongodb", MONGO_URI, "mongo-lifecycle")
 
-    def work(task, context):
-        return "ok"
 
-    workflow = Workflow()
-    workflow.add_task(
-        Task(
-            channel_id="ch",
-            dag_id="dag",
-            fingerprint="fp",
-            name="step1",
-            category="c",
-            description="",
-            tags=[],
-            executor=CallableExecutor(work),
-        )
+class _FailPutProxy(IJobStore):
+    def __init__(self, inner: IJobStore) -> None:
+        self._inner = inner
+
+    def put(self, record: JobRecord) -> None:
+        raise RuntimeError("proxy-put-failed")
+
+    def get(self, job_id: str) -> JobRecord | None:
+        return self._inner.get(job_id)
+
+    def delete(self, job_id: str) -> None:
+        self._inner.delete(job_id)
+
+    def list(self, channel_id: str | None = None) -> list[JobRecord]:
+        return self._inner.list(channel_id)
+
+    def clear(self) -> None:
+        self._inner.clear()
+
+
+class _FailDeleteProxy(IJobStore):
+    def __init__(self, inner: IJobStore) -> None:
+        self._inner = inner
+
+    def put(self, record: JobRecord) -> None:
+        self._inner.put(record)
+
+    def get(self, job_id: str) -> JobRecord | None:
+        return self._inner.get(job_id)
+
+    def delete(self, job_id: str) -> None:
+        raise RuntimeError("proxy-delete-failed")
+
+    def list(self, channel_id: str | None = None) -> list[JobRecord]:
+        return self._inner.list(channel_id)
+
+    def clear(self) -> None:
+        self._inner.clear()
+
+
+@pytest.mark.parametrize(("backend", "uri"), _BACKENDS)
+def test_db_put_failure_propagates(backend: str, uri: str):
+    inner = configure_job_store(backend, uri=uri)
+    inner.clear()
+    set_job_store(_FailPutProxy(inner))
+    record = JobRecord(
+        id=f"fail-put-{backend}",
+        category="x",
+        channel_id=f"ch-{backend}",
+        status=Status.SCHEDULED.value,
+        created="t0",
+        updated="t0",
     )
-    job = Job(category="mongo", channel_id="mongo-lifecycle")
-    job.workflows = [workflow]
-    assert job._fsm.on(events.INIT).error is None
-    assert job._fsm.on(events.SCHEDULE).error is None
-    job.save()
+    with pytest.raises(RuntimeError, match="proxy-put-failed"):
+        get_job_store().put(record)
+    assert inner.get(record.id) is None
 
-    chan = Channel()
-    await chan.send(job)
-    await Worker(chan).run_once()
-    saved = Job.get_saved(job.id)
-    assert saved is not None
-    assert saved.status == Status.COMPLETED.value
+
+@pytest.mark.parametrize(("backend", "uri"), _BACKENDS)
+def test_db_delete_failure_propagates(backend: str, uri: str):
+    inner = configure_job_store(backend, uri=uri)
+    inner.clear()
+    record = JobRecord(
+        id=f"fail-del-{backend}",
+        category="x",
+        channel_id=f"ch-{backend}",
+        status=Status.SCHEDULED.value,
+        created="t0",
+        updated="t0",
+    )
+    inner.put(record)
+    set_job_store(_FailDeleteProxy(inner))
+    with pytest.raises(RuntimeError, match="proxy-delete-failed"):
+        get_job_store().delete(record.id)
+    assert inner.get(record.id) is not None
