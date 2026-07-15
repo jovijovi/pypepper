@@ -25,9 +25,6 @@
 - **Do not** declare mutable instance state as class attributes (`_store = {}`, `_lock = Lock()`). Initialize dicts/lists/locks in `__init__` or `__new__`.
 - Global registries (`dispatcher`, `connection_manager`, `loader`, channel `manager`) must be **explicit singletons** (module-level instance and/or `__new__`), never accidental shared class dicts.
 - Run `python scripts/check_mutable_class_attrs.py` (also via `make check` / `make test`) before opening a PR.
-- **Do not** declare mutable instance state as class attributes (`_store = {}`, `_lock = Lock()`). Initialize dicts/lists/locks in `__init__` or `__new__`.
-- Global registries (`dispatcher`, `connection_manager`, `loader`, channel `manager`) must be **explicit singletons** (module-level instance and/or `__new__`), never accidental shared class dicts.
-- Run `python scripts/check_mutable_class_attrs.py` (also via `make check` / `make test`) before opening a PR.
 
 ## Scheduler persistence semantics
 Job snapshots (`JobRecord`) are metadata-only (workflows/executors are not serialized). Treat side effects as the source of truth when deciding rollback vs keep-terminal:

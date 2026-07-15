@@ -554,6 +554,14 @@ def test_enqueue_failure_rolls_back_for_any_error(monkeypatch):
     assert Job.get_saved(job.id) is None
 
 
+@pytest.mark.asyncio
+async def test_scheduled_raises_when_event_loop_running():
+    job = Job(category="x", channel_id="async-forbidden")
+    with pytest.raises(RuntimeError, match="sync context"):
+        job.scheduled()
+    assert Job.get_saved(job.id) is None
+
+
 def test_post_enqueue_error_does_not_rollback(monkeypatch):
     import asyncio
 

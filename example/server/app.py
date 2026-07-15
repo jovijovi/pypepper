@@ -6,6 +6,7 @@ from pypepper.common.log import log
 from pypepper.logo import logo
 from pypepper.network.http import server
 from pypepper.network.http.interfaces import ITaskHandler
+from pypepper.scheduler.store import setup_from_config as setup_job_store_from_config
 
 
 def biz1():
@@ -38,6 +39,7 @@ def main():
     log.logo(logo)
     system.handle_signals()
     config.load_config()
+    setup_job_store_from_config(config.get_yml_config())
 
     server.run(app_handlers)
 
