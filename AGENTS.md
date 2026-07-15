@@ -35,7 +35,7 @@ Job snapshots (`JobRecord`) are metadata-only (workflows/executors are not seria
 | Stage | Persist failure | Required behavior |
 |-------|-----------------|-------------------|
 | Pre-execution (`INIT`/`SCHEDULE` in `dispatch`) | `save()` fails before enqueue | **Roll back** FSM/`Job.status` so `scheduled()` can retry |
-| Pre-execution (channel enqueue) | Bounded channel rejects send | **Roll back** FSM/`Job.status`, best-effort **delete** Scheduled row, always re-raise `ChannelFullError` (no ghost jobs) |
+| Pre-execution (channel enqueue) | Enqueue fails (channel full or other) | **Roll back** FSM/`Job.status`, best-effort **delete** Scheduled row, re-raise. Ghost Scheduled row may remain if delete fails. |
 | Start (`RUN`) | Running snapshot fails | Do **not** run workflows; prefer persist `Failed`, else restore pre-`RUN` |
 | Terminal success (`COMPLETE`) | Work already finished | **Keep** Completed FSM; retry `job.save()` only — **never** re-run workflows because the terminal write failed |
 | Terminal failure (`FAIL`) | Work already failed | **Keep** Failed FSM; retry `job.save()` only |

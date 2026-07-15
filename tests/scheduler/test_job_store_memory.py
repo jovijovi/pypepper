@@ -472,3 +472,50 @@ def test_channel_full_rolls_back_and_deletes_scheduled():
         assert Job.get_saved(job.id) is None
     finally:
         manager.remove(channel_id)
+
+
+class _FailDeleteStore(InMemoryJobStore):
+    def delete(self, job_id: str) -> None:
+        raise RuntimeError("delete-failed")
+
+
+def test_channel_full_delete_failure_still_raises_channel_full():
+    import asyncio
+
+    from pypepper.scheduler.channel import manager
+    from pypepper.scheduler.job import ChannelFullError
+
+    set_job_store(_FailDeleteStore())
+    channel_id = "bounded-full-delete-fail"
+    bounded = Channel(maxsize=1)
+    assert asyncio.run(bounded.send("occupier")) is True
+    manager.put(channel_id, bounded)
+    try:
+        job = Job(category="x", channel_id=channel_id)
+        with pytest.raises(ChannelFullError, match="channel full"):
+            job.scheduled()
+
+        assert job._fsm.current().value == Status.UNKNOWN
+        assert job.status == Status.UNKNOWN.value
+        # Best-effort delete failed: Scheduled ghost may remain.
+        ghost = Job.get_saved(job.id)
+        assert ghost is not None
+        assert ghost.status == Status.SCHEDULED.value
+    finally:
+        manager.remove(channel_id)
+
+
+def test_enqueue_failure_rolls_back_for_any_error(monkeypatch):
+    from pypepper.scheduler.job import Processor
+
+    def boom(self, job, chan):
+        raise RuntimeError("enqueue-boom")
+
+    monkeypatch.setattr(Processor, "run", boom)
+    job = Job(category="x", channel_id="enqueue-any-error")
+    with pytest.raises(RuntimeError, match="enqueue-boom"):
+        job.scheduled()
+
+    assert job._fsm.current().value == Status.UNKNOWN
+    assert job.status == Status.UNKNOWN.value
+    assert Job.get_saved(job.id) is None

@@ -121,7 +121,7 @@ Connections reuse [`helper.db`](helper-db.md) settings style (`uri` or discrete 
 
 ### Persist-failure rules
 
-- **Before work** (`dispatch` schedule / enqueue): roll back FSM and `Job.status` (and best-effort delete Scheduled store row on channel-full) so `scheduled()` can retry.
+- **Before work** (`dispatch` schedule / enqueue): roll back FSM and `Job.status`, and best-effort delete the Scheduled store row, so `scheduled()` can retry. If delete fails, a Scheduled row may remain (ghost).
 - **Start (`RUN`)**: if Running snapshot fails, do not run workflows; prefer persist `Failed`, else restore pre-RUN.
 - **After work** (COMPLETE/FAIL): keep the terminal FSM; retry `job.save()` only — do not re-run workflows because the snapshot write failed.
 - `Job.save()` updates in-memory `status`/`updated` only after the store `put` succeeds.

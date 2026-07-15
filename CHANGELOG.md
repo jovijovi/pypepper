@@ -10,6 +10,7 @@
 - SQL job store raises `ValueError` for incomplete connection config instead of `AssertionError`.
 - Roll back and delete Scheduled snapshot when a bounded channel rejects enqueue; `Job.to_record()` uses FSM status.
 - Harden channel-full cleanup and FSM transition checks; preserve SQL `created` on upsert; validate Mongo config.
+- Roll back on any enqueue failure (not only channel-full); document best-effort delete may leave a ghost row.
 
 ## 0.6.0
 

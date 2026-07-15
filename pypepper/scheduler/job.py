@@ -109,13 +109,14 @@ class Dispatcher:
         processor = self._available_processor(job.channel_id)
         try:
             processor.run(job, chan)
-        except ChannelFullError:
+        except Exception as enqueue_exc:
+            # Any pre-execution enqueue failure: roll back so scheduled() can retry.
             job.restore_lifecycle(prev_state, prev_status)
             try:
                 get_job_store().delete(job.id)
             except Exception as delete_exc:
-                log.error(f"Job channel-full cleanup delete failed: id={job.id}, error={delete_exc}")
-            log.error(f"Job enqueue failed (channel full): id={job.id}, channel_id={job.channel_id}")
+                log.error(f"Job enqueue cleanup delete failed: id={job.id}, error={delete_exc}")
+            log.error(f"Job enqueue failed: id={job.id}, channel_id={job.channel_id}, error={enqueue_exc}")
             raise
 
 
@@ -162,7 +163,7 @@ class Job(IJob):
         return str(value)
 
     def restore_lifecycle(self, state: IState | None, status: str) -> None:
-        """Restore FSM/`status` after a failed lifecycle persist (schedule/enqueue or RUN-start)."""
+        """Restore FSM/`status` after schedule/enqueue failure or RUN-start persist failure."""
         self._fsm._current = state
         self.status = status
 
