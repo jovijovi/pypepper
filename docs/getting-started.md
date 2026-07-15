@@ -37,6 +37,17 @@ make test
 
 ## Run examples
 
+Prefer curated domain imports in application code:
+
+```python
+from pypepper.common.config import config
+from pypepper.scheduler import Job, setup_from_config
+
+config.load_config("./conf/app.config.yaml")
+# Durable scheduler.jobStore backends are not applied by load_config alone:
+setup_from_config(config.get_yml_config())
+```
+
 ### HTTP server
 
 ```shell
@@ -44,6 +55,7 @@ python example/server/app.py --config ./conf/app.config.yaml
 ```
 
 Default HTTP port comes from `conf/app.config.yaml` (`network.httpServer.port`, typically `55550`).
+The example calls `setup_from_config` after `load_config`.
 
 ### SSE example
 
@@ -59,6 +71,9 @@ Connect:
 ```shell
 curl -N -H "X-API-Key: $PYPEPPER_SSE_API_KEY" http://localhost:55550/sse/echo
 ```
+
+Keep `sse.authentication.enabled: true` for anything beyond local experiments
+(see [SSE security notes](guides/network-sse.md#security-notes)).
 
 ## Documentation site
 

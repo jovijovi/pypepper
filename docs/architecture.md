@@ -80,8 +80,21 @@ sequenceDiagram
 
 ## Config surface
 
-Runtime YAML lives in `conf/app.config.yaml` (cluster, network, log, SSE, tracing, `custom`).
-Some config models (for example heartbeat / JSON-RPC proxy) are reserved and not yet wired to servers.
+Runtime YAML lives in `conf/app.config.yaml`. Models vs runtime:
+
+| Area | Status |
+|------|--------|
+| `network.httpServer` / `httpsServer` (`enable`, `port`, TLS files) | Live |
+| `network.*.timeout` | Reserved (servers hardcode keep-alive timeout) |
+| `log.level` / `log.colorize` | Live |
+| `log.mode` | Reserved |
+| `sse` auth, rate limit, connection caps, `streamTimeoutSeconds`, `maxQueueSize` | Live (read at request/stream time) |
+| `sse.enabled`, `sse.heartbeatIntervalSeconds` | Reserved (loaded; not applied by runtime) |
+| `tracing.*` | Live via `load_config` → tracing `setup_from_config` |
+| `scheduler.jobStore` | Live only after explicit `scheduler.store.setup_from_config` (not `load_config`) |
+| `cluster` | Loaded but unused by runtime |
+| `heartbeat`, `network.jsonRPCProxy` | Reserved (not wired yet) |
+| `custom` | App-defined |
 
 ## Observability
 
