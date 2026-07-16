@@ -14,7 +14,7 @@
 ### Changed
 - Scheduler `CANCEL` FSM transition accepts Scheduled and InProgress.
 - Worker retries Cancelled persist on cancel exits and does not restore pre-RUN over a winning cancel; cancel persist failures are surfaced.
-- Docs: architecture config table drops ghost keys; scheduler guide separates Worker COMPLETE/FAIL vs `Job.cancel()` persist rules.
+- Docs: architecture config table drops ghost keys; scheduler guide / CLAUDE / AGENTS Start(`RUN`) note cancel-won skip-restore; Cancel persist rules separated from Worker COMPLETE/FAIL.
 
 ## 0.6.1
 

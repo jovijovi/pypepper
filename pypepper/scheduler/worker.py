@@ -34,6 +34,17 @@ def _ensure_cancelled_persisted(job: Job) -> None:
     job.save()
 
 
+def _ensure_cancelled_persisted_logged(job: Job, *, cause: BaseException | None = None) -> None:
+    """Like ``_ensure_cancelled_persisted``, with operator log on persist failure."""
+    try:
+        _ensure_cancelled_persisted(job)
+    except Exception as save_exc:
+        log.error(f"Job cancelled but Cancelled persist failed: id={job.id}; retry job.save only: {save_exc}")
+        if cause is not None:
+            raise save_exc from cause
+        raise
+
+
 class Worker:
     """Consume jobs from a channel and run their workflows."""
 
@@ -55,7 +66,7 @@ class Worker:
     async def _process(self, job: Job) -> None:
         if job.is_cancelled():
             log.info(f"Job already cancelled, skip: id={job.id}")
-            _ensure_cancelled_persisted(job)
+            _ensure_cancelled_persisted_logged(job)
             return
 
         prev_state = job._fsm.current()
@@ -78,7 +89,7 @@ class Worker:
                             f"Job RUN persist failed: id={job.id}, error={save_exc}; "
                             f"cancel won but Cancelled persist failed: {cancel_save_exc}"
                         )
-                        raise save_exc from cancel_save_exc
+                        raise cancel_save_exc from save_exc
                     log.error(
                         f"Job RUN persist failed: id={job.id}, error={save_exc}; "
                         f"cancel already applied (skip restore): {fail_save_exc}"
@@ -100,20 +111,14 @@ class Worker:
             for workflow in workflows:
                 if job.is_cancelled():
                     log.info(f"Job cancelled between workflows: id={job.id}")
-                    _ensure_cancelled_persisted(job)
+                    _ensure_cancelled_persisted_logged(job)
                     return
                 # Workflow.run is sync; run it in a worker thread.
                 await asyncio.to_thread(workflow.run)
         except Exception as e:
             if job.is_cancelled():
                 log.info(f"Job cancelled (workflow error ignored): id={job.id}, error={e}")
-                try:
-                    _ensure_cancelled_persisted(job)
-                except Exception as save_exc:
-                    log.error(
-                        f"Job cancelled but Cancelled persist failed: id={job.id}; retry job.save only: {save_exc}"
-                    )
-                    raise save_exc from e
+                _ensure_cancelled_persisted_logged(job, cause=e)
                 return
             try:
                 _transition_and_save_terminal(job, events.FAIL)
@@ -128,7 +133,7 @@ class Worker:
 
         if job.is_cancelled():
             log.info(f"Job cancelled before complete: id={job.id}")
-            _ensure_cancelled_persisted(job)
+            _ensure_cancelled_persisted_logged(job)
             return
 
         try:

@@ -33,7 +33,8 @@ Job snapshots (`JobRecord`) are metadata-only (workflows/executors are not seria
 |-------|-----------------|-------------------|
 | Pre-execution (`INIT`/`SCHEDULE` in `dispatch`) | `INIT`/`SCHEDULE`/`save()` fails before enqueue | **Roll back** FSM/`Job.status` so `scheduled()` can retry |
 | Pre-execution (channel enqueue) | Enqueue fails before job lands on channel | **Roll back** FSM/`Job.status`, best-effort **delete** Scheduled row, re-raise. Ghost may remain if delete fails. After successful `send`, do **not** roll back (exception still means the job may run). |
-| Start (`RUN`) | Running snapshot fails | Do **not** run workflows; prefer persist `Failed`, else restore pre-`RUN` |
+| Start (`RUN`) | Running snapshot fails | Do **not** run workflows; prefer persist `Failed`. If that also fails and FSM is already `Cancelled`, keep Cancelled and retry `save()` only — do **not** restore pre-`RUN`. Otherwise restore pre-`RUN` |
+| Cancel (`Job.cancel()`) | Cancel snapshot fails | **Keep** Cancelled FSM; retry `job.save()` only. Worker does not apply `CANCEL`; on cancel exits it retries Cancelled persist if the store lags |
 | Terminal success (`COMPLETE`) | Work already finished | **Keep** Completed FSM; retry `job.save()` only — **never** re-run workflows because the terminal write failed |
 | Terminal failure (`FAIL`) | Work already failed | **Keep** Failed FSM; retry `job.save()` only |
 | `Job.save()` field updates | `put()` raises | Do **not** mutate in-memory `status`/`updated` until `put` succeeds |
