@@ -42,9 +42,6 @@ def build_job() -> Job:
             description="scheduler e2e step",
             tags=["example"],
             executor=CallableExecutor(work),
-            retry_count=0,
-            retry_delay=0,
-            optional=False,
         )
     )
     job = Job(category="demo", channel_id=CHANNEL_ID)
@@ -56,7 +53,7 @@ async def run_worker(job: Job) -> None:
     worker = Worker(manager.available(CHANNEL_ID))
     processed = await worker.run_once()
     assert processed is job
-    assert job._fsm.current().value == Status.COMPLETED
+    assert job.status == Status.COMPLETED.value
     saved = Job.get_saved(job.id)
     assert saved is not None
     assert saved.status == Status.COMPLETED.value

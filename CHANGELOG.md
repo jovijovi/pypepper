@@ -13,7 +13,8 @@
 
 ### Changed
 - Scheduler `CANCEL` FSM transition accepts Scheduled and InProgress.
-- Docs: architecture config table matches live keys; scheduler guide documents cancel + unused Task fields remain class attributes (not wired).
+- Worker retries Cancelled persist on cancel exits and does not restore pre-RUN over a winning cancel; cancel persist failures are surfaced.
+- Docs: architecture config table drops ghost keys; scheduler guide separates Worker COMPLETE/FAIL vs `Job.cancel()` persist rules.
 
 ## 0.6.1
 
