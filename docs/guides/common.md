@@ -67,8 +67,8 @@ Each `Cache` / `CacheSet` instance owns its own storage and locks.
 Prefer `sha256` (or stronger) for digests and new ECDSA signatures.
 `digest.get` / `get_hex_str` accept `md5` / `sha1` for compatibility but log a
 **one-shot** warning; a future major release may reject them.
-ECDSA `HashAlgorithmName.MD5` / `SHA1` remain available only for verifying legacy
-signatures — do not use them for new signing.
+ECDSA `HashAlgorithmName.MD5` / `SHA1` remain for legacy compatibility (sign and
+verify still accept them) — do not use them for new signing.
 
 ```python
 from pypepper.common.security.crypto import digest, salt

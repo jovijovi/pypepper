@@ -1,18 +1,16 @@
 # syntax=docker/dockerfile:1.25.0
 #
-# Dependabot (ecosystem: docker, directory: /docker) tracks python base images via
-# the explicit FROM python:... lines below. UV_IMAGE stays ARG-indirect (not the
-# primary Dependabot target).
+# Dependabot (ecosystem: docker, directory: /docker) tracks the literal
+# FROM python:... pins below. Keep them in sync with Makefile PYTHON_VER /
+# IMAGE_TAG when bumping by hand. UV_IMAGE stays ARG-indirect (not the
+# primary Dependabot target). Dependabot cannot update ARG-interpolated FROM.
 
-# Overridable via --build-arg (Makefile passes PYTHON_VER / IMAGE_TAG).
-ARG PYTHON_VER=3.13
-ARG IMAGE_TAG=slim
 ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.28
 
 FROM ${UV_IMAGE} AS uvbin
 
 # ---------- STAGE: builder ----------
-FROM python:${PYTHON_VER}-${IMAGE_TAG} AS builder
+FROM python:3.13.14-slim-trixie AS builder
 
 COPY --from=uvbin /uv /uvx /bin/
 
@@ -43,7 +41,7 @@ RUN python ./scripts/build.py
 
 
 # ---------- STAGE: runtime ----------
-FROM python:${PYTHON_VER}-${IMAGE_TAG} AS runtime
+FROM python:3.13.14-slim-trixie AS runtime
 
 ARG APP_UID=10001
 ARG APP_GID=10001

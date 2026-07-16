@@ -7,7 +7,7 @@
 - `Job.cancel()` for Scheduled/InProgress jobs; Worker skips cancelled jobs and does not COMPLETE after cancel at workflow boundaries.
 - Scheduler E2E example (`example/scheduler/app.py`).
 - Tag publish workflow runs lint + pytest before PyPI upload.
-- Dependabot Docker updates for `docker/` (python base `FROM` lines Dependabot-visible).
+- Dependabot Docker updates for `docker/` (literal `FROM python:3.13.14-slim-trixie` pins, aligned with Makefile).
 - CI / `make audit` run `pip-audit` on production `requirements.txt` (ignores via `.pip-audit-ignore.txt`).
 - Tutorial: [First service](docs/tutorials/first-service.md) (scheduler COMPLETE + optional SSE).
 - `CONTRIBUTING.md` and GitHub issue templates.
@@ -19,7 +19,7 @@
 - Scheduler `CANCEL` FSM transition accepts Scheduled and InProgress.
 - Worker retries Cancelled persist on cancel exits and does not restore pre-RUN over a winning cancel; cancel persist failures are surfaced.
 - Docs: architecture config table drops ghost keys; scheduler guide / CLAUDE / AGENTS Start(`RUN`) note cancel-won skip-restore; Cancel persist rules separated from Worker COMPLETE/FAIL.
-- `digest.get` / `get_hex_str` emit a one-shot warning for `md5`/`sha1` (still compute; may reject in a future major). Prefer `sha256+`. ECDSA MD5/SHA1 retained for legacy verify only.
+- `digest.get` / `get_hex_str` emit a one-shot warning for `md5`/`sha1` (still compute; may reject in a future major). Prefer `sha256+`. ECDSA MD5/SHA1 remain for legacy compatibility (discouraged for new signing).
 
 ## 0.6.1
 

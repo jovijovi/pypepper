@@ -70,8 +70,6 @@ docker:
 	  --load \
 	  --force-rm \
 	  -f $(DOCKER_FILE) \
-	  --build-arg PYTHON_VER=$(PYTHON_VER) \
-	  --build-arg IMAGE_TAG=$(IMAGE_TAG) \
 	  -t $(APP_NAME):$(APP_TAG) .
 	docker tag $(APP_NAME):$(APP_TAG) $(APP_NAME):latest
 	docker images|grep $(APP_NAME)
