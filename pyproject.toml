@@ -48,7 +48,7 @@ packages = ["pypepper"]
 [dependency-groups]
 dev = [
     "build==1.5.1",
-    "coverage==7.15.1",
+    "coverage==7.15.2",
     "httpx>=0.28.1",
     "mkdocs-material>=9.6",
     "mkdocstrings[python]>=0.29",
@@ -58,7 +58,7 @@ dev = [
     "pytest==9.1.1",
     "pytest-asyncio==1.4.0",
     "pytest-cov==7.1.0",
-    "ruff==0.15.21",
+    "ruff==0.15.22",
     "twine==6.2.0",
     "types-PyYAML>=6.0",
 ]
