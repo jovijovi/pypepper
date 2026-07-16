@@ -1,0 +1,52 @@
+name: Bug report
+description: Report unexpected behavior or a regression
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security-sensitive reports belong in [SECURITY.md](https://github.com/jovijovi/pypepper/blob/main/SECURITY.md), not here.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong in one or two sentences?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: Minimal steps or a short script.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: PyPepper version or git commit, and Python version.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, optional devenv services, relevant config (redact secrets).
+    validations:
+      required: false

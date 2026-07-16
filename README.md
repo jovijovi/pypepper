@@ -33,6 +33,10 @@ PyPepper packages the pieces you wire into services: **HTTP / SSE**, **FSM**, a 
 
 Source under [`docs/`](docs/index.md). Local preview: `make docs-serve`.
 
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup, Conventional Commits, and PR expectations.
+
 ## Security
 
 See [`SECURITY.md`](SECURITY.md) for supported versions and how to report vulnerabilities privately.

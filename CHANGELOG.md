@@ -10,6 +10,7 @@
 - Dependabot Docker updates for `docker/` (python base `FROM` lines Dependabot-visible).
 - CI / `make audit` run `pip-audit` on production `requirements.txt` (ignores via `.pip-audit-ignore.txt`).
 - Tutorial: [First service](docs/tutorials/first-service.md) (scheduler COMPLETE + optional SSE).
+- `CONTRIBUTING.md` and GitHub issue templates.
 
 ### Removed
 - Unused ghost config types/keys: `cluster`, `heartbeat`, `network.jsonRPCProxy`, HTTP(S) `timeout`, `log.mode`, `sse.enabled`, `sse.heartbeatIntervalSeconds`.
