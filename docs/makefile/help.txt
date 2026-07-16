@@ -17,6 +17,9 @@
 - Check (lint + mutable class attrs):
   make check
 
+- Audit production requirements (pip-audit):
+  make audit
+
 - Test:
   make test
 

@@ -1,0 +1,7 @@
+# Vulnerability IDs ignored by `make audit` / CI pip-audit (one ID per line).
+# Prefer fixing/upgrading; only add entries with a short reason and tracking note.
+#
+# Example:
+# GHSA-xxxx-xxxx-xxxx  # reason; track in issue #N
+#
+# Empty by default: any known vuln in requirements.txt fails the audit.
