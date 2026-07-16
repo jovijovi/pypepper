@@ -10,7 +10,7 @@ ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.28
 FROM ${UV_IMAGE} AS uvbin
 
 # ---------- STAGE: builder ----------
-FROM python:3.13.14-slim-trixie AS builder
+FROM python:3.14.6-slim-trixie AS builder
 
 COPY --from=uvbin /uv /uvx /bin/
 
@@ -41,7 +41,7 @@ RUN python ./scripts/build.py
 
 
 # ---------- STAGE: runtime ----------
-FROM python:3.13.14-slim-trixie AS runtime
+FROM python:3.14.6-slim-trixie AS runtime
 
 ARG APP_UID=10001
 ARG APP_GID=10001
