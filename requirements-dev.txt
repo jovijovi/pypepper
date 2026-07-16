@@ -1,5 +1,5 @@
 build==1.5.1
-coverage==7.15.1
+coverage==7.15.2
 httpx>=0.28.1
 mkdocs-material>=9.6
 mkdocstrings[python]>=0.29
