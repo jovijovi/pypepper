@@ -8,6 +8,7 @@
 - Scheduler E2E example (`example/scheduler/app.py`).
 - Tag publish workflow runs lint + pytest before PyPI upload.
 - Dependabot Docker updates for `docker/` (python base `FROM` lines Dependabot-visible).
+- CI / `make audit` run `pip-audit` on production `requirements.txt` (ignores via `.pip-audit-ignore.txt`).
 
 ### Removed
 - Unused ghost config types/keys: `cluster`, `heartbeat`, `network.jsonRPCProxy`, HTTP(S) `timeout`, `log.mode`, `sse.enabled`, `sse.heartbeatIntervalSeconds`.

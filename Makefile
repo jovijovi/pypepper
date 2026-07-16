@@ -20,7 +20,7 @@ APP_TAG=$(VERSION).$(BUILD_TIME)
 VERSION_INFO='{"version":"$(VERSION)","gitCommit":"$(GIT_COMMIT)","commitTime":"$(COMMIT_TIME)","buildTime":"$(BUILD_TIME)","pythonVersion":"$(PYTHON_VER)"}'
 
 
-.PHONY: build-prepare debug test build docker clean publish-test publish help check lint docs docs-serve
+.PHONY: build-prepare debug test build docker clean publish-test publish help check lint docs docs-serve audit
 
 all: test clean docker
 
@@ -42,6 +42,11 @@ docs:
 docs-serve:
 	@echo "[BUILD] Serving documentation..."
 	mkdocs serve
+
+audit:
+	@echo "[BUILD] Auditing production requirements..."
+	python3 -m pip install -q pip-audit
+	python3 ./scripts/pip_audit.py
 
 check: lint
 	@echo "[BUILD] Checking mutable class attributes..."
