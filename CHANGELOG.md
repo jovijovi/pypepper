@@ -17,6 +17,7 @@
 - Scheduler `CANCEL` FSM transition accepts Scheduled and InProgress.
 - Worker retries Cancelled persist on cancel exits and does not restore pre-RUN over a winning cancel; cancel persist failures are surfaced.
 - Docs: architecture config table drops ghost keys; scheduler guide / CLAUDE / AGENTS Start(`RUN`) note cancel-won skip-restore; Cancel persist rules separated from Worker COMPLETE/FAIL.
+- `digest.get` / `get_hex_str` emit a one-shot warning for `md5`/`sha1` (still compute; may reject in a future major). Prefer `sha256+`. ECDSA MD5/SHA1 retained for legacy verify only.
 
 ## 0.6.1
 
