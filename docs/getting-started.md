@@ -48,6 +48,9 @@ config.load_config("./conf/app.config.yaml")
 setup_from_config(config.get_yml_config())
 ```
 
+For a guided walkthrough (expected COMPLETE output and common pitfalls), see
+[Tutorial: First service](tutorials/first-service.md).
+
 ### HTTP server
 
 ```shell

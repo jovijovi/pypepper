@@ -22,6 +22,8 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Architecture: architecture.md
+  - Tutorials:
+      - First service: tutorials/first-service.md
   - Guides:
       - Common: guides/common.md
       - Event and FSM: guides/event-fsm.md

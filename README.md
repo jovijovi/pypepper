@@ -29,7 +29,7 @@ PyPepper packages the pieces you wire into services: **HTTP / SSE**, **FSM**, a 
 
 ## Documentation
 
-[Getting Started](https://jovijovi.github.io/pypepper/getting-started/) · [Architecture](https://jovijovi.github.io/pypepper/architecture/) · [Guides](https://jovijovi.github.io/pypepper/guides/common/) · [API Reference](https://jovijovi.github.io/pypepper/reference/)
+[Getting Started](https://jovijovi.github.io/pypepper/getting-started/) · [Tutorial](https://jovijovi.github.io/pypepper/tutorials/first-service/) · [Architecture](https://jovijovi.github.io/pypepper/architecture/) · [Guides](https://jovijovi.github.io/pypepper/guides/common/) · [API Reference](https://jovijovi.github.io/pypepper/reference/)
 
 Source under [`docs/`](docs/index.md). Local preview: `make docs-serve`.
 

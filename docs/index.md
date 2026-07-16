@@ -19,9 +19,10 @@ Published docs: <https://jovijovi.github.io/pypepper/>
 ## Where to start
 
 1. [Getting Started](getting-started.md) — install, test, run examples
-2. [Architecture](architecture.md) — layering, extension points, singletons
-3. Domain guides under **Guides** for copy-paste snippets
-4. [API Reference](reference/index.md) — generated signatures and docstrings
+2. [Tutorial: First service](tutorials/first-service.md) — one path to COMPLETE (and optional SSE)
+3. [Architecture](architecture.md) — layering, extension points, singletons
+4. Domain guides under **Guides** for copy-paste snippets
+5. [API Reference](reference/index.md) — generated signatures and docstrings
 
 ## Examples
 
