@@ -10,58 +10,27 @@ from box import Box
 from pypepper.common.log import log
 
 
-class ConfCluster:
-    """Loaded from YAML ``cluster``; currently unused by runtime servers (reserved)."""
-
-    name: str
-    id: str
-    description: str
-
-
 class ConfHTTPServer:
     enable: bool
     port: int
-    # Reserved: HTTP server currently hardcodes keep-alive timeout.
-    timeout: int = 30
 
 
 class ConfHTTPSServer:
     enable: bool
     port: int
     mutualTLS: bool
-    # Reserved: HTTPS server currently hardcodes keep-alive timeout.
-    timeout: int = 30
     certFile: str = ""
     keyFile: str = ""
     caFile: str = ""
-
-
-class ConfHeartbeat:
-    """Reserved: not wired to a heartbeat server yet."""
-
-    enable: bool
-    port: int
-    logger: bool
-
-
-class ConfJsonRPCProxy:
-    """Reserved: not wired to a JSON-RPC proxy yet."""
-
-    enable: bool
-    port: int
-    mutualTLS: bool
 
 
 class ConfNetwork:
     ip: str
     httpServer: ConfHTTPServer
     httpsServer: ConfHTTPSServer
-    jsonRPCProxy: ConfJsonRPCProxy
 
 
 class ConfLog:
-    # Reserved: only ``level`` and ``colorize`` are applied by load_config.
-    mode: str
     level: str
     colorize: bool
 
@@ -77,12 +46,10 @@ class ConfSSERateLimit:
 
 
 class ConfSSE:
-    enabled: bool
     maxTotalConnections: int
     maxConnectionsPerIP: int
     maxQueueSize: int
     streamTimeoutSeconds: int
-    heartbeatIntervalSeconds: int
     authentication: ConfSSEAuthentication
     rateLimit: ConfSSERateLimit
 
@@ -117,9 +84,7 @@ class ConfScheduler:
 
 
 class YmlConfig:
-    cluster: ConfCluster
     network: ConfNetwork
-    heartbeat: ConfHeartbeat
     log: ConfLog
     sse: ConfSSE
     tracing: ConfTracing

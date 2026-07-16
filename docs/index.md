@@ -26,6 +26,7 @@ Published docs: <https://jovijovi.github.io/pypepper/>
 ## Examples
 
 - `example/server/app.py` — minimal HTTP handlers
+- `example/scheduler/app.py` — Job → Worker through COMPLETE
 - `example/sse/app.py` — SSE with API key auth and rate limiting
 
 ```shell

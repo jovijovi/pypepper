@@ -1,9 +1,3 @@
-# Cluster settings (loaded; unused by runtime servers — reserved metadata)
-cluster:
-  name: cluster-name
-  id: 5dd31f84-5df2-48c7-b84b-32d25b17a930
-  description: 'cluster description'
-
 # Network settings
 network:
   ip: 0.0.0.0
@@ -40,8 +34,6 @@ log:
 
 # SSE (Server-Sent Events) settings
 sse:
-  enabled: true
-
   # Connection limits (for 100 concurrent users)
   maxTotalConnections: 100
   maxConnectionsPerIP: 5
@@ -49,9 +41,8 @@ sse:
   # Queue configuration
   maxQueueSize: 500
 
-  # Timeout configuration
+  # Timeout configuration (drives SSE ping wait)
   streamTimeoutSeconds: 30
-  heartbeatIntervalSeconds: 15
 
   # API Key authentication
   authentication:

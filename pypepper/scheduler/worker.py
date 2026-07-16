@@ -10,18 +10,39 @@ from pypepper.event.interfaces import IEvent
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel
 from pypepper.scheduler.job import Job
+from pypepper.scheduler.status import Status
 
 
 def _transition_and_save_terminal(job: Job, event: IEvent) -> None:
     """
     Apply a terminal FSM event (COMPLETE / FAIL) then persist.
 
-    Work (or failure) has already happened: keep the terminal FSM state even if
-    persistence fails. Callers should retry ``job.save()`` only — never re-run
-    workflows solely because the terminal snapshot write failed.
+    Cancel is applied by ``Job.cancel()``, not here. Work (or failure) has already
+    happened: keep the terminal FSM state even if persistence fails. Callers should
+    retry ``job.save()`` only — never re-run workflows solely because the terminal
+    snapshot write failed.
     """
     job.apply_event(event)
     job.save()
+
+
+def _ensure_cancelled_persisted(job: Job) -> None:
+    """Retry Cancelled snapshot if FSM is cancelled but the store lags."""
+    saved = Job.get_saved(job.id)
+    if saved is not None and saved.status == Status.CANCELLED.value:
+        return
+    job.save()
+
+
+def _ensure_cancelled_persisted_logged(job: Job, *, cause: BaseException | None = None) -> None:
+    """Like ``_ensure_cancelled_persisted``, with operator log on persist failure."""
+    try:
+        _ensure_cancelled_persisted(job)
+    except Exception as save_exc:
+        log.error(f"Job cancelled but Cancelled persist failed: id={job.id}; retry job.save only: {save_exc}")
+        if cause is not None:
+            raise save_exc from cause
+        raise
 
 
 class Worker:
@@ -43,17 +64,37 @@ class Worker:
             await self.run_once()
 
     async def _process(self, job: Job) -> None:
+        if job.is_cancelled():
+            log.info(f"Job already cancelled, skip: id={job.id}")
+            _ensure_cancelled_persisted_logged(job)
+            return
+
         prev_state = job._fsm.current()
         prev_status = job.status
         job.apply_event(events.RUN)
         try:
             job.save()
         except Exception as save_exc:
-            # Prefer persisting Failed; if that also fails, restore pre-RUN state.
+            # Prefer persisting Failed; if that also fails, restore pre-RUN state
+            # unless cancel already won (do not undo Cancelled in-memory).
             try:
                 job.apply_event(events.FAIL)
                 job.save()
             except Exception as fail_save_exc:
+                if job.is_cancelled():
+                    try:
+                        _ensure_cancelled_persisted(job)
+                    except Exception as cancel_save_exc:
+                        log.error(
+                            f"Job RUN persist failed: id={job.id}, error={save_exc}; "
+                            f"cancel won but Cancelled persist failed: {cancel_save_exc}"
+                        )
+                        raise cancel_save_exc from save_exc
+                    log.error(
+                        f"Job RUN persist failed: id={job.id}, error={save_exc}; "
+                        f"cancel already applied (skip restore): {fail_save_exc}"
+                    )
+                    raise save_exc from fail_save_exc
                 job.restore_lifecycle(prev_state, prev_status)
                 log.error(
                     f"Job RUN persist failed: id={job.id}, error={save_exc}; FAIL persist also failed: {fail_save_exc}"
@@ -68,9 +109,17 @@ class Worker:
         try:
             workflows = getattr(job, "workflows", None) or []
             for workflow in workflows:
+                if job.is_cancelled():
+                    log.info(f"Job cancelled between workflows: id={job.id}")
+                    _ensure_cancelled_persisted_logged(job)
+                    return
                 # Workflow.run is sync; run it in a worker thread.
                 await asyncio.to_thread(workflow.run)
         except Exception as e:
+            if job.is_cancelled():
+                log.info(f"Job cancelled (workflow error ignored): id={job.id}, error={e}")
+                _ensure_cancelled_persisted_logged(job, cause=e)
+                return
             try:
                 _transition_and_save_terminal(job, events.FAIL)
             except Exception as save_exc:
@@ -81,6 +130,11 @@ class Worker:
                 raise e from save_exc
             log.error(f"Job failed: id={job.id}, error={e}")
             raise
+
+        if job.is_cancelled():
+            log.info(f"Job cancelled before complete: id={job.id}")
+            _ensure_cancelled_persisted_logged(job)
+            return
 
         try:
             _transition_and_save_terminal(job, events.COMPLETE)

@@ -44,6 +44,10 @@ class IFSM(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def restore(self, state: IState | None) -> None:
+        """Restore current state without running a transition (rollback helper)."""
+
+    @abstractmethod
     def on(
         self,
         event: IEvent,

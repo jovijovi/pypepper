@@ -213,6 +213,10 @@ class FSM(IFSM):
 
         return self._current
 
+    def restore(self, state: IState | None) -> None:
+        """Restore current state without running a transition (rollback helper)."""
+        self._current = state
+
     def on(
         self,
         event: IEvent,

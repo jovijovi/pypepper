@@ -185,7 +185,6 @@ def main():
 
     # Log SSE configuration
     sse_config = config.get_yml_config().sse
-    log.info(f"SSE enabled: {sse_config.enabled}")
     log.info(f"Max connections: {sse_config.maxTotalConnections}")
     log.info(f"Authentication: {sse_config.authentication.enabled}")
     if not demo_key and sse_config.authentication.enabled:

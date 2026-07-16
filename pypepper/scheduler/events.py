@@ -11,6 +11,8 @@ SCHEDULE = event.new(name="schedule", src=Status.INITIALIZING)
 RUN = event.new(name="run", src=Status.SCHEDULED)
 FAIL = event.new(name="fail", src=Status.IN_PROGRESS)
 COMPLETE = event.new(name="complete", src=Status.IN_PROGRESS)
+# Event.src is descriptive metadata only; transition from_state is authoritative
+# (Scheduled and InProgress both allowed — see CANCEL Transition below).
 CANCEL = event.new(name="cancel", src=Status.IN_PROGRESS)
 
 _OPTIONS = fsm.Options(
@@ -44,7 +46,7 @@ _OPTIONS = fsm.Options(
         ),
         fsm.Transition(
             event=CANCEL,
-            from_state=[fsm.State(Status.IN_PROGRESS)],
+            from_state=[fsm.State(Status.SCHEDULED), fsm.State(Status.IN_PROGRESS)],
             to_state=fsm.State(Status.CANCELLED),
         ),
     ],
