@@ -7,6 +7,7 @@
 - `Job.cancel()` for Scheduled/InProgress jobs; Worker skips cancelled jobs and does not COMPLETE after cancel at workflow boundaries.
 - Scheduler E2E example (`example/scheduler/app.py`).
 - Tag publish workflow runs lint + pytest before PyPI upload.
+- Dependabot Docker updates for `docker/` (python base `FROM` lines Dependabot-visible).
 
 ### Removed
 - Unused ghost config types/keys: `cluster`, `heartbeat`, `network.jsonRPCProxy`, HTTP(S) `timeout`, `log.mode`, `sse.enabled`, `sse.heartbeatIntervalSeconds`.
