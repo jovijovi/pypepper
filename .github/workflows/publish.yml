@@ -10,8 +10,71 @@ permissions:
   id-token: write
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint and docs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Use python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: python -m pip install -r requirements-dev.txt ; python -m pip install -r requirements.txt
+
+      - name: Lint
+        run: make lint
+
+      - name: Mutable class attribute check
+        run: python ./scripts/check_mutable_class_attrs.py
+
+      - name: Docs
+        run: make docs
+
+  pretest:
+    needs: lint
+    runs-on: ubuntu-latest
+    name: Pre-publish tests (Python 3.13)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Use python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: python -m pip install -r requirements-dev.txt ; python -m pip install -r requirements.txt
+
+      - name: Start devenv
+        run: |
+          docker compose -f ./devenv/ci.yaml up -d --wait || (
+            echo "compose --wait unsupported, falling back to health poll"
+            docker compose -f ./devenv/ci.yaml up -d
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              docker compose -f ./devenv/ci.yaml ps | grep -q healthy && break
+              sleep 3
+            done
+          )
+          docker compose -f ./devenv/ci.yaml ps
+
+      - name: Mutable class attribute check
+        run: python ./scripts/check_mutable_class_attrs.py
+
+      - name: Test with coverage
+        run: pytest --cov=pypepper --cov-report=term --cov-fail-under=90 tests/
+
+      - name: Stop devenv
+        if: always()
+        run: docker compose -f ./devenv/ci.yaml down
+
   publish:
     name: Build and publish
+    needs: pretest
     runs-on: ubuntu-latest
     environment: pypi
     steps:

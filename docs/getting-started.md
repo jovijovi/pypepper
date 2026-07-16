@@ -57,6 +57,15 @@ python example/server/app.py --config ./conf/app.config.yaml
 Default HTTP port comes from `conf/app.config.yaml` (`network.httpServer.port`, typically `55550`).
 The example calls `setup_from_config` after `load_config`.
 
+### Scheduler example
+
+```shell
+python example/scheduler/app.py
+```
+
+Runs `load_config` → `setup_from_config` → `Job.scheduled` → `Worker` through COMPLETE.
+See [Scheduler](guides/scheduler.md).
+
 ### SSE example
 
 Inject a local API key (config ships with empty `validKeys`):

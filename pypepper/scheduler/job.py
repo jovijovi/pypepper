@@ -194,13 +194,18 @@ class Job(IJob):
 
     def restore_lifecycle(self, state: IState | None, status: str) -> None:
         """Restore FSM/`status` after schedule/enqueue failure or RUN-start persist failure."""
-        self._fsm._current = state
+        self._fsm.restore(state)
         self.status = status
 
     def apply_event(self, event: IEvent) -> None:
         """Apply an FSM event or raise if the transition is invalid."""
         resp = self._fsm.on(event)
         _raise_if_transition_failed(resp.error)
+
+    def cancel(self) -> None:
+        """Cancel a Scheduled or InProgress job and persist Cancelled."""
+        self.apply_event(events.CANCEL)
+        self.save()
 
     def to_record(self) -> JobRecord:
         """Authoritative lifecycle snapshot from the FSM (may lead durable ``status``)."""

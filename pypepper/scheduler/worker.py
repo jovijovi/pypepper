@@ -10,18 +10,23 @@ from pypepper.event.interfaces import IEvent
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel
 from pypepper.scheduler.job import Job
+from pypepper.scheduler.status import Status
 
 
 def _transition_and_save_terminal(job: Job, event: IEvent) -> None:
     """
-    Apply a terminal FSM event (COMPLETE / FAIL) then persist.
+    Apply a terminal FSM event (COMPLETE / FAIL / CANCEL) then persist.
 
-    Work (or failure) has already happened: keep the terminal FSM state even if
-    persistence fails. Callers should retry ``job.save()`` only — never re-run
-    workflows solely because the terminal snapshot write failed.
+    Work (or failure / cancel) has already happened: keep the terminal FSM state
+    even if persistence fails. Callers should retry ``job.save()`` only — never
+    re-run workflows solely because the terminal snapshot write failed.
     """
     job.apply_event(event)
     job.save()
+
+
+def _is_cancelled(job: Job) -> bool:
+    return job._current_status() == Status.CANCELLED.value
 
 
 class Worker:
@@ -43,6 +48,10 @@ class Worker:
             await self.run_once()
 
     async def _process(self, job: Job) -> None:
+        if _is_cancelled(job):
+            log.info(f"Job already cancelled, skip: id={job.id}")
+            return
+
         prev_state = job._fsm.current()
         prev_status = job.status
         job.apply_event(events.RUN)
@@ -68,9 +77,15 @@ class Worker:
         try:
             workflows = getattr(job, "workflows", None) or []
             for workflow in workflows:
+                if _is_cancelled(job):
+                    log.info(f"Job cancelled during work: id={job.id}")
+                    return
                 # Workflow.run is sync; run it in a worker thread.
                 await asyncio.to_thread(workflow.run)
         except Exception as e:
+            if _is_cancelled(job):
+                log.info(f"Job cancelled (after workflow error ignored): id={job.id}")
+                return
             try:
                 _transition_and_save_terminal(job, events.FAIL)
             except Exception as save_exc:
@@ -81,6 +96,10 @@ class Worker:
                 raise e from save_exc
             log.error(f"Job failed: id={job.id}, error={e}")
             raise
+
+        if _is_cancelled(job):
+            log.info(f"Job cancelled before complete: id={job.id}")
+            return
 
         try:
             _transition_and_save_terminal(job, events.COMPLETE)

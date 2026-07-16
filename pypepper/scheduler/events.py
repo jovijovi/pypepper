@@ -44,7 +44,7 @@ _OPTIONS = fsm.Options(
         ),
         fsm.Transition(
             event=CANCEL,
-            from_state=[fsm.State(Status.IN_PROGRESS)],
+            from_state=[fsm.State(Status.SCHEDULED), fsm.State(Status.IN_PROGRESS)],
             to_state=fsm.State(Status.CANCELLED),
         ),
     ],

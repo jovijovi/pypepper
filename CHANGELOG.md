@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+- Public `FSM.restore(state)` for lifecycle rollback; `Job.restore_lifecycle` uses it (no `_fsm._current` writes).
+- `Job.cancel()` for Scheduled/InProgress jobs; Worker skips cancelled jobs and does not COMPLETE after cancel at workflow boundaries.
+- Scheduler E2E example (`example/scheduler/app.py`).
+- Tag publish workflow runs lint + pytest before PyPI upload.
+
+### Removed
+- Unused ghost config types/keys: `cluster`, `heartbeat`, `network.jsonRPCProxy`, HTTP(S) `timeout`, `log.mode`, `sse.enabled`, `sse.heartbeatIntervalSeconds`.
+
+### Changed
+- Scheduler `CANCEL` FSM transition accepts Scheduled and InProgress.
+- Docs: architecture config table matches live keys; scheduler guide documents cancel + unused Task fields remain class attributes (not wired).
+
 ## 0.6.1
 
 ### Added
