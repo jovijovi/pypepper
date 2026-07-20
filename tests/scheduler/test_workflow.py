@@ -216,3 +216,166 @@ def test_task_rejects_invalid_retry_until_max():
 def test_task_rejects_invalid_round_times():
     with pytest.raises(ValueError, match="round_times"):
         _task("bad", Executor(), round_times=0)
+
+
+def test_task_rejects_negative_round_timeout():
+    with pytest.raises(ValueError, match="round_timeout"):
+        _task("bad", Executor(), round_timeout=-1)
+
+
+def test_workflow_classic_retry_count_and_delay(monkeypatch):
+    calls = {"n": 0}
+    delays: list[float] = []
+
+    def flaky(task, context):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise RuntimeError(f"fail-{calls['n']}")
+        return "ok"
+
+    def track_sleep(seconds):
+        delays.append(seconds)
+
+    monkeypatch.setattr(time, "sleep", track_sleep)
+
+    task = _task(
+        "classic",
+        CallableExecutor(flaky),
+        retry_count=2,
+        retry_delay=7,
+        retry_until_completed=False,
+    )
+    workflow = Workflow()
+    workflow.add_task(task)
+    assert workflow.run() == ["ok"]
+    assert calls["n"] == 3
+    assert delays == [7, 7]
+
+
+def test_workflow_classic_retry_exhausted():
+    calls = {"n": 0}
+
+    def always_fail(task, context):
+        calls["n"] += 1
+        raise RuntimeError("nope")
+
+    task = _task(
+        "classic-exhausted",
+        CallableExecutor(always_fail),
+        retry_count=2,
+        retry_delay=0,
+        retry_until_completed=False,
+    )
+    workflow = Workflow()
+    workflow.add_task(task)
+    with pytest.raises(RuntimeError, match="nope"):
+        workflow.run()
+    assert calls["n"] == 3
+
+
+def test_workflow_round_times_resets_retry_budget():
+    calls = {"n": 0}
+
+    def fail_then_ok(task, context):
+        calls["n"] += 1
+        # Round 1: fail both attempts; round 2 first attempt succeeds.
+        if calls["n"] < 3:
+            raise RuntimeError(f"fail-{calls['n']}")
+        return "ok"
+
+    task = _task(
+        "budget-reset",
+        CallableExecutor(fail_then_ok),
+        round_times=2,
+        retry_count=1,
+        retry_delay=0,
+    )
+    workflow = Workflow()
+    workflow.add_task(task)
+    assert workflow.run() == ["ok"]
+    assert calls["n"] == 3
+
+
+def test_workflow_all_rounds_exhausted():
+    calls = {"n": 0}
+
+    def always_fail(task, context):
+        calls["n"] += 1
+        raise RuntimeError("nope")
+
+    task = _task(
+        "rounds-exhausted",
+        CallableExecutor(always_fail),
+        round_times=2,
+        retry_count=1,
+        retry_delay=0,
+    )
+    workflow = Workflow()
+    workflow.add_task(task)
+    with pytest.raises(RuntimeError, match="nope"):
+        workflow.run()
+    assert calls["n"] == 4  # 2 rounds × (1+1) attempts
+
+
+def test_workflow_round_timeout_hang_raises_within_budget():
+    """Hung execute must surface TimeoutError without waiting for the worker."""
+
+    def hang(task, context):
+        time.sleep(30)
+        return "never"
+
+    task = _task(
+        "hang",
+        CallableExecutor(hang),
+        round_timeout=1,
+        retry_count=0,
+        retry_delay=0,
+    )
+    workflow = Workflow()
+    workflow.add_task(task)
+    started = time.monotonic()
+    with pytest.raises(TimeoutError, match="round_timeout=1"):
+        workflow.run()
+    elapsed = time.monotonic() - started
+    assert elapsed < 5, f"soft timeout blocked too long: {elapsed:.2f}s"
+
+
+def test_workflow_executor_timeout_error_not_wrapped_as_round_timeout():
+    def boom_timeout(task, context):
+        raise TimeoutError("executor-own-timeout")
+
+    task = _task(
+        "exec-timeout",
+        CallableExecutor(boom_timeout),
+        round_timeout=5,
+        retry_count=0,
+    )
+    workflow = Workflow()
+    workflow.add_task(task)
+    with pytest.raises(TimeoutError, match="executor-own-timeout"):
+        workflow.run()
+
+
+def test_workflow_retry_until_max_is_per_round_not_global():
+    calls = {"n": 0}
+
+    def fail_until_round2(task, context):
+        calls["n"] += 1
+        # Round 1: 2 failures; round 2 first succeeds → proves budget resets.
+        if calls["n"] < 3:
+            raise RuntimeError(f"fail-{calls['n']}")
+        return "ok"
+
+    task = _task(
+        "until-per-round",
+        CallableExecutor(fail_until_round2),
+        round_times=2,
+        retry_until_completed=True,
+        retry_count=0,
+        retry_until_max=2,
+        retry_delay=0,
+    )
+    workflow = Workflow()
+    workflow.add_task(task)
+    assert workflow.run() == ["ok"]
+    assert calls["n"] == 3

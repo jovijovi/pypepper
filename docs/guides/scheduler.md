@@ -72,10 +72,10 @@ only stops the consumer loop; it is not job cancel.
 | Field | Behavior |
 |-------|----------|
 | `retry_count` / `retry_delay` | Inner attempts per round: up to `retry_count + 1`, with delay between failures |
-| `retry_until_completed` | When `True` and `retry_count == 0`, retry until success up to `retry_until_max` (default 1000). When `True` and `retry_count > 0`, `retry_count` is the cap (`count + 1` attempts); `retry_until_max` is ignored |
-| `retry_until_max` | Hard cap for until-retries (`>= 1`); only applies when until + `retry_count == 0` |
-| `round_times` | Outer rounds (default 1); each round gets a fresh inner retry budget |
-| `round_timeout` | Soft timeout in **seconds** for a single `execute` call (`0` = none). Uses a worker future; timeout counts as a failed attempt (thread is not killed) |
+| `retry_until_completed` | When `True` and `retry_count == 0`, retry until success up to `retry_until_max` (default 1000) **per round**. When `True` and `retry_count > 0`, `retry_count` is the cap (`count + 1` attempts); `retry_until_max` is ignored |
+| `retry_until_max` | Per-round attempt cap for until-retries (`>= 1`); only when until + `retry_count == 0`. Not a global cap across `round_times` |
+| `round_times` | Outer rounds (default 1); each round gets a fresh inner retry budget. No delay between rounds |
+| `round_timeout` | Soft timeout in **seconds** for a single `execute` call (`0` = none). Timeout counts as a failed attempt; the worker thread is **not** killed and may overlap the next attempt. Prefer idempotent executors |
 | `optional` | Failed optional tasks continue the workflow |
 
 Non-optional task failure after all rounds/attempts aborts the workflow.

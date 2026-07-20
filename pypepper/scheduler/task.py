@@ -8,7 +8,7 @@ from pypepper.scheduler.base import IBase
 from pypepper.scheduler.executor import Executor
 from pypepper.scheduler.tag import Tag
 
-# Default hard cap when retry_until_completed=True and retry_count==0.
+# Default per-round attempt cap when retry_until_completed=True and retry_count==0.
 DEFAULT_RETRY_UNTIL_MAX = 1000
 
 
@@ -16,7 +16,7 @@ class ITask(IBase, metaclass=ABCMeta):
     retry_count: int = 0
     retry_delay: int = 0
     retry_until_completed: bool = False
-    # Cap for until-retries when retry_count==0 (see Workflow._run_task).
+    # Per-round cap for until-retries when retry_count==0 (see Workflow._run_task).
     retry_until_max: int = DEFAULT_RETRY_UNTIL_MAX
     optional: bool = False
     executor: Executor
@@ -57,14 +57,14 @@ class Task(ITask):
         self.description = description
         self.tags = tags
         self.executor = executor
-        # Seconds per execute attempt; 0 = no timeout (soft timeout via Workflow).
+        # Seconds per execute attempt; 0 = no timeout (soft; orphaned work may overlap).
         self.round_timeout = round_timeout
         # Outer rounds; each round has its own inner retry budget.
         self.round_times = round_times
         self.version = version
         self.retry_count = retry_count
         self.retry_delay = retry_delay
-        # When True and retry_count==0, retry until success up to retry_until_max.
+        # When True and retry_count==0, retry until success up to retry_until_max per round.
         self.retry_until_completed = retry_until_completed
         self.retry_until_max = retry_until_max
         self.optional = optional

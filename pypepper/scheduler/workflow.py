@@ -10,9 +10,9 @@ from typing import cast
 
 from pypepper.common.log import log
 from pypepper.scheduler.base import IBase
-from pypepper.scheduler.task import DEFAULT_RETRY_UNTIL_MAX, Task
+from pypepper.scheduler.task import Task
 
-__all__ = ["DEFAULT_RETRY_UNTIL_MAX", "IWorkflow", "Workflow"]
+__all__ = ["IWorkflow", "Workflow"]
 
 
 class IWorkflow(IBase, metaclass=ABCMeta):
@@ -38,10 +38,11 @@ class Workflow(IWorkflow):
 
         Per task:
         - ``round_times`` outer rounds (default 1); each round has its own retry budget.
-        - ``round_timeout`` seconds soft-timeout per execute attempt (0 = none).
-        - ``retry_count`` / ``retry_delay`` / ``retry_until_completed`` / ``retry_until_max``
-          (A3): until+count0 uses ``retry_until_max``; until+count>0 caps at count+1;
-          until false uses count+1 as today.
+        - ``round_timeout`` seconds soft-timeout per execute attempt (0 = none). Timed-out
+          work may keep running in a background thread; the next attempt can overlap.
+        - ``retry_count`` / ``retry_delay`` / ``retry_until_completed`` / ``retry_until_max``:
+          until+count0 uses per-round ``retry_until_max``; until+count>0 caps at count+1;
+          until false uses count+1 as before.
         - ``optional``: failed optional tasks continue the workflow.
 
         Non-optional task failure aborts the workflow.
@@ -61,9 +62,7 @@ class Workflow(IWorkflow):
     @staticmethod
     def _attempts_per_round(task: Task) -> int:
         retry_count = int(task.retry_count or 0)
-        if task.retry_until_completed:
-            if retry_count > 0:
-                return max(1, retry_count + 1)
+        if task.retry_until_completed and retry_count == 0:
             return max(1, int(task.retry_until_max))
         return max(1, retry_count + 1)
 
@@ -77,14 +76,25 @@ class Workflow(IWorkflow):
         if timeout <= 0:
             return cast(object | None, executor.execute(task, task.context))
 
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(executor.execute, task, task.context)
-            try:
-                return cast(object | None, future.result(timeout=timeout))
-            except FuturesTimeoutError as e:
+        # Soft timeout: do not wait for the worker on shutdown so TimeoutError fails
+        # fast and retries can proceed while orphaned work may still run.
+        pool = ThreadPoolExecutor(max_workers=1)
+        future = pool.submit(executor.execute, task, task.context)
+        try:
+            return cast(object | None, future.result(timeout=timeout))
+        except FuturesTimeoutError as e:
+            # On 3.10+, FuturesTimeoutError is TimeoutError. Only wrap wait timeouts;
+            # if the worker already finished, re-raise its exception.
+            if not future.done():
                 raise TimeoutError(
                     f"Task execute exceeded round_timeout={timeout}s: id={task.id}, name={task.name}"
                 ) from e
+            worker_exc = future.exception()
+            if worker_exc is not None:
+                raise worker_exc from None
+            raise
+        finally:
+            pool.shutdown(wait=False, cancel_futures=False)
 
     def _run_task(self, task: Task) -> object | None:
         rounds = max(1, int(task.round_times or 1))
