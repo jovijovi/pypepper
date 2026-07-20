@@ -21,16 +21,34 @@ def get_job_store() -> IJobStore:
 job_store: IJobStore = _job_store
 
 
+def _mark_job_store_applied() -> None:
+    from pypepper.common.config import config as app_config
+
+    app_config.mark_scheduler_job_store_applied()
+
+
 def set_job_store(store: IJobStore) -> None:
-    """Replace the process-wide job store."""
+    """Replace the process-wide job store and clear any deferred durable YAML flag."""
     global _job_store, job_store
     _job_store = store
     job_store = store
+    _mark_job_store_applied()
 
 
 def reset_job_store() -> None:
-    """Reset to a fresh in-memory store (tests)."""
-    set_job_store(InMemoryJobStore())
+    """
+    Reset to a fresh in-memory store (tests / process reset).
+
+    Does **not** acknowledge a deferred durable YAML backend: if the current
+    config still declares a non-memory ``jobStore``, deferred fail-fast is
+    re-armed so ``Job.save`` cannot silently use memory.
+    """
+    global _job_store, job_store
+    _job_store = InMemoryJobStore()
+    job_store = _job_store
+    from pypepper.common.config import config as app_config
+
+    app_config.refresh_scheduler_job_store_deferred()
 
 
 def configure_job_store(backend: Backend = "memory", **kwargs: Any) -> IJobStore:
@@ -79,6 +97,7 @@ def setup_from_config(yml_config: Any | None = None) -> None:
     backend = cast(Backend, backend_raw)
     # Avoid wiping an existing in-memory store when config still says memory.
     if backend == "memory" and isinstance(get_job_store(), InMemoryJobStore):
+        _mark_job_store_applied()
         return
 
     kwargs: dict[str, Any] = {}

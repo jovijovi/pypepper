@@ -236,6 +236,12 @@ class Job(IJob):
         )
 
     def save(self) -> None:
+        from pypepper.common.config import config as app_config
+        from pypepper.scheduler.store.memory import InMemoryJobStore
+
+        app_config.ensure_scheduler_job_store_applied(
+            using_default_memory_store=isinstance(get_job_store(), InMemoryJobStore)
+        )
         status = self._current_status()
         updated = get_utc_datetime()
         record = JobRecord(
@@ -256,6 +262,12 @@ class Job(IJob):
 
     @staticmethod
     def get_saved(job_id: str) -> JobRecord | None:
+        from pypepper.common.config import config as app_config
+        from pypepper.scheduler.store.memory import InMemoryJobStore
+
+        app_config.ensure_scheduler_job_store_applied(
+            using_default_memory_store=isinstance(get_job_store(), InMemoryJobStore)
+        )
         return get_job_store().get(job_id)
 
     def log(self) -> None:

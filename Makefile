@@ -45,7 +45,7 @@ docs-serve:
 
 audit:
 	@echo "[BUILD] Auditing production requirements..."
-	python3 -m pip install -q pip-audit
+	python3 -m pip install -q 'pip-audit==2.10.1'
 	python3 ./scripts/pip_audit.py
 
 check: lint

@@ -26,7 +26,7 @@ make test
 Optional supply-chain check (also runs in the CI lint job):
 
 ```shell
-make audit           # pip-audit on requirements.txt
+make audit           # pip-audit==2.10.1 on requirements.txt (pinned in requirements-dev)
 ```
 
 Ignored vulns (if any) live in [`.pip-audit-ignore.txt`](.pip-audit-ignore.txt)

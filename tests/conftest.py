@@ -1,12 +1,20 @@
 import pytest
 
 from pypepper.common.cache import Cache
+from pypepper.common.config import config
 from pypepper.common.tracing import shutdown as tracing_shutdown
 from pypepper.loader import loader
 from pypepper.network.http.sse.connection import connection_manager
 from pypepper.network.http.sse.security import SSESecurityManager
 from pypepper.scheduler.channel import manager as channel_manager
 from pypepper.scheduler.store import reset_job_store
+
+
+def _reset_job_store_for_tests() -> None:
+    """Fresh memory store without carrying deferred durable YAML into the next test."""
+    reset_job_store()
+    # reset_job_store re-arms deferred from the last loaded YAML; clear for isolation.
+    config.mark_scheduler_job_store_applied()
 
 
 @pytest.fixture(autouse=True)
@@ -24,7 +32,7 @@ def _reset_global_registries():
     loader._module_loader_mapper.clear()
 
     # Scheduler job store
-    reset_job_store()
+    _reset_job_store_for_tests()
 
     # SSE rate-limit cache
     SSESecurityManager._rate_limit_cache = Cache(maxsize=1000, ttl=60)
@@ -35,7 +43,7 @@ def _reset_global_registries():
 
     tracing_shutdown()
 
-    reset_job_store()
+    _reset_job_store_for_tests()
 
     with connection_manager._lock:
         connection_manager._connections.clear()

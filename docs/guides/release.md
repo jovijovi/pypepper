@@ -34,7 +34,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-Example: if `pyproject.toml` has `version = "0.6.1"`, the tag must be `v0.6.1`.
+Example: if `pyproject.toml` has `version = "0.6.2"`, the tag must be `v0.6.2`.
 
 4. Watch **Actions → Publish to PyPI**. The workflow runs lint + tests first; a failing pretest or a tag/`pyproject.toml` version mismatch blocks upload.
 5. Confirm the version on [https://pypi.org/project/pypepper/](https://pypi.org/project/pypepper/).

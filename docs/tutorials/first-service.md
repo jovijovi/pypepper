@@ -29,10 +29,11 @@ config.load_config("./conf/app.config.yaml")
 setup_from_config(config.get_yml_config())
 ```
 
-!!! warning "Forgot `setup_from_config`?"
-    A non-`memory` `scheduler.jobStore.backend` in YAML only **warns** on load;
-    jobs still land in the default in-memory store until you call
-    `setup_from_config`.
+!!! failure "Forgot `setup_from_config`?"
+    A non-`memory` `scheduler.jobStore.backend` in YAML makes `Job.save` /
+    `Job.get_saved` raise `ValueError` until you call `setup_from_config`
+    (or `configure_job_store` / `set_job_store`). Declaring `backend: memory`
+    does not arm that guard.
 
 ## Step 2 — Run the scheduler example
 

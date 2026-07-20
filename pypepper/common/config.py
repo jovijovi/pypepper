@@ -98,8 +98,8 @@ class Config:
     _default_config_filepath = os.path.join(_default_config_path, _default_config_filename)
     _setting: Any = None
 
-    def __init__(self):
-        pass
+    def __init__(self) -> None:
+        self._deferred_durable_job_store_backend: str | None = None
 
     def _get_parser(self, **parser_kwargs):
         parser = argparse.ArgumentParser(**parser_kwargs)
@@ -134,10 +134,16 @@ class Config:
         from pypepper.common.tracing import setup_from_config
 
         setup_from_config(self.get_yml_config())
-        self._warn_if_scheduler_job_store_deferred()
+        self.refresh_scheduler_job_store_deferred()
 
-    def _warn_if_scheduler_job_store_deferred(self) -> None:
-        """Warn when YAML declares a durable jobStore that load_config does not apply."""
+    def refresh_scheduler_job_store_deferred(self) -> None:
+        """
+        Re-read durable ``scheduler.jobStore`` from the current YAML into the deferred flag.
+
+        Counterpart to :meth:`mark_scheduler_job_store_applied` (used by ``reset_job_store``
+        and ``load_config``). Memory / missing backends clear the flag.
+        """
+        self._deferred_durable_job_store_backend = None
         yml = self.get_yml_config()
         if yml is None or not hasattr(yml, "scheduler") or yml.scheduler is None:
             return
@@ -150,9 +156,30 @@ class Config:
         name = str(backend).strip().lower()
         if name in ("", "memory"):
             return
-        log.warn(
+        self._deferred_durable_job_store_backend = str(backend)
+
+    def mark_scheduler_job_store_applied(self) -> None:
+        """Clear the deferred durable jobStore flag (called after setup/configure)."""
+        self._deferred_durable_job_store_backend = None
+
+    def ensure_scheduler_job_store_applied(self, *, using_default_memory_store: bool = True) -> None:
+        """
+        Raise if YAML declared a durable jobStore that has not been applied yet.
+
+        When a non-memory store is already installed (``using_default_memory_store=False``),
+        treat the deferred declaration as satisfied so configure-before-load and reload
+        after setup do not false-positive.
+        """
+        backend = self._deferred_durable_job_store_backend
+        if backend is None:
+            return
+        if not using_default_memory_store:
+            self.mark_scheduler_job_store_applied()
+            return
+        raise ValueError(
             f"scheduler.jobStore.backend={backend!r} is present in YAML but not applied by "
-            "load_config; call pypepper.scheduler.store.setup_from_config(...) after load"
+            "load_config; call pypepper.scheduler.store.setup_from_config(...) after load "
+            "before persisting jobs"
         )
 
     def get_yml_config(self) -> YmlConfig:

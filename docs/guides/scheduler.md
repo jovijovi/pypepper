@@ -116,7 +116,9 @@ assert get_job_store().get(job.id) is not None
 ```
 
 YAML (optional). `config.load_config()` does **not** apply this automatically — call
-`setup_from_config` after load (a durable `backend` without that call logs a warning):
+`setup_from_config` after load (a durable `backend` without setup/configure/set makes
+`Job.save` / `Job.get_saved` raise `ValueError`; `reset_job_store` re-arms that guard
+from the current YAML):
 
 ```python
 from pypepper.common.config import config

@@ -17,7 +17,7 @@
 - Check (lint + mutable class attrs):
   make check
 
-- Audit production requirements (pip-audit):
+- Audit production requirements (pip-audit==2.10.1, pinned with dev deps):
   make audit
 
 - Test:
