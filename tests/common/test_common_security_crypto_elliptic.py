@@ -1,8 +1,12 @@
 import pytest
 from cryptography.hazmat.primitives import serialization
 
-from pypepper.common.security.crypto.elliptic.algorithm import HashAlgorithmName
+from pypepper.common.security.crypto.elliptic.algorithm import (
+    HashAlgorithmName,
+    get_hash_algorithm,
+)
 from pypepper.common.security.crypto.elliptic.ecdsa import ecdsa
+from pypepper.exceptions import InternalException
 
 data = b"Hello, world!"
 
@@ -15,7 +19,7 @@ def test_ecdsa_sign_verify():
     private_key_pem = key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.BestAvailableEncryption(b"Hello")
+        encryption_algorithm=serialization.BestAvailableEncryption(b"Hello"),
     )
     print("## [ECDSA] private_key_pem=", private_key_pem)
 
@@ -35,11 +39,17 @@ def test_ecdsa_sign_verify():
         data=data,
         certificate=public_key_pem,
         sig=sig,
-        hash_alg='SHA256',
+        hash_alg="SHA256",
     )
 
     assert result is True
 
 
-if __name__ == '__main__':
+@pytest.mark.parametrize("alg", ["md5", "sha1", "MD5", "SHA1"])
+def test_ecdsa_rejects_weak_hash(alg: str):
+    with pytest.raises(InternalException):
+        get_hash_algorithm(alg)
+
+
+if __name__ == "__main__":
     pytest.main()

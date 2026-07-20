@@ -98,8 +98,8 @@ class Config:
     _default_config_filepath = os.path.join(_default_config_path, _default_config_filename)
     _setting: Any = None
 
-    def __init__(self):
-        pass
+    def __init__(self) -> None:
+        self._deferred_durable_job_store_backend: str | None = None
 
     def _get_parser(self, **parser_kwargs):
         parser = argparse.ArgumentParser(**parser_kwargs)
@@ -134,10 +134,11 @@ class Config:
         from pypepper.common.tracing import setup_from_config
 
         setup_from_config(self.get_yml_config())
-        self._warn_if_scheduler_job_store_deferred()
+        self._record_scheduler_job_store_deferred()
 
-    def _warn_if_scheduler_job_store_deferred(self) -> None:
-        """Warn when YAML declares a durable jobStore that load_config does not apply."""
+    def _record_scheduler_job_store_deferred(self) -> None:
+        """Track durable jobStore from YAML until setup_from_config applies it."""
+        self._deferred_durable_job_store_backend = None
         yml = self.get_yml_config()
         if yml is None or not hasattr(yml, "scheduler") or yml.scheduler is None:
             return
@@ -150,9 +151,21 @@ class Config:
         name = str(backend).strip().lower()
         if name in ("", "memory"):
             return
-        log.warn(
+        self._deferred_durable_job_store_backend = str(backend)
+
+    def mark_scheduler_job_store_applied(self) -> None:
+        """Clear the deferred durable jobStore flag (called after setup/configure)."""
+        self._deferred_durable_job_store_backend = None
+
+    def ensure_scheduler_job_store_applied(self) -> None:
+        """Raise if YAML declared a durable jobStore that has not been applied yet."""
+        backend = self._deferred_durable_job_store_backend
+        if backend is None:
+            return
+        raise ValueError(
             f"scheduler.jobStore.backend={backend!r} is present in YAML but not applied by "
-            "load_config; call pypepper.scheduler.store.setup_from_config(...) after load"
+            "load_config; call pypepper.scheduler.store.setup_from_config(...) after load "
+            "before persisting jobs"
         )
 
     def get_yml_config(self) -> YmlConfig:

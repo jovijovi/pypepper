@@ -17,8 +17,8 @@ print(yml.sse.authentication.enabled)
 It applies log level and optional tracing setup. It does **not** configure the scheduler job
 store — call `pypepper.scheduler.store.setup_from_config(config.get_yml_config())` after load
 when YAML includes `scheduler.jobStore` (see [Scheduler](scheduler.md)). If YAML declares a
-non-`memory` `jobStore.backend`, `load_config` logs a warning until you call
-`setup_from_config`.
+non-`memory` `jobStore.backend`, `Job.save` / `Job.get_saved` raise `ValueError` until you
+call `setup_from_config` (or `configure_job_store`).
 
 ## Logging
 
@@ -64,11 +64,10 @@ Each `Cache` / `CacheSet` instance owns its own storage and locks.
 
 ## Crypto helpers
 
-Prefer `sha256` (or stronger) for digests and new ECDSA signatures.
-`digest.get` / `get_hex_str` accept `md5` / `sha1` for compatibility but log a
-**one-shot** warning; a future major release may reject them.
-ECDSA `HashAlgorithmName.MD5` / `SHA1` remain for legacy compatibility (sign and
-verify still accept them) — do not use them for new signing.
+Prefer `sha256` (or stronger) for digests and ECDSA signatures.
+`digest.get` / `get_hex_str` reject `md5` / `sha1` with `ValueError`.
+ECDSA `HashAlgorithmName` no longer defines MD5/SHA1; passing those names to
+sign/verify raises `InternalException`.
 
 ```python
 from pypepper.common.security.crypto import digest, salt

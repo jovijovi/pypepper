@@ -236,6 +236,9 @@ class Job(IJob):
         )
 
     def save(self) -> None:
+        from pypepper.common.config import config as app_config
+
+        app_config.ensure_scheduler_job_store_applied()
         status = self._current_status()
         updated = get_utc_datetime()
         record = JobRecord(
@@ -256,6 +259,9 @@ class Job(IJob):
 
     @staticmethod
     def get_saved(job_id: str) -> JobRecord | None:
+        from pypepper.common.config import config as app_config
+
+        app_config.ensure_scheduler_job_store_applied()
         return get_job_store().get(job_id)
 
     def log(self) -> None:

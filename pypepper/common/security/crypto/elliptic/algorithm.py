@@ -10,8 +10,6 @@ class HashAlgorithmName:
     Hash algorithm name
     """
 
-    MD5 = "md5"
-    SHA1 = "sha1"
     SHA224 = "sha224"
     SHA256 = "sha256"
     SHA384 = "sha384"
@@ -19,8 +17,6 @@ class HashAlgorithmName:
 
 
 hash_algorithms = {
-    HashAlgorithmName.MD5: hashes.MD5(),
-    HashAlgorithmName.SHA1: hashes.SHA1(),
     HashAlgorithmName.SHA224: hashes.SHA224(),
     HashAlgorithmName.SHA256: hashes.SHA256(),
     HashAlgorithmName.SHA384: hashes.SHA384(),

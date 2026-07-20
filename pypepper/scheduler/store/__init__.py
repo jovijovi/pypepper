@@ -31,6 +31,9 @@ def set_job_store(store: IJobStore) -> None:
 def reset_job_store() -> None:
     """Reset to a fresh in-memory store (tests)."""
     set_job_store(InMemoryJobStore())
+    from pypepper.common.config import config as app_config
+
+    app_config.mark_scheduler_job_store_applied()
 
 
 def configure_job_store(backend: Backend = "memory", **kwargs: Any) -> IJobStore:
@@ -59,6 +62,9 @@ def configure_job_store(backend: Backend = "memory", **kwargs: Any) -> IJobStore
         raise ValueError(f"unsupported job store backend: {backend!r}")
 
     set_job_store(store)
+    from pypepper.common.config import config as app_config
+
+    app_config.mark_scheduler_job_store_applied()
     return store
 
 
@@ -79,6 +85,9 @@ def setup_from_config(yml_config: Any | None = None) -> None:
     backend = cast(Backend, backend_raw)
     # Avoid wiping an existing in-memory store when config still says memory.
     if backend == "memory" and isinstance(get_job_store(), InMemoryJobStore):
+        from pypepper.common.config import config as app_config
+
+        app_config.mark_scheduler_job_store_applied()
         return
 
     kwargs: dict[str, Any] = {}
