@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.2
+
 ### Breaking
 - `digest.get` / `get_hex_str` reject `md5` / `sha1` with `ValueError` (one-shot warn removed).
 - ECDSA `HashAlgorithmName.MD5` / `SHA1` removed; those algorithms raise `InternalException`.
