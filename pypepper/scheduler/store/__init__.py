@@ -48,7 +48,7 @@ def reset_job_store() -> None:
     job_store = _job_store
     from pypepper.common.config import config as app_config
 
-    app_config._record_scheduler_job_store_deferred()
+    app_config.refresh_scheduler_job_store_deferred()
 
 
 def configure_job_store(backend: Backend = "memory", **kwargs: Any) -> IJobStore:

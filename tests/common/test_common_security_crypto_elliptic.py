@@ -51,5 +51,11 @@ def test_ecdsa_rejects_weak_hash(alg: str):
         get_hash_algorithm(alg)
 
 
+@pytest.mark.parametrize("name", ["MD5", "SHA1"])
+def test_hash_algorithm_name_weak_attrs_removed(name: str):
+    with pytest.raises(AttributeError):
+        getattr(HashAlgorithmName, name)
+
+
 if __name__ == "__main__":
     pytest.main()

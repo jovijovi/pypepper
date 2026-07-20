@@ -134,10 +134,15 @@ class Config:
         from pypepper.common.tracing import setup_from_config
 
         setup_from_config(self.get_yml_config())
-        self._record_scheduler_job_store_deferred()
+        self.refresh_scheduler_job_store_deferred()
 
-    def _record_scheduler_job_store_deferred(self) -> None:
-        """Track durable jobStore from YAML until setup_from_config applies it."""
+    def refresh_scheduler_job_store_deferred(self) -> None:
+        """
+        Re-read durable ``scheduler.jobStore`` from the current YAML into the deferred flag.
+
+        Counterpart to :meth:`mark_scheduler_job_store_applied` (used by ``reset_job_store``
+        and ``load_config``). Memory / missing backends clear the flag.
+        """
         self._deferred_durable_job_store_backend = None
         yml = self.get_yml_config()
         if yml is None or not hasattr(yml, "scheduler") or yml.scheduler is None:
@@ -169,7 +174,7 @@ class Config:
         if backend is None:
             return
         if not using_default_memory_store:
-            self._deferred_durable_job_store_backend = None
+            self.mark_scheduler_job_store_applied()
             return
         raise ValueError(
             f"scheduler.jobStore.backend={backend!r} is present in YAML but not applied by "
