@@ -19,9 +19,13 @@ from pypepper.scheduler.workflow import Workflow
 
 @pytest.fixture(autouse=True)
 def _fresh_job_store():
+    from pypepper.common.config import config
+
     reset_job_store()
+    config.mark_scheduler_job_store_applied()
     yield
     reset_job_store()
+    config.mark_scheduler_job_store_applied()
 
 
 def _assert_cancelled(job: Job) -> None:

@@ -18,7 +18,9 @@ It applies log level and optional tracing setup. It does **not** configure the s
 store — call `pypepper.scheduler.store.setup_from_config(config.get_yml_config())` after load
 when YAML includes `scheduler.jobStore` (see [Scheduler](scheduler.md)). If YAML declares a
 non-`memory` `jobStore.backend`, `Job.save` / `Job.get_saved` raise `ValueError` until you
-call `setup_from_config` (or `configure_job_store`).
+call `setup_from_config`, `configure_job_store`, or `set_job_store`. If a non-memory store is
+already installed, a later durable `load_config` does not false-positive. `reset_job_store`
+re-arms deferred fail-fast from the current YAML.
 
 ## Logging
 

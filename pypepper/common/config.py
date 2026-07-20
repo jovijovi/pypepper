@@ -157,10 +157,19 @@ class Config:
         """Clear the deferred durable jobStore flag (called after setup/configure)."""
         self._deferred_durable_job_store_backend = None
 
-    def ensure_scheduler_job_store_applied(self) -> None:
-        """Raise if YAML declared a durable jobStore that has not been applied yet."""
+    def ensure_scheduler_job_store_applied(self, *, using_default_memory_store: bool = True) -> None:
+        """
+        Raise if YAML declared a durable jobStore that has not been applied yet.
+
+        When a non-memory store is already installed (``using_default_memory_store=False``),
+        treat the deferred declaration as satisfied so configure-before-load and reload
+        after setup do not false-positive.
+        """
         backend = self._deferred_durable_job_store_backend
         if backend is None:
+            return
+        if not using_default_memory_store:
+            self._deferred_durable_job_store_backend = None
             return
         raise ValueError(
             f"scheduler.jobStore.backend={backend!r} is present in YAML but not applied by "

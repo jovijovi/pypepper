@@ -32,7 +32,8 @@ setup_from_config(config.get_yml_config())
 !!! failure "Forgot `setup_from_config`?"
     A non-`memory` `scheduler.jobStore.backend` in YAML makes `Job.save` /
     `Job.get_saved` raise `ValueError` until you call `setup_from_config`
-    (or use `memory`).
+    (or `configure_job_store` / `set_job_store`). Declaring `backend: memory`
+    does not arm that guard.
 
 ## Step 2 — Run the scheduler example
 

@@ -88,7 +88,7 @@ Runtime YAML lives in `conf/app.config.yaml`. Models vs runtime:
 | `log.level` / `log.colorize` | Live |
 | `sse` auth, rate limit, connection caps, `streamTimeoutSeconds`, `maxQueueSize` | Live (read at request/stream time) |
 | `tracing.*` | Live via `load_config` → tracing `setup_from_config` |
-| `scheduler.jobStore` | Live only after explicit `scheduler.store.setup_from_config` (not `load_config`) |
+| `scheduler.jobStore` | Live only after explicit `scheduler.store.setup_from_config` (not `load_config`). Durable backends are deferred until setup/configure/set; `Job.save` / `get_saved` raise until applied. `reset_job_store` re-arms deferred from current YAML. |
 | `custom` | App-defined |
 
 ## Observability

@@ -6,8 +6,8 @@
 
 ### Breaking
 - `digest.get` / `get_hex_str` reject `md5` / `sha1` with `ValueError` (one-shot warn removed).
-- ECDSA `HashAlgorithmName.MD5` / `SHA1` removed; those algorithms raise `InternalException`.
-- `config.load_config()` records a deferred durable `scheduler.jobStore.backend`; `Job.save` / `Job.get_saved` raise `ValueError` until `setup_from_config` (or `configure_job_store`) is called (was a warning only).
+- ECDSA `HashAlgorithmName.MD5` / `SHA1` removed from the enum (`AttributeError` on access); constructing those digests raises `InternalException`.
+- `config.load_config()` records a deferred durable `scheduler.jobStore.backend`; `Job.save` / `Job.get_saved` raise `ValueError` until `setup_from_config` / `configure_job_store` / `set_job_store` is called (was a warning only). Deferred is cleared when a non-memory store is already installed (configure-before-load / reload). `reset_job_store` re-arms deferred from the current YAML so memory cannot silently replace an undeclared durable backend.
 
 ### Added
 - Public `FSM.restore(state)` for lifecycle rollback; `Job.restore_lifecycle` uses it (no `_fsm._current` writes).
