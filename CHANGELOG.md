@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+- `Task.retry_until_max` (default 1000): hard cap when `retry_until_completed=True` and `retry_count==0`.
+
+### Changed
+- `Workflow` now honors `round_times`, `round_timeout` (soft per-execute timeout in seconds), and `retry_until_completed` (A3 with `retry_count` / `retry_until_max`). Previously these fields were stored but unused.
+
 ## 0.6.2
 
 ### Breaking

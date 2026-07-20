@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import time
 from abc import ABCMeta
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from typing import cast
 
 from pypepper.common.log import log
 from pypepper.scheduler.base import IBase
-from pypepper.scheduler.task import Task
+from pypepper.scheduler.task import DEFAULT_RETRY_UNTIL_MAX, Task
+
+__all__ = ["DEFAULT_RETRY_UNTIL_MAX", "IWorkflow", "Workflow"]
 
 
 class IWorkflow(IBase, metaclass=ABCMeta):
@@ -31,7 +35,15 @@ class Workflow(IWorkflow):
     def run(self) -> list[object]:
         """
         Sequentially execute tasks.
-        Respects retry_count / retry_delay / optional.
+
+        Per task:
+        - ``round_times`` outer rounds (default 1); each round has its own retry budget.
+        - ``round_timeout`` seconds soft-timeout per execute attempt (0 = none).
+        - ``retry_count`` / ``retry_delay`` / ``retry_until_completed`` / ``retry_until_max``
+          (A3): until+count0 uses ``retry_until_max``; until+count>0 caps at count+1;
+          until false uses count+1 as today.
+        - ``optional``: failed optional tasks continue the workflow.
+
         Non-optional task failure aborts the workflow.
         """
         from pypepper.common.tracing import get_tracer
@@ -46,21 +58,51 @@ class Workflow(IWorkflow):
                 results.append(result)
             return results
 
+    @staticmethod
+    def _attempts_per_round(task: Task) -> int:
+        retry_count = int(task.retry_count or 0)
+        if task.retry_until_completed:
+            if retry_count > 0:
+                return max(1, retry_count + 1)
+            return max(1, int(task.retry_until_max))
+        return max(1, retry_count + 1)
+
+    @staticmethod
+    def _execute_once(task: Task) -> object | None:
+        executor = task.executor
+        if executor is None:
+            return None
+
+        timeout = int(task.round_timeout or 0)
+        if timeout <= 0:
+            return cast(object | None, executor.execute(task, task.context))
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(executor.execute, task, task.context)
+            try:
+                return cast(object | None, future.result(timeout=timeout))
+            except FuturesTimeoutError as e:
+                raise TimeoutError(
+                    f"Task execute exceeded round_timeout={timeout}s: id={task.id}, name={task.name}"
+                ) from e
+
     def _run_task(self, task: Task) -> object | None:
-        attempts = max(1, int(task.retry_count or 0) + 1)
+        rounds = max(1, int(task.round_times or 1))
+        attempts = self._attempts_per_round(task)
         last_error: Exception | None = None
 
-        for attempt in range(attempts):
-            try:
-                executor = task.executor
-                if executor is None:
-                    return None
-                return cast(object | None, executor.execute(task, task.context))
-            except Exception as e:
-                last_error = e
-                log.warn(f"Task failed: id={task.id}, name={task.name}, attempt={attempt + 1}/{attempts}, error={e}")
-                if attempt + 1 < attempts and task.retry_delay:
-                    time.sleep(task.retry_delay)
+        for round_idx in range(rounds):
+            for attempt in range(attempts):
+                try:
+                    return self._execute_once(task)
+                except Exception as e:
+                    last_error = e
+                    log.warn(
+                        f"Task failed: id={task.id}, name={task.name}, "
+                        f"round={round_idx + 1}/{rounds}, attempt={attempt + 1}/{attempts}, error={e}"
+                    )
+                    if attempt + 1 < attempts and task.retry_delay:
+                        time.sleep(task.retry_delay)
 
         if task.optional:
             log.warn(f"Optional task failed, continuing: id={task.id}, error={last_error}")
