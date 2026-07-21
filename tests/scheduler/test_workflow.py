@@ -227,6 +227,16 @@ def test_task_rejects_negative_round_timeout():
         _task("bad", Executor(), round_timeout=-1)
 
 
+def test_task_rejects_negative_retry_delay():
+    with pytest.raises(ValueError, match="retry_delay"):
+        _task("bad", Executor(), retry_delay=-1)
+
+
+def test_task_rejects_negative_retry_count():
+    with pytest.raises(ValueError, match="retry_count"):
+        _task("bad", Executor(), retry_count=-1)
+
+
 def test_workflow_classic_retry_count_and_delay(monkeypatch):
     calls = {"n": 0}
     delays: list[float] = []

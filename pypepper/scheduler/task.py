@@ -48,6 +48,10 @@ class Task(ITask):
             raise ValueError(f"round_times must be >= 1, got {round_times}")
         if round_timeout < 0:
             raise ValueError(f"round_timeout must be >= 0, got {round_timeout}")
+        if retry_count < 0:
+            raise ValueError(f"retry_count must be >= 0, got {retry_count}")
+        if retry_delay < 0:
+            raise ValueError(f"retry_delay must be >= 0, got {retry_delay}")
 
         self.channel_id = channel_id
         self.dag_id = dag_id
@@ -57,7 +61,7 @@ class Task(ITask):
         self.description = description
         self.tags = tags
         self.executor = executor
-        # Seconds per execute attempt; 0 = no timeout (soft; orphaned work may overlap).
+        # Seconds per execute attempt; 0 = no timeout. Soft orphan/overlap only when > 0.
         self.round_timeout = round_timeout
         # Outer rounds; each round has its own inner retry budget.
         self.round_times = round_times
