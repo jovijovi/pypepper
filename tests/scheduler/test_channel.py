@@ -83,5 +83,55 @@ def test_channel_manager():
     print("All channel removed")
 
 
+@pytest.mark.asyncio
+async def test_channel_manager_maxsize_applies_only_on_first_create():
+    manager = channel.manager
+    key = "bounded-once"
+    manager.remove(key)
+
+    bounded = manager.new(key, maxsize=1)
+    again = manager.available(key, maxsize=0)
+    assert again is bounded
+
+    assert await bounded.send("a") is True
+    assert await bounded.send("b") is False
+
+    manager.remove(key)
+
+
+@pytest.mark.asyncio
+async def test_channel_manager_ignores_maxsize_after_unbounded_create():
+    manager = channel.manager
+    key = "unbounded-first"
+    manager.remove(key)
+
+    unbounded = manager.available(key)  # default maxsize=0
+    again = manager.new(key, maxsize=1)
+    assert again is unbounded
+
+    assert await unbounded.send("a") is True
+    assert await unbounded.send("b") is True
+
+    manager.remove(key)
+
+
+def test_channel_manager_new_maxsize_scheduled_raises_channel_full():
+    import asyncio
+
+    from pypepper.scheduler.job import ChannelFullError, Job
+
+    manager = channel.manager
+    channel_id = "mgr-new-bounded-full"
+    manager.remove(channel_id)
+    bounded = manager.new(channel_id, maxsize=1)
+    assert asyncio.run(bounded.send("occupier")) is True
+    try:
+        job = Job(category="x", channel_id=channel_id)
+        with pytest.raises(ChannelFullError, match="channel full"):
+            job.scheduled()
+    finally:
+        manager.remove(channel_id)
+
+
 if __name__ == '__main__':
     pytest.main()

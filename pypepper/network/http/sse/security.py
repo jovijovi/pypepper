@@ -75,20 +75,27 @@ def reset_auth_disabled_warning() -> None:
 
 
 class SSESecurityManager:
-    """SSE Security Manager (API Key authentication + Rate limiting)"""
+    """SSE Security Manager (API Key authentication + Rate limiting)."""
 
-    # Rate limit cache (TTL 60 seconds)
-    _rate_limit_cache = Cache(maxsize=1000, ttl=60)
-    _rate_limit_lock = Lock()
+    _instance: SSESecurityManager | None = None
+    _init_lock = Lock()
+    _rate_limit_cache: Cache
+    _rate_limit_lock: Lock
 
-    @staticmethod
-    def validate_api_key(api_key: str | None) -> bool:
-        """
-        Validate API Key
+    def __new__(cls) -> SSESecurityManager:
+        with cls._init_lock:
+            if cls._instance is None:
+                inst = super().__new__(cls)
+                inst._rate_limit_cache = Cache(maxsize=1000, ttl=60)
+                inst._rate_limit_lock = Lock()
+                cls._instance = inst
+            return cls._instance
 
-        :param api_key: API Key
-        :return: True if valid
-        """
+    def __init__(self) -> None:
+        pass
+
+    def _validate_api_key(self, api_key: str | None) -> bool:
+        """Validate API Key; returns True if valid."""
         if not api_key:
             return False
 
@@ -103,29 +110,35 @@ class SSESecurityManager:
         valid_keys = list(sse_config.authentication.validKeys or [])
         return any(compare_digest(api_key, key) for key in valid_keys if isinstance(key, str))
 
-    @staticmethod
-    def check_rate_limit(client_id: str) -> bool:
-        """
-        Check rate limit (simple counter)
-
-        :param client_id: Client identifier (API Key or IP)
-        :return: True if within limit
-        """
+    def _check_rate_limit(self, client_id: str) -> bool:
+        """Check rate limit (simple counter); returns True if within limit."""
         sse_config = config.get_yml_config().sse
 
         if not sse_config.rateLimit.enabled:
-            # Rate limit disabled, allow all
             return True
 
         max_requests = sse_config.rateLimit.maxRequestsPerMinute
         key = f"rate_limit:{client_id}"
 
-        with SSESecurityManager._rate_limit_lock:
-            count = SSESecurityManager._rate_limit_cache.get(key) or 0
+        with self._rate_limit_lock:
+            count = self._rate_limit_cache.get(key) or 0
             if count >= max_requests:
                 return False
-            SSESecurityManager._rate_limit_cache.set(key, count + 1)
+            self._rate_limit_cache.set(key, count + 1)
             return True
+
+    @staticmethod
+    def validate_api_key(api_key: str | None) -> bool:
+        """Validate API Key (delegates to the process singleton)."""
+        return sse_security._validate_api_key(api_key)
+
+    @staticmethod
+    def check_rate_limit(client_id: str) -> bool:
+        """Check rate limit (delegates to the process singleton)."""
+        return sse_security._check_rate_limit(client_id)
+
+
+sse_security = SSESecurityManager()
 
 
 def require_sse_api_key(func: Callable) -> Callable:

@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 from pypepper.common import cache
 
 
@@ -29,3 +31,25 @@ def test_cache_instances_have_independent_locks():
     c1 = cache.new_cache()
     c2 = cache.new_cache()
     assert c1._lock is not c2._lock
+
+
+def test_cache_set_concurrent_new_returns_same_instance():
+    cs = cache.new_cache_set()
+
+    def create(_i: int):
+        return cs.new("shared")
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        caches = list(pool.map(create, range(32)))
+
+    assert all(c is caches[0] for c in caches)
+    assert cs.get("shared") is caches[0]
+
+
+def test_cache_set_new_ignores_params_on_hit():
+    cs = cache.new_cache_set()
+    first = cs.new("named", maxsize=8, ttl=30)
+    second = cs.new("named", maxsize=128, ttl=1)
+    assert second is first
+    assert first.maxsize == 8
+    assert first.ttl == 30

@@ -77,6 +77,18 @@ def test_load_config():
     assert list(result.sse.authentication.validKeys) == []
 
 
+def test_config_setting_is_instance_isolated():
+    from pypepper.common.config import Config
+
+    c1 = Config()
+    c2 = Config()
+    marker = object()
+    c1._setting = marker
+    assert c2._setting is None
+    assert c1.get_yml_config() is marker
+    assert c2.get_yml_config() is None
+
+
 def test_load_config_does_not_configure_job_store(monkeypatch, tmp_path):
     """common.config must not import or call scheduler.store (layering)."""
     import pypepper.common.config as config_mod

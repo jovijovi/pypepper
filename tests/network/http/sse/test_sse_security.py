@@ -9,6 +9,8 @@ from pypepper.network.http.sse.security import (
     AUTH_OFF_BLOCKED_DETAIL,
     SSESecurityManager,
     require_sse_api_key,
+    reset_auth_disabled_warning,
+    sse_security,
 )
 
 
@@ -47,11 +49,24 @@ def _mock_request(
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limit_cache(monkeypatch):
-    from pypepper.network.http.sse import security as sse_security
-
-    SSESecurityManager._rate_limit_cache = Cache(maxsize=1000, ttl=60)
-    sse_security.reset_auth_disabled_warning()
+    with sse_security._rate_limit_lock:
+        sse_security._rate_limit_cache = Cache(maxsize=1000, ttl=60)
+    reset_auth_disabled_warning()
     monkeypatch.delenv('PYPEPPER_SSE_ALLOW_AUTH_OFF', raising=False)
+
+
+def test_sse_security_manager_is_singleton():
+    assert SSESecurityManager() is sse_security
+    assert SSESecurityManager() is SSESecurityManager()
+
+
+def test_sse_security_singleton_shares_rate_limit_cache(monkeypatch):
+    monkeypatch.setattr(config, 'get_yml_config', lambda: _build_sse_config(max_requests=1))
+    assert SSESecurityManager() is sse_security
+    assert SSESecurityManager.check_rate_limit('shared-client') is True
+    # Second check via a freshly constructed manager must hit the same instance cache.
+    assert SSESecurityManager().check_rate_limit('shared-client') is False
+    assert sse_security.check_rate_limit('shared-client') is False
 
 
 def test_validate_api_key_returns_false_for_empty_key(monkeypatch):

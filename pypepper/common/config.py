@@ -96,9 +96,9 @@ class Config:
     _default_config_path = "./conf/"
     _default_config_filename = "app.config.yaml"
     _default_config_filepath = os.path.join(_default_config_path, _default_config_filename)
-    _setting: Any = None
 
     def __init__(self) -> None:
+        self._setting: Any = None
         self._deferred_durable_job_store_backend: str | None = None
 
     def _get_parser(self, **parser_kwargs):

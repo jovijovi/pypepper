@@ -5,7 +5,7 @@ from pypepper.common.config import config
 from pypepper.common.tracing import shutdown as tracing_shutdown
 from pypepper.loader import loader
 from pypepper.network.http.sse.connection import connection_manager
-from pypepper.network.http.sse.security import SSESecurityManager
+from pypepper.network.http.sse.security import sse_security
 from pypepper.scheduler.channel import manager as channel_manager
 from pypepper.scheduler.store import reset_job_store
 
@@ -34,8 +34,9 @@ def _reset_global_registries():
     # Scheduler job store
     _reset_job_store_for_tests()
 
-    # SSE rate-limit cache
-    SSESecurityManager._rate_limit_cache = Cache(maxsize=1000, ttl=60)
+    # SSE rate-limit cache (process singleton)
+    with sse_security._rate_limit_lock:
+        sse_security._rate_limit_cache = Cache(maxsize=1000, ttl=60)
 
     tracing_shutdown()
 
@@ -50,4 +51,5 @@ def _reset_global_registries():
     with channel_manager._lock:
         channel_manager._job_channel.clear()
     loader._module_loader_mapper.clear()
-    SSESecurityManager._rate_limit_cache = Cache(maxsize=1000, ttl=60)
+    with sse_security._rate_limit_lock:
+        sse_security._rate_limit_cache = Cache(maxsize=1000, ttl=60)

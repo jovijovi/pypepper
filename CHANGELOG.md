@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- `ChannelManager.new` / `available` accept optional `maxsize` (default `0` = unbounded); applies only on first create for that key.
+
+### Changed
+- Soft `round_timeout` uses a process-wide shared thread pool (max 32 pool threads): caps concurrent soft-timeout executes (including orphans); further work queues (short timeout may fire before start). Queued work cancelled on pre-start timeout when possible; started orphans log failures via done-callback (with task id/name). Does not eliminate queued Futures under heavy retry.
+- `SSESecurityManager` is an explicit singleton (`sse_security`) with instance rate-limit state (mutable class attrs removed). Tests must reset `sse_security._rate_limit_cache` (class-level assignment no longer affects the live singleton).
+- `CacheSet` synchronizes `new` / `get` / `clear`; `Config._setting` is instance state.
+
 ## 0.6.3
 
 ### Breaking
@@ -19,7 +27,7 @@
 - CI: tag publish `pretest` samples Python 3.10 and 3.14 (lint/docs and build/upload remain on 3.13).
 
 ### Fixed
-- Soft `round_timeout`: if the worker finishes successfully in the wait-timeout race window, return its result instead of re-raising `TimeoutError`.
+- Soft `round_timeout`: if the pool Future finishes successfully in the wait-timeout race window, return its result instead of re-raising `TimeoutError`.
 
 ## 0.6.2
 

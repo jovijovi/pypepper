@@ -7,6 +7,8 @@ from collections.abc import MutableMapping
 from threading import Lock
 from typing import Any
 
+from pypepper.common.log import log
+
 
 class Channel:
     def __init__(self, maxsize: int = 0):
@@ -74,16 +76,29 @@ class ChannelManager:
 
             return self._job_channel.pop(key)
 
-    def new(self, key: str) -> Channel:
+    def new(self, key: str, maxsize: int = 0) -> Channel:
+        """
+        Return the channel for ``key``, creating it on first use.
+
+        ``maxsize`` applies only when the channel is created (``0`` = unbounded).
+        If the key already exists, the existing channel is returned and ``maxsize``
+        is ignored (create bounded channels before Worker/dispatch).
+        """
         with self._lock:
             chan = self._job_channel.get(key)
             if chan is None:
-                chan = Channel()
+                chan = Channel(maxsize=maxsize)
                 self._job_channel[key] = chan
+            elif maxsize != 0 and chan._queue.maxsize != maxsize:
+                log.debug(
+                    f"Channel {key!r} already exists (maxsize={chan._queue.maxsize}); "
+                    f"ignoring requested maxsize={maxsize}"
+                )
             return chan
 
-    def available(self, key: str) -> Channel:
-        return self.new(key)
+    def available(self, key: str, maxsize: int = 0) -> Channel:
+        """Alias for :meth:`new` (``maxsize`` applies only on first create)."""
+        return self.new(key, maxsize=maxsize)
 
 
 manager = ChannelManager()
