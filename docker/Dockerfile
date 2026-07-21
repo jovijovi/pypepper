@@ -5,7 +5,7 @@
 # IMAGE_TAG when bumping by hand. UV_IMAGE stays ARG-indirect (not the
 # primary Dependabot target). Dependabot cannot update ARG-interpolated FROM.
 
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.29
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.30
 
 FROM ${UV_IMAGE} AS uvbin
 
