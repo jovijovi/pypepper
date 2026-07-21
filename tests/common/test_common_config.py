@@ -112,8 +112,15 @@ def test_load_config_does_not_configure_job_store(monkeypatch, tmp_path):
         _restore_memory_config()
 
 
-def test_durable_job_store_ok_after_configure(tmp_path):
+def test_durable_job_store_ok_after_configure(tmp_path, monkeypatch):
     """Real configure clears deferred (no stub that self-marks)."""
+    import pypepper.scheduler.store as store_mod
+    from pypepper.common.log import log
+
+    store_mod.reset_job_store_mismatch_warning()
+    warns: list[str] = []
+    monkeypatch.setattr(log, "warn", lambda msg, *a, **k: warns.append(str(msg)))
+
     cfg = _write_durable_cfg(tmp_path)
     try:
         config.load_config(str(cfg))
@@ -121,10 +128,80 @@ def test_durable_job_store_ok_after_configure(tmp_path):
             Job().save()
 
         configure_job_store("memory")
+        assert len(warns) == 1
+        assert "in-memory job store" in warns[0]
+        assert "postgres" in warns[0]
+        assert config._deferred_durable_job_store_backend is None
+
+        configure_job_store("memory")
+        assert len(warns) == 1
+
         job = Job()
         job.save()
         assert Job.get_saved(job.id) is not None
     finally:
+        store_mod.reset_job_store_mismatch_warning()
+        _restore_memory_config()
+
+
+def test_durable_yaml_set_job_store_memory_warns_once(tmp_path, monkeypatch):
+    import pypepper.scheduler.store as store_mod
+    from pypepper.common.log import log
+
+    store_mod.reset_job_store_mismatch_warning()
+    warns: list[str] = []
+    monkeypatch.setattr(log, "warn", lambda msg, *a, **k: warns.append(str(msg)))
+
+    cfg = _write_durable_cfg(tmp_path)
+    try:
+        config.load_config(str(cfg))
+        set_job_store(InMemoryJobStore())
+        assert len(warns) == 1
+        assert config._deferred_durable_job_store_backend is None
+        Job().save()
+    finally:
+        store_mod.reset_job_store_mismatch_warning()
+        _restore_memory_config()
+
+
+def test_reset_job_store_does_not_emit_mismatch_warn(tmp_path, monkeypatch):
+    import pypepper.scheduler.store as store_mod
+    from pypepper.common.log import log
+
+    store_mod.reset_job_store_mismatch_warning()
+    warns: list[str] = []
+    monkeypatch.setattr(log, "warn", lambda msg, *a, **k: warns.append(str(msg)))
+
+    cfg = _write_durable_cfg(tmp_path)
+    try:
+        config.load_config(str(cfg))
+        reset_job_store()
+        assert warns == []
+        assert config._deferred_durable_job_store_backend == "postgres"
+        with pytest.raises(ValueError, match="setup_from_config"):
+            Job().save()
+    finally:
+        store_mod.reset_job_store_mismatch_warning()
+        _restore_memory_config()
+
+
+def test_memory_yaml_configure_memory_does_not_warn(tmp_path, monkeypatch):
+    import pypepper.scheduler.store as store_mod
+    from pypepper.common.log import log
+
+    store_mod.reset_job_store_mismatch_warning()
+    warns: list[str] = []
+    monkeypatch.setattr(log, "warn", lambda msg, *a, **k: warns.append(str(msg)))
+
+    cfg = tmp_path / "memory-jobstore.yaml"
+    cfg.write_text("scheduler:\n  jobStore:\n    backend: memory\n")
+    try:
+        config.load_config(str(cfg))
+        configure_job_store("memory")
+        assert warns == []
+        Job().save()
+    finally:
+        store_mod.reset_job_store_mismatch_warning()
         _restore_memory_config()
 
 
