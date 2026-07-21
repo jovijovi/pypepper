@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Breaking
+- SSE: `sse.authentication.enabled: false` no longer accepts any non-empty API key by default. Requests are rejected (decorator: HTTP 503) unless `PYPEPPER_SSE_ALLOW_AUTH_OFF=1` (or `true`/`yes`/`on`) is set for local experiments.
+
 ### Added
 - `Task.retry_until_max` (default 1000): per-round attempt cap when `retry_until_completed=True` and `retry_count==0`.
 - `Task` rejects negative `retry_count` / `retry_delay`.

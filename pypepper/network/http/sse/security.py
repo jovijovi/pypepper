@@ -1,5 +1,8 @@
 """SSE API key authentication helpers."""
 
+from __future__ import annotations
+
+import os
 from collections.abc import Callable
 from functools import wraps
 from hmac import compare_digest
@@ -12,29 +15,63 @@ from pypepper.common.cache import Cache
 from pypepper.common.config import config
 from pypepper.common.log import log
 
+_AUTH_OFF_ENV = "PYPEPPER_SSE_ALLOW_AUTH_OFF"
+_AUTH_OFF_TRUTHY = frozenset({"1", "true", "yes", "on"})
+
 _auth_disabled_warned = False
-_auth_disabled_warn_lock = Lock()
+_auth_off_blocked_warned = False
+_auth_warn_lock = Lock()
+
+AUTH_OFF_BLOCKED_DETAIL = (
+    "SSE authentication cannot be disabled without "
+    f"{_AUTH_OFF_ENV}=1 (or true/yes/on); "
+    "set sse.authentication.enabled: true and inject validKeys, "
+    f"or export {_AUTH_OFF_ENV}=1 for local experiments only"
+)
+
+
+def _auth_off_allowed() -> bool:
+    """Return True when env explicitly allows authentication.enabled: false."""
+    raw = os.environ.get(_AUTH_OFF_ENV, "").strip().lower()
+    return raw in _AUTH_OFF_TRUTHY
 
 
 def _warn_auth_disabled_once() -> None:
     """Log once that auth-off accepts any non-empty key and is not a security boundary."""
     global _auth_disabled_warned
-    with _auth_disabled_warn_lock:
+    with _auth_warn_lock:
         if _auth_disabled_warned:
             return
         _auth_disabled_warned = True
     log.warn(
-        "sse.authentication.enabled is false: any non-empty API key is accepted; "
+        "sse.authentication.enabled is false and "
+        f"{_AUTH_OFF_ENV} is set: any non-empty API key is accepted; "
         "rate limiting buckets by presented key and is not a security boundary. "
         "Enable authentication and inject validKeys for production."
     )
 
 
+def _warn_auth_off_blocked_once() -> None:
+    """Log once that auth-off was requested without the escape env."""
+    global _auth_off_blocked_warned
+    with _auth_warn_lock:
+        if _auth_off_blocked_warned:
+            return
+        _auth_off_blocked_warned = True
+    log.warn(
+        "sse.authentication.enabled is false but "
+        f"{_AUTH_OFF_ENV} is not set: rejecting requests. "
+        f"Export {_AUTH_OFF_ENV}=1 to allow auth-off locally, "
+        "or enable authentication and inject validKeys."
+    )
+
+
 def reset_auth_disabled_warning() -> None:
-    """Reset the one-shot auth-off warning (tests)."""
-    global _auth_disabled_warned
-    with _auth_disabled_warn_lock:
+    """Reset one-shot auth-off warnings (tests)."""
+    global _auth_disabled_warned, _auth_off_blocked_warned
+    with _auth_warn_lock:
         _auth_disabled_warned = False
+        _auth_off_blocked_warned = False
 
 
 class SSESecurityManager:
@@ -57,6 +94,9 @@ class SSESecurityManager:
 
         sse_config = config.get_yml_config().sse
         if not sse_config.authentication.enabled:
+            if not _auth_off_allowed():
+                _warn_auth_off_blocked_once()
+                return False
             _warn_auth_disabled_once()
             return True
 
@@ -98,6 +138,9 @@ def require_sse_api_key(func: Callable) -> Callable:
 
     Query-string API keys are rejected to avoid log/Referer leakage.
 
+    When ``sse.authentication.enabled`` is false, requests are rejected with 503
+    unless ``PYPEPPER_SSE_ALLOW_AUTH_OFF`` is set (local experiments only).
+
     Usage:
         @app.get('/sse')
         @require_sse_api_key
@@ -107,6 +150,14 @@ def require_sse_api_key(func: Callable) -> Callable:
 
     @wraps(func)
     async def wrapper(request: Request, *args: Any, **kwargs: Any):
+        sse_config = config.get_yml_config().sse
+        if not sse_config.authentication.enabled and not _auth_off_allowed():
+            _warn_auth_off_blocked_once()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=AUTH_OFF_BLOCKED_DETAIL,
+            )
+
         authorization = request.headers.get("Authorization", "")
         bearer = ""
         if authorization.lower().startswith("bearer "):
@@ -125,7 +176,6 @@ def require_sse_api_key(func: Callable) -> Callable:
         # Rate limit check
         client_id = api_key or ""
         if not SSESecurityManager.check_rate_limit(client_id):
-            sse_config = config.get_yml_config().sse
             max_requests = sse_config.rateLimit.maxRequestsPerMinute
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,

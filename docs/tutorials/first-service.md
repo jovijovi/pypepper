@@ -79,7 +79,8 @@ curl -N -H "X-API-Key: $PYPEPPER_SSE_API_KEY" http://localhost:55550/sse/echo
 ```
 
 You should see SSE event frames. Keep
-`sse.authentication.enabled: true` outside local experiments
+`sse.authentication.enabled: true` outside local experiments. Auth-off requires
+`PYPEPPER_SSE_ALLOW_AUTH_OFF=1`
 (see [SSE security notes](../guides/network-sse.md#security-notes)).
 
 ## Next

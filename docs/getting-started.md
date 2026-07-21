@@ -84,7 +84,8 @@ Connect:
 curl -N -H "X-API-Key: $PYPEPPER_SSE_API_KEY" http://localhost:55550/sse/echo
 ```
 
-Keep `sse.authentication.enabled: true` for anything beyond local experiments
+Keep `sse.authentication.enabled: true` for anything beyond local experiments.
+To temporarily allow auth-off locally, export `PYPEPPER_SSE_ALLOW_AUTH_OFF=1`
 (see [SSE security notes](guides/network-sse.md#security-notes)).
 
 ## Documentation site
