@@ -13,7 +13,7 @@
 - Tests: deferred durable jobStore fail-fast regressions on `Job.scheduled()` / dispatch and Worker RUN persist paths.
 
 ### Changed
-- Soft `round_timeout` uses a process-wide shared thread pool (max 32 workers): caps concurrent orphan executes; further work queues (short timeout may fire before start). Does not eliminate queued Futures under heavy retry.
+- Soft `round_timeout` uses a process-wide shared thread pool (max 32 workers): caps concurrent soft-timeout executes (including orphans); further work queues (short timeout may fire before start). Queued work cancelled on pre-start timeout when possible; started orphans log failures via done-callback. Does not eliminate queued Futures under heavy retry.
 - `SSESecurityManager` is an explicit singleton (`sse_security`) with instance rate-limit state (mutable class attrs removed).
 - `CacheSet` synchronizes `new` / `get` / `clear`; `Config._setting` is instance state.
 - `Workflow` now honors `round_times`, `round_timeout` (soft per-execute timeout in seconds; orphaned work may overlap retries), and `retry_until_completed` with `retry_count` / `retry_until_max`. Previously these fields were stored but unused.

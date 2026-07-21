@@ -70,11 +70,10 @@ class CacheSet:
         ttl: float = Cache.default_cache_ttl,
     ) -> Cache:
         """
-        New a cache in cache-set
-        :param name: cache name
-        :param maxsize: the maximum size of the cache.
-        :param ttl: cache time-to-live.
-        :return: cache
+        Return a named cache, creating it on first use.
+
+        ``maxsize`` / ``ttl`` apply only when the name is created. If the name
+        already exists, the existing cache is returned and those params are ignored.
         """
 
         with self._lock:

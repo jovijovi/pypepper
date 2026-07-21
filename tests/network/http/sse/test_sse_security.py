@@ -60,6 +60,15 @@ def test_sse_security_manager_is_singleton():
     assert SSESecurityManager() is SSESecurityManager()
 
 
+def test_sse_security_singleton_shares_rate_limit_cache(monkeypatch):
+    monkeypatch.setattr(config, 'get_yml_config', lambda: _build_sse_config(max_requests=1))
+    assert SSESecurityManager() is sse_security
+    assert SSESecurityManager.check_rate_limit('shared-client') is True
+    # Second check via a freshly constructed manager must hit the same instance cache.
+    assert SSESecurityManager().check_rate_limit('shared-client') is False
+    assert sse_security.check_rate_limit('shared-client') is False
+
+
 def test_validate_api_key_returns_false_for_empty_key(monkeypatch):
     monkeypatch.setattr(config, 'get_yml_config', lambda: _build_sse_config())
     assert SSESecurityManager.validate_api_key(None) is False

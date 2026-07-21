@@ -15,9 +15,10 @@ from pypepper.scheduler.task import Task
 
 __all__ = ["IWorkflow", "Workflow"]
 
-# Cap concurrent soft-timeout orphan executes in-process. The work queue remains
-# unbounded: further submits wait for a worker; short result(timeout=T) may fire
-# before the task starts. Cross-job contention is possible under saturation.
+# Cap concurrent soft-timeout executes in-process (including orphans). The work
+# queue remains unbounded: further work queues (``submit`` itself does not block);
+# short ``result(timeout=T)`` may fire before the task starts. Cross-job
+# contention is possible under saturation.
 _SOFT_TIMEOUT_MAX_WORKERS = 32
 _pool_lock = Lock()
 _soft_timeout_pool_ref: ThreadPoolExecutor | None = None
@@ -32,6 +33,19 @@ def _soft_timeout_pool() -> ThreadPoolExecutor:
         if _soft_timeout_pool_ref is None:
             _soft_timeout_pool_ref = ThreadPoolExecutor(max_workers=_SOFT_TIMEOUT_MAX_WORKERS)
         return _soft_timeout_pool_ref
+
+
+def _log_soft_timeout_orphan(fut: Future[object | None]) -> None:
+    """Log unexpected failures from orphaned soft-timeout work (never block waiters)."""
+    if fut.cancelled():
+        return
+    try:
+        exc = fut.exception()
+    except Exception as e:  # pragma: no cover - defensive
+        log.warn(f"Soft-timeout orphan callback failed while reading exception: {e}")
+        return
+    if exc is not None:
+        log.warn(f"Soft-timeout orphan execute failed: {exc}")
 
 
 class IWorkflow(IBase, metaclass=ABCMeta):
@@ -59,14 +73,16 @@ class Workflow(IWorkflow):
         - ``round_times`` outer rounds (default 1); each round has its own retry budget.
           Success returns early; later rounds run only after a full failed inner budget.
         - ``round_timeout`` seconds soft-timeout per execute attempt (0 = none). Timed-out
-          work may keep running on the shared soft-timeout pool; the next attempt can
-          overlap. Concurrent orphan executes are capped (``_SOFT_TIMEOUT_MAX_WORKERS``);
-          further submits queue and a short timeout may fire before the task starts.
+          work that already started may keep running on the shared soft-timeout pool; the
+          next attempt can overlap. Concurrent soft-timeout executes are capped
+          (``_SOFT_TIMEOUT_MAX_WORKERS``, including orphans); further work queues and a
+          short timeout may fire before the task starts. Queued work that times out
+          before start is cancelled when possible so it does not run later.
         - Retry modes: until false → ``retry_count + 1``; until + count 0 → per-round
           ``retry_until_max``; until + count > 0 → ``retry_count + 1`` (max ignored).
         - ``optional``: failed optional tasks continue the workflow.
 
-        Non-optional task failure aborts the workflow.
+        Non-optional task failure after all rounds/attempts aborts the workflow.
         """
         from pypepper.common.tracing import get_tracer
 
@@ -98,7 +114,7 @@ class Workflow(IWorkflow):
             return cast(object | None, executor.execute(task, task.context))
 
         # Soft timeout via shared pool: do not shut down the pool so TimeoutError
-        # fails fast and retries can proceed while orphaned work may still run.
+        # fails fast and retries can proceed while started orphaned work may still run.
         future: Future[object | None] = _soft_timeout_pool().submit(executor.execute, task, task.context)
         try:
             return cast(object | None, future.result(timeout=timeout))
@@ -107,7 +123,19 @@ class Workflow(IWorkflow):
             # the race window, return/raise its outcome; otherwise wrap the wait timeout.
             if future.done():
                 return cast(object | None, future.result())
-            raise TimeoutError(f"Task execute exceeded round_timeout={timeout}s: id={task.id}, name={task.name}") from e
+            # Prefer cancelling queued work so a "failed" attempt does not run later.
+            if future.cancel():
+                raise TimeoutError(
+                    f"Task execute timed out before start "
+                    f"(round_timeout={timeout}s, still queued): id={task.id}, name={task.name}"
+                ) from e
+            if future.done():
+                return cast(object | None, future.result())
+            future.add_done_callback(_log_soft_timeout_orphan)
+            raise TimeoutError(
+                f"Task execute exceeded round_timeout={timeout}s "
+                f"(execute still running): id={task.id}, name={task.name}"
+            ) from e
 
     def _run_task(self, task: Task) -> object | None:
         rounds = max(1, int(task.round_times or 1))

@@ -44,3 +44,10 @@ def test_cache_set_concurrent_new_returns_same_instance():
 
     assert all(c is caches[0] for c in caches)
     assert cs.get("shared") is caches[0]
+
+
+def test_cache_set_new_ignores_params_on_hit():
+    cs = cache.new_cache_set()
+    first = cs.new("named", maxsize=8, ttl=30)
+    second = cs.new("named", maxsize=128, ttl=1)
+    assert second is first

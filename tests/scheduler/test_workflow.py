@@ -1,6 +1,6 @@
 import threading
 import time
-from concurrent.futures import Future
+from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from unittest.mock import patch
 
@@ -356,7 +356,7 @@ def test_workflow_round_timeout_hang_raises_within_budget():
             workflow.run()
         elapsed = time.monotonic() - started
         assert elapsed < 5, f"soft timeout blocked too long: {elapsed:.2f}s"
-        assert entered.wait(timeout=2), "worker never started"
+        assert entered.wait(timeout=2), "execute never started"
     finally:
         release.set()
 
@@ -390,7 +390,52 @@ def test_workflow_soft_timeout_returns_result_when_worker_finishes_in_race():
 def test_soft_timeout_pool_is_reused():
     from pypepper.scheduler import workflow as wf
 
-    assert wf._soft_timeout_pool() is wf._soft_timeout_pool()
+    pool = wf._soft_timeout_pool()
+    assert pool is wf._soft_timeout_pool()
+    assert pool._max_workers == wf._SOFT_TIMEOUT_MAX_WORKERS
+
+
+def test_workflow_soft_timeout_cancels_queued_before_start():
+    """Under a saturated pool, pre-start timeout cancels queued work (no late execute)."""
+    release = threading.Event()
+    entered_second = threading.Event()
+    calls = {"second": 0}
+
+    def occupy(task, context):
+        release.wait(timeout=60)
+        return "occupy-done"
+
+    def second(task, context):
+        calls["second"] += 1
+        entered_second.set()
+        return "second-done"
+
+    tiny = ThreadPoolExecutor(max_workers=1)
+    try:
+        with patch("pypepper.scheduler.workflow._soft_timeout_pool", return_value=tiny):
+            # Occupy the single worker so the next submit stays queued.
+            hang_task = _task("occupy", CallableExecutor(occupy), round_timeout=30, retry_count=0)
+            hang_future = tiny.submit(hang_task.executor.execute, hang_task, hang_task.context)
+            time.sleep(0.05)  # let occupy grab the worker
+
+            task = _task(
+                "queued",
+                CallableExecutor(second),
+                round_timeout=1,
+                retry_count=0,
+                retry_delay=0,
+            )
+            workflow = Workflow()
+            workflow.add_task(task)
+            with pytest.raises(TimeoutError, match="timed out before start"):
+                workflow.run()
+            assert calls["second"] == 0
+            assert not entered_second.is_set()
+        release.set()
+        hang_future.result(timeout=5)
+    finally:
+        release.set()
+        tiny.shutdown(wait=False, cancel_futures=True)
 
 
 def test_workflow_without_round_timeout_does_not_use_pool():
