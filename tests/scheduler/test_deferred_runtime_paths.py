@@ -42,6 +42,7 @@ def test_scheduled_raises_when_durable_job_store_deferred(tmp_path):
     cfg = _write_durable_cfg(tmp_path)
     try:
         config.load_config(str(cfg))
+        assert config._deferred_durable_job_store_backend == "postgres"
         job = Job(category="deferred", channel_id=channel_id)
 
         with pytest.raises(ValueError, match="setup_from_config"):
@@ -65,6 +66,9 @@ async def test_worker_run_save_deferred_restores_pre_run(tmp_path):
 
     Uses INIT→SCHEDULE→save→send (async-safe) instead of Job.scheduled(), which
     cannot run under a live event loop.
+
+    Do not assert get_saved after reset_job_store: reset installs a fresh empty
+    store, so None would not prove restore-to-Scheduled semantics.
     """
     from pypepper.scheduler import events
 
@@ -115,9 +119,6 @@ async def test_worker_run_save_deferred_restores_pre_run(tmp_path):
         assert executed == []
         assert job._fsm.current().value == Status.SCHEDULED
         assert job.status == Status.SCHEDULED.value
-
-        config.mark_scheduler_job_store_applied()
-        assert Job.get_saved(job.id) is None
     finally:
         reset_job_store_mismatch_warning()
         _restore_memory_config()
