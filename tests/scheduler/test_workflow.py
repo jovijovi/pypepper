@@ -1,4 +1,8 @@
+import threading
 import time
+from concurrent.futures import Future
+from concurrent.futures import TimeoutError as FuturesTimeoutError
+from unittest.mock import patch
 
 import pytest
 
@@ -319,9 +323,12 @@ def test_workflow_all_rounds_exhausted():
 
 def test_workflow_round_timeout_hang_raises_within_budget():
     """Hung execute must surface TimeoutError without waiting for the worker."""
+    release = threading.Event()
+    entered = threading.Event()
 
     def hang(task, context):
-        time.sleep(30)
+        entered.set()
+        release.wait(timeout=60)
         return "never"
 
     task = _task(
@@ -334,10 +341,48 @@ def test_workflow_round_timeout_hang_raises_within_budget():
     workflow = Workflow()
     workflow.add_task(task)
     started = time.monotonic()
-    with pytest.raises(TimeoutError, match="round_timeout=1"):
-        workflow.run()
-    elapsed = time.monotonic() - started
-    assert elapsed < 5, f"soft timeout blocked too long: {elapsed:.2f}s"
+    try:
+        with pytest.raises(TimeoutError, match="round_timeout=1"):
+            workflow.run()
+        elapsed = time.monotonic() - started
+        assert elapsed < 5, f"soft timeout blocked too long: {elapsed:.2f}s"
+        assert entered.wait(timeout=2), "worker never started"
+    finally:
+        release.set()
+
+
+def test_workflow_soft_timeout_returns_result_when_worker_finishes_in_race():
+    """If wait times out but the future completed successfully, return the result."""
+    shutdown_calls: list[dict] = []
+
+    class _RacePool:
+        def __init__(self, *args, **kwargs):
+            self._future = Future()
+            self._future.set_result("ok")
+
+        def submit(self, fn, *args, **kwargs):
+            return self._future
+
+        def shutdown(self, wait=True, cancel_futures=False):
+            shutdown_calls.append({"wait": wait, "cancel_futures": cancel_futures})
+
+    real_result = Future.result
+
+    def result_raise_timeout_once(self, timeout=None):
+        if timeout is not None:
+            raise FuturesTimeoutError()
+        return real_result(self, timeout=timeout)
+
+    with (
+        patch("pypepper.scheduler.workflow.ThreadPoolExecutor", _RacePool),
+        patch.object(Future, "result", result_raise_timeout_once),
+    ):
+        task = _task("race", CallableExecutor(lambda t, c: "unused"), round_timeout=1)
+        workflow = Workflow()
+        workflow.add_task(task)
+        assert workflow.run() == ["ok"]
+
+    assert shutdown_calls == [{"wait": False, "cancel_futures": False}]
 
 
 def test_workflow_executor_timeout_error_not_wrapped_as_round_timeout():

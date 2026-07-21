@@ -83,16 +83,11 @@ class Workflow(IWorkflow):
         try:
             return cast(object | None, future.result(timeout=timeout))
         except FuturesTimeoutError as e:
-            # On 3.10+, FuturesTimeoutError is TimeoutError. Only wrap wait timeouts;
-            # if the worker already finished, re-raise its exception.
-            if not future.done():
-                raise TimeoutError(
-                    f"Task execute exceeded round_timeout={timeout}s: id={task.id}, name={task.name}"
-                ) from e
-            worker_exc = future.exception()
-            if worker_exc is not None:
-                raise worker_exc from None
-            raise
+            # On 3.10+, FuturesTimeoutError is TimeoutError. If the worker finished in
+            # the race window, return/raise its outcome; otherwise wrap the wait timeout.
+            if future.done():
+                return cast(object | None, future.result())
+            raise TimeoutError(f"Task execute exceeded round_timeout={timeout}s: id={task.id}, name={task.name}") from e
         finally:
             pool.shutdown(wait=False, cancel_futures=False)
 
