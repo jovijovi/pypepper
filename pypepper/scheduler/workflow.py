@@ -38,11 +38,12 @@ class Workflow(IWorkflow):
 
         Per task:
         - ``round_times`` outer rounds (default 1); each round has its own retry budget.
+          Success returns early; later rounds run only after a full failed inner budget.
         - ``round_timeout`` seconds soft-timeout per execute attempt (0 = none). Timed-out
           work may keep running in a background thread; the next attempt can overlap.
-        - ``retry_count`` / ``retry_delay`` / ``retry_until_completed`` / ``retry_until_max``:
-          until+count0 uses per-round ``retry_until_max``; until+count>0 caps at count+1;
-          until false uses count+1 as before.
+          Many until-retries with a short timeout can pile non-daemon threads.
+        - Retry modes: until false → ``retry_count + 1``; until + count 0 → per-round
+          ``retry_until_max``; until + count > 0 → ``retry_count + 1`` (max ignored).
         - ``optional``: failed optional tasks continue the workflow.
 
         Non-optional task failure aborts the workflow.
