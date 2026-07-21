@@ -205,6 +205,92 @@ def test_memory_yaml_configure_memory_does_not_warn(tmp_path, monkeypatch):
         _restore_memory_config()
 
 
+def test_yaml_declared_backend_early_returns(monkeypatch):
+    """Cover _yaml_declared_job_store_backend guard paths (patch coverage)."""
+    from types import SimpleNamespace
+
+    import pypepper.scheduler.store as store_mod
+
+    monkeypatch.setattr(config, "get_yml_config", lambda: None)
+    assert store_mod._yaml_declared_job_store_backend() is None
+
+    monkeypatch.setattr(config, "get_yml_config", lambda: SimpleNamespace())
+    assert store_mod._yaml_declared_job_store_backend() is None
+
+    monkeypatch.setattr(config, "get_yml_config", lambda: SimpleNamespace(scheduler=None))
+    assert store_mod._yaml_declared_job_store_backend() is None
+
+    monkeypatch.setattr(
+        config,
+        "get_yml_config",
+        lambda: SimpleNamespace(scheduler=SimpleNamespace(jobStore=None)),
+    )
+    assert store_mod._yaml_declared_job_store_backend() is None
+
+    monkeypatch.setattr(
+        config,
+        "get_yml_config",
+        lambda: SimpleNamespace(
+            scheduler=SimpleNamespace(jobStore=SimpleNamespace(backend=None))
+        ),
+    )
+    assert store_mod._yaml_declared_job_store_backend() is None
+
+    monkeypatch.setattr(
+        config,
+        "get_yml_config",
+        lambda: SimpleNamespace(
+            scheduler=SimpleNamespace(jobStore=SimpleNamespace(backend="   "))
+        ),
+    )
+    assert store_mod._yaml_declared_job_store_backend() is None
+
+
+def test_durable_yaml_non_memory_store_does_not_warn(tmp_path, monkeypatch):
+    import pypepper.scheduler.store as store_mod
+    from pypepper.common.log import log
+
+    store_mod.reset_job_store_mismatch_warning()
+    warns: list[str] = []
+    monkeypatch.setattr(log, "warn", lambda msg, *a, **k: warns.append(str(msg)))
+
+    cfg = _write_durable_cfg(tmp_path)
+    try:
+        config.load_config(str(cfg))
+        set_job_store(_NonMemoryStore())
+        assert warns == []
+        Job().save()
+    finally:
+        store_mod.reset_job_store_mismatch_warning()
+        _restore_memory_config()
+
+
+def test_reset_clears_mismatch_warn_for_next_memory_install(tmp_path, monkeypatch):
+    """reset_job_store clears one-shot so a later explicit memory install can warn again."""
+    import pypepper.scheduler.store as store_mod
+    from pypepper.common.log import log
+
+    store_mod.reset_job_store_mismatch_warning()
+    warns: list[str] = []
+    monkeypatch.setattr(log, "warn", lambda msg, *a, **k: warns.append(str(msg)))
+
+    cfg = _write_durable_cfg(tmp_path)
+    try:
+        config.load_config(str(cfg))
+        configure_job_store("memory")
+        assert len(warns) == 1
+
+        reset_job_store()
+        assert config._deferred_durable_job_store_backend == "postgres"
+
+        configure_job_store("memory")
+        assert len(warns) == 2
+        Job().save()
+    finally:
+        store_mod.reset_job_store_mismatch_warning()
+        _restore_memory_config()
+
+
 def test_durable_job_store_ok_after_setup_from_config(tmp_path, monkeypatch):
     """setup_from_config → configure_job_store clears deferred via set_job_store."""
     cfg = _write_durable_cfg(tmp_path)
@@ -212,7 +298,7 @@ def test_durable_job_store_ok_after_setup_from_config(tmp_path, monkeypatch):
 
     def _fake_configure(backend, **kwargs):
         assert backend == "postgres"
-        store = InMemoryJobStore()
+        store = _NonMemoryStore()
         store_mod.set_job_store(store)
         return store
 
