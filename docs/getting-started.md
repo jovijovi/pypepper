@@ -25,10 +25,10 @@ uv pip install -r requirements.txt
 ```shell
 make lint    # ruff + mypy on pypepper/
 make check   # lint + mutable class-attr guard
-make test    # check + pytest with coverage (line coverage must be >= 90%)
+make test    # check + pytest with coverage (>= 90%; branch coverage enabled)
 ```
 
-CI uploads branch coverage (`branch = true`); Codecov project/patch compare against the PR base and allow a 1% threshold.
+Local and CI upload branch coverage (`branch = true`). Codecov project compares overall coverage vs the PR base; patch compares changed lines vs an auto target; both allow a 1% threshold.
 
 DB-backed helper tests expect services from `devenv/ci.yaml` on localhost:
 
