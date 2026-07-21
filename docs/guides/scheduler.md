@@ -65,21 +65,20 @@ skips work if the job is already cancelled, and stops before `COMPLETE` at workf
 boundaries. It does **not** interrupt a sync workflow mid-`to_thread`. `Channel.stop`
 only stops the consumer loop; it is not job cancel.
 
-## Workflow retries
+## Workflow retries and rounds
 
-`Workflow.run()` executes tasks sequentially and respects:
+`Workflow.run()` executes tasks sequentially. Per task:
 
-- `retry_count` / `retry_delay`
-- `optional` (failed optional tasks continue the workflow)
+| Field | Behavior |
+|-------|----------|
+| `retry_count` / `retry_delay` | When until is false, or until + `retry_count > 0`: up to `retry_count + 1` attempts per round, with `retry_delay` seconds between failures. When until + `retry_count == 0`, the attempt budget is `retry_until_max` instead (see below). Both must be `>= 0` |
+| `retry_until_completed` | When `True` and `retry_count == 0`, retry until success up to `retry_until_max` (default 1000) **per round**. When `True` and `retry_count > 0`, `retry_count` is the cap (`count + 1` attempts); `retry_until_max` is ignored |
+| `retry_until_max` | Per-round attempt cap for until-retries (`>= 1`); only when until + `retry_count == 0`. Not a global cap across `round_times` |
+| `round_times` | Outer rounds (default 1); each round gets a fresh inner retry budget. Success returns early; later rounds run only after a full failed inner budget. No delay between rounds |
+| `round_timeout` | Soft timeout in **seconds** for a single `execute` call (`0` = none). Timeout counts as a failed attempt; the worker thread is **not** killed and may overlap the next attempt. Prefer idempotent executors. Many until-retries with a short timeout can pile non-daemon threads |
+| `optional` | Failed optional tasks continue the workflow |
 
-!!! warning "Fields not wired yet"
-    These attributes exist on `Task` / `IBase` but are **not** used by `Workflow._run_task`:
-
-    - `retry_until_completed`
-    - `round_timeout`
-    - `round_times`
-
-    Prefer `retry_count` / `retry_delay` / `optional` until those semantics land.
+Non-optional task failure after all rounds/attempts aborts the workflow.
 
 ## Persistence
 

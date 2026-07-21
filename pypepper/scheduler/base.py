@@ -19,7 +19,9 @@ class IBase(metaclass=ABCMeta):
     updated: str
     tags: list[Tag]
     progress: float = 0
+    # Seconds per execute attempt when wired by Workflow (0 = no timeout).
     round_timeout: int = 0
+    # Outer execution rounds per task (each round has its own retry budget).
     round_times: int = 1
     version: int = 1
     context: Context
