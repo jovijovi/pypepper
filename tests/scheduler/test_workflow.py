@@ -363,18 +363,12 @@ def test_workflow_round_timeout_hang_raises_within_budget():
 
 def test_workflow_soft_timeout_returns_result_when_worker_finishes_in_race():
     """If wait times out but the future completed successfully, return the result."""
-    shutdown_calls: list[dict] = []
 
     class _RacePool:
-        def __init__(self, *args, **kwargs):
-            self._future = Future()
-            self._future.set_result("ok")
-
         def submit(self, fn, *args, **kwargs):
-            return self._future
-
-        def shutdown(self, wait=True, cancel_futures=False):
-            shutdown_calls.append({"wait": wait, "cancel_futures": cancel_futures})
+            future = Future()
+            future.set_result("ok")
+            return future
 
     real_result = Future.result
 
@@ -384,7 +378,7 @@ def test_workflow_soft_timeout_returns_result_when_worker_finishes_in_race():
         return real_result(self, timeout=timeout)
 
     with (
-        patch("pypepper.scheduler.workflow.ThreadPoolExecutor", _RacePool),
+        patch("pypepper.scheduler.workflow._soft_timeout_pool", return_value=_RacePool()),
         patch.object(Future, "result", result_raise_timeout_once),
     ):
         task = _task("race", CallableExecutor(lambda t, c: "unused"), round_timeout=1)
@@ -392,7 +386,28 @@ def test_workflow_soft_timeout_returns_result_when_worker_finishes_in_race():
         workflow.add_task(task)
         assert workflow.run() == ["ok"]
 
-    assert shutdown_calls == [{"wait": False, "cancel_futures": False}]
+
+def test_soft_timeout_pool_is_reused():
+    from pypepper.scheduler import workflow as wf
+
+    assert wf._soft_timeout_pool() is wf._soft_timeout_pool()
+
+
+def test_workflow_without_round_timeout_does_not_use_pool():
+    calls = {"execute": 0}
+
+    class _CountingExecutor(Executor):
+        def execute(self, task, context=None):
+            calls["execute"] += 1
+            return "sync"
+
+    with patch("pypepper.scheduler.workflow._soft_timeout_pool") as pool_factory:
+        task = _task("no-timeout", _CountingExecutor(), round_timeout=0)
+        workflow = Workflow()
+        workflow.add_task(task)
+        assert workflow.run() == ["sync"]
+        pool_factory.assert_not_called()
+    assert calls["execute"] == 1
 
 
 def test_workflow_executor_timeout_error_not_wrapped_as_round_timeout():

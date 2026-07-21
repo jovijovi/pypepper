@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import time
 from abc import ABCMeta
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
+from threading import Lock
 from typing import cast
 
 from pypepper.common.log import log
@@ -13,6 +14,24 @@ from pypepper.scheduler.base import IBase
 from pypepper.scheduler.task import Task
 
 __all__ = ["IWorkflow", "Workflow"]
+
+# Cap concurrent soft-timeout orphan executes in-process. The work queue remains
+# unbounded: further submits wait for a worker; short result(timeout=T) may fire
+# before the task starts. Cross-job contention is possible under saturation.
+_SOFT_TIMEOUT_MAX_WORKERS = 32
+_pool_lock = Lock()
+_soft_timeout_pool_ref: ThreadPoolExecutor | None = None
+
+
+def _soft_timeout_pool() -> ThreadPoolExecutor:
+    """Lazily create the shared soft-timeout executor (tests may replace the ref)."""
+    global _soft_timeout_pool_ref
+    if _soft_timeout_pool_ref is not None:
+        return _soft_timeout_pool_ref
+    with _pool_lock:
+        if _soft_timeout_pool_ref is None:
+            _soft_timeout_pool_ref = ThreadPoolExecutor(max_workers=_SOFT_TIMEOUT_MAX_WORKERS)
+        return _soft_timeout_pool_ref
 
 
 class IWorkflow(IBase, metaclass=ABCMeta):
@@ -40,8 +59,9 @@ class Workflow(IWorkflow):
         - ``round_times`` outer rounds (default 1); each round has its own retry budget.
           Success returns early; later rounds run only after a full failed inner budget.
         - ``round_timeout`` seconds soft-timeout per execute attempt (0 = none). Timed-out
-          work may keep running in a background thread; the next attempt can overlap.
-          Many until-retries with a short timeout can pile non-daemon threads.
+          work may keep running on the shared soft-timeout pool; the next attempt can
+          overlap. Concurrent orphan executes are capped (``_SOFT_TIMEOUT_MAX_WORKERS``);
+          further submits queue and a short timeout may fire before the task starts.
         - Retry modes: until false → ``retry_count + 1``; until + count 0 → per-round
           ``retry_until_max``; until + count > 0 → ``retry_count + 1`` (max ignored).
         - ``optional``: failed optional tasks continue the workflow.
@@ -77,10 +97,9 @@ class Workflow(IWorkflow):
         if timeout <= 0:
             return cast(object | None, executor.execute(task, task.context))
 
-        # Soft timeout: do not wait for the worker on shutdown so TimeoutError fails
-        # fast and retries can proceed while orphaned work may still run.
-        pool = ThreadPoolExecutor(max_workers=1)
-        future = pool.submit(executor.execute, task, task.context)
+        # Soft timeout via shared pool: do not shut down the pool so TimeoutError
+        # fails fast and retries can proceed while orphaned work may still run.
+        future: Future[object | None] = _soft_timeout_pool().submit(executor.execute, task, task.context)
         try:
             return cast(object | None, future.result(timeout=timeout))
         except FuturesTimeoutError as e:
@@ -89,8 +108,6 @@ class Workflow(IWorkflow):
             if future.done():
                 return cast(object | None, future.result())
             raise TimeoutError(f"Task execute exceeded round_timeout={timeout}s: id={task.id}, name={task.name}") from e
-        finally:
-            pool.shutdown(wait=False, cancel_futures=False)
 
     def _run_task(self, task: Task) -> object | None:
         rounds = max(1, int(task.round_times or 1))

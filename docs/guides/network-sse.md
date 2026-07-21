@@ -79,7 +79,7 @@ async def clock(request: Request):
 
 - **Production:** keep `sse.authentication.enabled: true` and inject `validKeys` (do not commit real keys).
 - **Auth off is blocked by default.** Setting `authentication.enabled: false` rejects requests with **503** unless you explicitly export `PYPEPPER_SSE_ALLOW_AUTH_OFF=1` (or `true` / `yes` / `on`). With that escape set, any **non-empty** API key is accepted and the library logs a **one-shot** warning (once per process).
-- **Rate limiting is not a security boundary when auth is off.** Limits are bucketed by the presented key string, so clients can rotate keys to bypass quotas. Treat rate limits as abuse soft-control only when authentication is enabled.
+- **Rate limiting is not a security boundary when auth is off.** Limits are bucketed by the presented key string, so clients can rotate keys to bypass quotas. Treat rate limits as abuse soft-control only when authentication is enabled. Rate-limit counters live on the process-wide `sse_security` singleton (not a security upgrade; still per-process).
 
 See the full working app in [`example/sse/app.py`](https://github.com/jovijovi/pypepper/blob/main/example/sse/app.py).
 

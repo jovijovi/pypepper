@@ -41,11 +41,18 @@ workflow.add_task(
 
 job = Job(category="demo", channel_id="demo-channel")
 job.workflows.append(workflow)
+# Optional: create a bounded channel *before* worker/dispatch (default is unbounded).
+# manager.new("demo-channel", maxsize=100)
 job.scheduled()  # dispatch into channel via Dispatcher
 
 worker = Worker(manager.available("demo-channel"))
 asyncio.run(worker.run_once())
 ```
+
+Create a bounded channel with `manager.new(channel_id, maxsize=N)` **before**
+`Worker` / `Job.scheduled()`. If the channel already exists, a later `maxsize` is
+ignored (same instance). Full send returns `False` from `Channel.send`;
+`Job.scheduled()` raises `ChannelFullError` when enqueue is rejected.
 
 ## Status machine
 
@@ -75,7 +82,7 @@ only stops the consumer loop; it is not job cancel.
 | `retry_until_completed` | When `True` and `retry_count == 0`, retry until success up to `retry_until_max` (default 1000) **per round**. When `True` and `retry_count > 0`, `retry_count` is the cap (`count + 1` attempts); `retry_until_max` is ignored |
 | `retry_until_max` | Per-round attempt cap for until-retries (`>= 1`); only when until + `retry_count == 0`. Not a global cap across `round_times` |
 | `round_times` | Outer rounds (default 1); each round gets a fresh inner retry budget. Success returns early; later rounds run only after a full failed inner budget. No delay between rounds |
-| `round_timeout` | Soft timeout in **seconds** for a single `execute` call (`0` = none). Timeout counts as a failed attempt; the worker thread is **not** killed and may overlap the next attempt. Prefer idempotent executors. Many until-retries with a short timeout can pile non-daemon threads |
+| `round_timeout` | Soft timeout in **seconds** for a single `execute` call (`0` = none). Timeout counts as a failed attempt; the worker is **not** killed and may overlap the next attempt on a **shared** soft-timeout pool (≤32 concurrent orphans in-process). Further submits **queue**; a short timeout may fire **before** the task starts. Prefer idempotent executors. Retries can still grow queued Futures under saturation; this caps threads, not queue memory |
 | `optional` | Failed optional tasks continue the workflow |
 
 Non-optional task failure after all rounds/attempts aborts the workflow.

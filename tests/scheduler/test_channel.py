@@ -83,5 +83,21 @@ def test_channel_manager():
     print("All channel removed")
 
 
+@pytest.mark.asyncio
+async def test_channel_manager_maxsize_applies_only_on_first_create():
+    manager = channel.manager
+    key = "bounded-once"
+    manager.remove(key)
+
+    bounded = manager.new(key, maxsize=1)
+    again = manager.available(key, maxsize=0)
+    assert again is bounded
+
+    assert await bounded.send("a") is True
+    assert await bounded.send("b") is False
+
+    manager.remove(key)
+
+
 if __name__ == '__main__':
     pytest.main()

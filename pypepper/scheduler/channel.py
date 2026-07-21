@@ -74,16 +74,23 @@ class ChannelManager:
 
             return self._job_channel.pop(key)
 
-    def new(self, key: str) -> Channel:
+    def new(self, key: str, maxsize: int = 0) -> Channel:
+        """
+        Return the channel for ``key``, creating it on first use.
+
+        ``maxsize`` applies only when the channel is created (``0`` = unbounded).
+        If the key already exists, the existing channel is returned and ``maxsize``
+        is ignored (create bounded channels before worker/dispatch).
+        """
         with self._lock:
             chan = self._job_channel.get(key)
             if chan is None:
-                chan = Channel()
+                chan = Channel(maxsize=maxsize)
                 self._job_channel[key] = chan
             return chan
 
-    def available(self, key: str) -> Channel:
-        return self.new(key)
+    def available(self, key: str, maxsize: int = 0) -> Channel:
+        return self.new(key, maxsize=maxsize)
 
 
 manager = ChannelManager()

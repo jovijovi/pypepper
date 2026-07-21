@@ -60,6 +60,7 @@ class CacheSet:
     """
 
     def __init__(self):
+        self._lock = Lock()
         self._cache_store: MutableMapping[str, Cache] = {}
 
     def new(
@@ -76,10 +77,12 @@ class CacheSet:
         :return: cache
         """
 
-        if not self._cache_store.get(name):
-            self._cache_store[name] = Cache(maxsize, ttl)
-
-        return self._cache_store[name]
+        with self._lock:
+            existing = self._cache_store.get(name)
+            if existing is None:
+                existing = Cache(maxsize, ttl)
+                self._cache_store[name] = existing
+            return existing
 
     def get(self, name: str) -> Cache | None:
         """
@@ -88,7 +91,8 @@ class CacheSet:
         :return: cache
         """
 
-        return self._cache_store.get(name)
+        with self._lock:
+            return self._cache_store.get(name)
 
     def clear(self):
         """
@@ -96,10 +100,10 @@ class CacheSet:
         :return: None
         """
 
-        for name in self._cache_store:
-            self._cache_store[name].clear()
-
-        self._cache_store.clear()
+        with self._lock:
+            for name in self._cache_store:
+                self._cache_store[name].clear()
+            self._cache_store.clear()
 
 
 def new_cache() -> Cache:

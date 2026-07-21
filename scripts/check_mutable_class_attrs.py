@@ -19,10 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1] / 'pypepper'
 
 # Intentional shared class-level state (explicit singletons / class utilities)
-ALLOWLIST_ATTRS = {
-    ('network/http/sse/security.py', 'SSESecurityManager', '_rate_limit_cache'),
-    ('network/http/sse/security.py', 'SSESecurityManager', '_rate_limit_lock'),
-}
+ALLOWLIST_ATTRS: set[tuple[str, str, str]] = set()
 
 # Allowed for singleton __new__ guards (not per-instance state)
 ALLOWLIST_ATTR_NAMES = {'_init_lock', '_instance'}

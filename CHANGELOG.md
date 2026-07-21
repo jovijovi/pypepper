@@ -6,12 +6,16 @@
 - SSE: `sse.authentication.enabled: false` no longer accepts any non-empty API key by default. Requests are rejected (decorator: HTTP 503) unless `PYPEPPER_SSE_ALLOW_AUTH_OFF=1` (or `true`/`yes`/`on`) is set for local experiments.
 
 ### Added
+- `ChannelManager.new` / `available` accept optional `maxsize` (default `0` = unbounded); applies only on first create for that key.
 - `Task.retry_until_max` (default 1000): per-round attempt cap when `retry_until_completed=True` and `retry_count==0`.
 - `Task` rejects negative `retry_count` / `retry_delay`.
 - Scheduler: one-shot warn when YAML declares a durable `scheduler.jobStore.backend` but `set_job_store` / `configure_job_store` installs an in-memory store (deferred fail-fast unchanged). `reset_job_store` clears the one-shot so a later explicit memory install can warn again.
 - Tests: deferred durable jobStore fail-fast regressions on `Job.scheduled()` / dispatch and Worker RUN persist paths.
 
 ### Changed
+- Soft `round_timeout` uses a process-wide shared thread pool (max 32 workers): caps concurrent orphan executes; further work queues (short timeout may fire before start). Does not eliminate queued Futures under heavy retry.
+- `SSESecurityManager` is an explicit singleton (`sse_security`) with instance rate-limit state (mutable class attrs removed).
+- `CacheSet` synchronizes `new` / `get` / `clear`; `Config._setting` is instance state.
 - `Workflow` now honors `round_times`, `round_timeout` (soft per-execute timeout in seconds; orphaned work may overlap retries), and `retry_until_completed` with `retry_count` / `retry_until_max`. Previously these fields were stored but unused.
 - CI: root `codecov.yml` pins Codecov project/patch status to `target: auto` with `threshold: 1%` (relative to PR base), aligned with pytest `branch = true` uploads.
 - CI: tag publish `pretest` samples Python 3.10 and 3.14 (lint/docs and build/upload remain on 3.13).
