@@ -82,7 +82,7 @@ class ChannelManager:
 
         ``maxsize`` applies only when the channel is created (``0`` = unbounded).
         If the key already exists, the existing channel is returned and ``maxsize``
-        is ignored (create bounded channels before worker/dispatch).
+        is ignored (create bounded channels before Worker/dispatch).
         """
         with self._lock:
             chan = self._job_channel.get(key)

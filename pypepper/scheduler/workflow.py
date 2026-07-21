@@ -6,6 +6,7 @@ import time
 from abc import ABCMeta
 from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
+from functools import partial
 from threading import Lock
 from typing import cast
 
@@ -17,8 +18,9 @@ __all__ = ["IWorkflow", "Workflow"]
 
 # Cap concurrent soft-timeout executes in-process (including orphans). The work
 # queue remains unbounded: further work queues (``submit`` itself does not block);
-# short ``result(timeout=T)`` may fire before the task starts. Cross-job
-# contention is possible under saturation.
+# short ``result(timeout=T)`` may fire before the task starts. Queued Futures that
+# time out before start are cancelled when possible. Cross-job contention is
+# possible under saturation.
 _SOFT_TIMEOUT_MAX_WORKERS = 32
 _pool_lock = Lock()
 _soft_timeout_pool_ref: ThreadPoolExecutor | None = None
@@ -35,17 +37,24 @@ def _soft_timeout_pool() -> ThreadPoolExecutor:
         return _soft_timeout_pool_ref
 
 
-def _log_soft_timeout_orphan(fut: Future[object | None]) -> None:
+def _log_soft_timeout_orphan(
+    fut: Future[object | None],
+    *,
+    task_id: str,
+    task_name: str,
+) -> None:
     """Log unexpected failures from orphaned soft-timeout work (never block waiters)."""
     if fut.cancelled():
         return
     try:
         exc = fut.exception()
     except Exception as e:  # pragma: no cover - defensive
-        log.warn(f"Soft-timeout orphan callback failed while reading exception: {e}")
+        log.warn(
+            f"Soft-timeout orphan callback failed while reading exception: id={task_id}, name={task_name}, error={e}"
+        )
         return
     if exc is not None:
-        log.warn(f"Soft-timeout orphan execute failed: {exc}")
+        log.warn(f"Soft-timeout orphan execute failed: id={task_id}, name={task_name}, error={exc}")
 
 
 class IWorkflow(IBase, metaclass=ABCMeta):
@@ -119,8 +128,8 @@ class Workflow(IWorkflow):
         try:
             return cast(object | None, future.result(timeout=timeout))
         except FuturesTimeoutError as e:
-            # On 3.10+, FuturesTimeoutError is TimeoutError. If the worker finished in
-            # the race window, return/raise its outcome; otherwise wrap the wait timeout.
+            # On 3.10+, FuturesTimeoutError is TimeoutError. If the pool Future finished
+            # in the race window, return/raise its outcome; otherwise wrap the wait timeout.
             if future.done():
                 return cast(object | None, future.result())
             # Prefer cancelling queued work so a "failed" attempt does not run later.
@@ -131,7 +140,7 @@ class Workflow(IWorkflow):
                 ) from e
             if future.done():
                 return cast(object | None, future.result())
-            future.add_done_callback(_log_soft_timeout_orphan)
+            future.add_done_callback(partial(_log_soft_timeout_orphan, task_id=task.id, task_name=task.name))
             raise TimeoutError(
                 f"Task execute exceeded round_timeout={timeout}s "
                 f"(execute still running): id={task.id}, name={task.name}"

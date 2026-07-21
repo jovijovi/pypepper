@@ -62,6 +62,9 @@ c = s.new("ns", maxsize=32, ttl=30)
 c.set("a", 1)
 ```
 
+`maxsize` / `ttl` apply only on first create for that name; a later `new` with
+different params returns the same cache and ignores the new values.
+
 Each `Cache` / `CacheSet` instance owns its own storage and locks.
 
 ## Crypto helpers

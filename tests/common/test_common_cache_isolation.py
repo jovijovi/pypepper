@@ -51,3 +51,5 @@ def test_cache_set_new_ignores_params_on_hit():
     first = cs.new("named", maxsize=8, ttl=30)
     second = cs.new("named", maxsize=128, ttl=1)
     assert second is first
+    assert first.maxsize == 8
+    assert first.ttl == 30
