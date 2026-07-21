@@ -31,6 +31,7 @@ Include:
 
 ## Non-vulnerabilities
 
-Misconfiguration of optional features (for example leaving
-`sse.authentication.enabled: false` in production) is documented as an operator
-footgun, not a library vulnerability. See the [SSE guide](https://jovijovi.github.io/pypepper/guides/network-sse/).
+Leaving `sse.authentication.enabled: false` **without**
+`PYPEPPER_SSE_ALLOW_AUTH_OFF` is rejected by the library (503). Setting the escape
+env for local experiments is an operator choice and not a library vulnerability.
+See the [SSE guide](https://jovijovi.github.io/pypepper/guides/network-sse/).

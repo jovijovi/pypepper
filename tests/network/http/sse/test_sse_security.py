@@ -5,7 +5,11 @@ from fastapi import HTTPException
 
 from pypepper.common.cache import Cache
 from pypepper.common.config import config
-from pypepper.network.http.sse.security import SSESecurityManager, require_sse_api_key
+from pypepper.network.http.sse.security import (
+    AUTH_OFF_BLOCKED_DETAIL,
+    SSESecurityManager,
+    require_sse_api_key,
+)
 
 
 def _build_sse_config(
@@ -42,11 +46,12 @@ def _mock_request(
 
 
 @pytest.fixture(autouse=True)
-def _reset_rate_limit_cache():
+def _reset_rate_limit_cache(monkeypatch):
     from pypepper.network.http.sse import security as sse_security
 
     SSESecurityManager._rate_limit_cache = Cache(maxsize=1000, ttl=60)
     sse_security.reset_auth_disabled_warning()
+    monkeypatch.delenv('PYPEPPER_SSE_ALLOW_AUTH_OFF', raising=False)
 
 
 def test_validate_api_key_returns_false_for_empty_key(monkeypatch):
@@ -72,12 +77,33 @@ def test_auth_disabled_empty_key_does_not_warn(monkeypatch):
     assert warns == []
 
 
-def test_validate_api_key_allows_any_key_when_auth_disabled(monkeypatch):
+def test_validate_api_key_rejects_when_auth_disabled_without_escape(monkeypatch):
     from pypepper.common.log import log
     from pypepper.network.http.sse import security as sse_security
 
     warns: list[str] = []
     monkeypatch.setattr(log, 'warn', lambda msg, *a, **k: warns.append(str(msg)))
+    monkeypatch.setattr(
+        config,
+        'get_yml_config',
+        lambda: _build_sse_config(auth_enabled=False),
+    )
+    sse_security.reset_auth_disabled_warning()
+    assert SSESecurityManager.validate_api_key('any-key') is False
+    assert any('PYPEPPER_SSE_ALLOW_AUTH_OFF' in w for w in warns)
+    # Second call does not spam another warn.
+    warns.clear()
+    assert SSESecurityManager.validate_api_key('other-key') is False
+    assert warns == []
+
+
+def test_validate_api_key_allows_any_key_when_auth_disabled_with_escape(monkeypatch):
+    from pypepper.common.log import log
+    from pypepper.network.http.sse import security as sse_security
+
+    warns: list[str] = []
+    monkeypatch.setattr(log, 'warn', lambda msg, *a, **k: warns.append(str(msg)))
+    monkeypatch.setenv('PYPEPPER_SSE_ALLOW_AUTH_OFF', '1')
     monkeypatch.setattr(
         config,
         'get_yml_config',
@@ -90,6 +116,17 @@ def test_validate_api_key_allows_any_key_when_auth_disabled(monkeypatch):
     warns.clear()
     assert SSESecurityManager.validate_api_key('other-key') is True
     assert warns == []
+
+
+@pytest.mark.parametrize('escape_value', ['true', 'YES', 'On'])
+def test_auth_off_escape_env_truthy_values(monkeypatch, escape_value):
+    monkeypatch.setenv('PYPEPPER_SSE_ALLOW_AUTH_OFF', escape_value)
+    monkeypatch.setattr(
+        config,
+        'get_yml_config',
+        lambda: _build_sse_config(auth_enabled=False),
+    )
+    assert SSESecurityManager.validate_api_key('k') is True
 
 
 def test_validate_api_key_checks_allow_list_when_auth_enabled(monkeypatch):
@@ -191,6 +228,43 @@ async def test_require_sse_api_key_raises_401_for_invalid_or_missing_key(monkeyp
     assert exc_info.value.status_code == 401
     assert exc_info.value.detail == 'Invalid or missing API key'
     assert exc_info.value.headers == {'WWW-Authenticate': 'Bearer'}
+
+
+@pytest.mark.asyncio
+async def test_require_sse_api_key_raises_503_when_auth_off_without_escape(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        'get_yml_config',
+        lambda: _build_sse_config(auth_enabled=False),
+    )
+
+    @require_sse_api_key
+    async def handler(request):
+        return {'ok': True}
+
+    with pytest.raises(HTTPException) as exc_info:
+        await handler(_mock_request(headers={'X-API-Key': 'any-key'}))
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.detail == AUTH_OFF_BLOCKED_DETAIL
+
+
+@pytest.mark.asyncio
+async def test_require_sse_api_key_allows_auth_off_with_escape(monkeypatch):
+    monkeypatch.setenv('PYPEPPER_SSE_ALLOW_AUTH_OFF', '1')
+    monkeypatch.setattr(
+        config,
+        'get_yml_config',
+        lambda: _build_sse_config(auth_enabled=False),
+    )
+
+    @require_sse_api_key
+    async def handler(request):
+        return {'ok': True}
+
+    request = _mock_request(headers={'X-API-Key': 'any-key'})
+    assert await handler(request) == {'ok': True}
+    assert request.state.api_key == 'any-key'
 
 
 @pytest.mark.asyncio
