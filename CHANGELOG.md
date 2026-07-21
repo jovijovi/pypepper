@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.3
+
 ### Breaking
 - SSE: `sse.authentication.enabled: false` no longer accepts any non-empty API key by default. Requests are rejected (decorator: HTTP 503) unless `PYPEPPER_SSE_ALLOW_AUTH_OFF=1` (or `true`/`yes`/`on`) is set for local experiments.
 
