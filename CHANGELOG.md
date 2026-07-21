@@ -11,6 +11,7 @@
 
 ### Changed
 - `Workflow` now honors `round_times`, `round_timeout` (soft per-execute timeout in seconds; orphaned work may overlap retries), and `retry_until_completed` with `retry_count` / `retry_until_max`. Previously these fields were stored but unused.
+- CI: root `codecov.yml` pins Codecov project/patch status to `target: auto` with `threshold: 1%` (relative to PR base), aligned with pytest `branch = true` uploads.
 
 ### Fixed
 - Soft `round_timeout`: if the worker finishes successfully in the wait-timeout race window, return its result instead of re-raising `TimeoutError`.

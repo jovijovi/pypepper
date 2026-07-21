@@ -16,6 +16,8 @@ make check           # ruff + mypy + mutable class-attr guard
 make test            # check + pytest with coverage (>= 90%)
 ```
 
+Local and CI use branch coverage; Codecov project/patch status is relative to the PR base with a 1% threshold (`codecov.yml`).
+
 DB-backed tests need services from `devenv/ci.yaml`:
 
 ```shell
