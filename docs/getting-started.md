@@ -28,6 +28,8 @@ make check   # lint + mutable class-attr guard
 make test    # check + pytest with coverage (line coverage must be >= 90%)
 ```
 
+CI uploads branch coverage (`branch = true`); Codecov project/patch compare against the PR base and allow a 1% threshold.
+
 DB-backed helper tests expect services from `devenv/ci.yaml` on localhost:
 
 ```shell
