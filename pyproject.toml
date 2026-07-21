@@ -1,6 +1,6 @@
 [project]
 name = "pypepper"
-version = "0.6.2"
+version = "0.6.3"
 authors = [
     { name = "jovijovi", email = "mageyul@hotmail.com" },
 ]
