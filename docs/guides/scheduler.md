@@ -117,7 +117,10 @@ assert get_job_store().get(job.id) is not None
 YAML (optional). `config.load_config()` does **not** apply this automatically — call
 `setup_from_config` after load (a durable `backend` without setup/configure/set makes
 `Job.save` / `Job.get_saved` raise `ValueError`; `reset_job_store` re-arms that guard
-from the current YAML):
+from the current YAML). Explicitly installing an in-memory store via
+`configure_job_store("memory")` / `set_job_store(...)` clears the deferred guard and
+emits a one-shot warning that persistence will not use the YAML durable backend
+(`reset_job_store` clears that one-shot for the next install cycle):
 
 ```python
 from pypepper.common.config import config

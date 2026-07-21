@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from threading import Lock
 from typing import Any, Literal, cast
 
+from pypepper.common.log import log
 from pypepper.scheduler.store.interfaces import IJobStore, JobRecord
 from pypepper.scheduler.store.memory import InMemoryJobStore
 
@@ -11,6 +13,8 @@ Backend = Literal["memory", "postgres", "mysql", "mongodb"]
 _VALID_BACKENDS: frozenset[str] = frozenset({"memory", "postgres", "mysql", "mongodb"})
 
 _job_store: IJobStore = InMemoryJobStore()
+_mismatch_warned = False
+_mismatch_warn_lock = Lock()
 
 
 def get_job_store() -> IJobStore:
@@ -19,6 +23,46 @@ def get_job_store() -> IJobStore:
 
 # Module-level handle used by Job.save (updated via set_job_store).
 job_store: IJobStore = _job_store
+
+
+def _yaml_declared_job_store_backend() -> str | None:
+    """Return YAML ``scheduler.jobStore.backend`` if present, else ``None``."""
+    from pypepper.common.config import config as app_config
+
+    yml = app_config.get_yml_config()
+    if yml is None or not hasattr(yml, "scheduler") or yml.scheduler is None:
+        return None
+    job_store_cfg = getattr(yml.scheduler, "jobStore", None)
+    if job_store_cfg is None:
+        return None
+    backend = getattr(job_store_cfg, "backend", None)
+    if backend is None:
+        return None
+    name = str(backend).strip()
+    return name or None
+
+
+def _warn_durable_vs_memory_once(declared: str) -> None:
+    """One-shot warn when YAML declares durable but an in-memory store is installed."""
+    global _mismatch_warned
+    with _mismatch_warn_lock:
+        if _mismatch_warned:
+            return
+        _mismatch_warned = True
+    log.warn(
+        f"scheduler.jobStore.backend={declared!r} is declared in YAML, but an "
+        "in-memory job store was installed via set_job_store/configure_job_store; "
+        "Job.save will not persist to that durable backend. "
+        "If durable storage is intended, call setup_from_config(...) or "
+        f"configure_job_store({declared!r}, ...)."
+    )
+
+
+def reset_job_store_mismatch_warning() -> None:
+    """Reset the durable-vs-memory mismatch one-shot warn (tests)."""
+    global _mismatch_warned
+    with _mismatch_warn_lock:
+        _mismatch_warned = False
 
 
 def _mark_job_store_applied() -> None:
@@ -30,6 +74,10 @@ def _mark_job_store_applied() -> None:
 def set_job_store(store: IJobStore) -> None:
     """Replace the process-wide job store and clear any deferred durable YAML flag."""
     global _job_store, job_store
+    if isinstance(store, InMemoryJobStore):
+        declared = _yaml_declared_job_store_backend()
+        if declared is not None and declared.strip().lower() not in ("", "memory"):
+            _warn_durable_vs_memory_once(declared)
     _job_store = store
     job_store = store
     _mark_job_store_applied()
@@ -42,10 +90,14 @@ def reset_job_store() -> None:
     Does **not** acknowledge a deferred durable YAML backend: if the current
     config still declares a non-memory ``jobStore``, deferred fail-fast is
     re-armed so ``Job.save`` cannot silently use memory.
+
+    Also clears the durable-vs-memory mismatch one-shot so a later explicit
+    memory install can warn again for the new cycle.
     """
     global _job_store, job_store
     _job_store = InMemoryJobStore()
     job_store = _job_store
+    reset_job_store_mismatch_warning()
     from pypepper.common.config import config as app_config
 
     app_config.refresh_scheduler_job_store_deferred()
