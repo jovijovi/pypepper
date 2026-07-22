@@ -55,11 +55,12 @@ class Worker:
         if self.channel.stop:
             return None
 
-        job = await self.channel.receive()
-        if job is None:
+        raw = await self.channel.receive()
+        if raw is None:
             return None
-        await self._process(cast(Job, job))
-        return cast(Job, job)
+        job = cast(Job, raw)
+        await self._process(job)
+        return job
 
     async def run_forever(self) -> None:
         while not self.channel.stop:
@@ -67,10 +68,9 @@ class Worker:
                 job = await self.run_once()
                 if job is None:
                     return
-            except asyncio.CancelledError:
-                raise
             except Exception as e:
-                log.error(f"Worker run_forever job error (continuing): {e}")
+                # Continues after job failures (intentional BC vs raise-and-exit).
+                log.error(f"Worker run_forever job error (continuing): {e!r}")
 
     async def _process(self, job: Job) -> None:
         if job.is_cancelled():

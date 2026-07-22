@@ -3,13 +3,13 @@
 ## Unreleased
 
 ### Added
-- `Channel.request_stop()`: set `stop` and wake a blocked `receive()` (sentinel).
-- `network.http.server.create_app()`: build a FastAPI app with handlers/middleware registered once; `run` / `run_without_tls` / `run_with_tls` use it instead of re-registering on the module-level `app`.
+- `Channel.request_stop()`: set `stop` and wake a blocked `receive()` via `asyncio.Event` (does not consume queue capacity). `send` returns `False` while stopped.
+- `network.http.server.create_app()`: build a FastAPI app with handlers/middleware registered once; `run` / `run_without_tls` / `run_with_tls` use it instead of re-registering on the module-level `app` (module `app` stays unregistered).
 
 ### Changed
 - Packaging: runtime dependencies in `pyproject.toml` use compatible-release pins (`~=x.y.z`); exact pins remain in `requirements.txt` / `uv.lock`. Dropped unused runtime `pip` (still in the `dev` dependency group). `requires-python` is now `>=3.10, <3.15` so CPython 3.14.x patches remain installable. `.pypirc` is excluded from Docker build context via `.dockerignore`.
-- `Worker.run_forever` logs job errors and continues; exits when `run_once` returns `None` (stop / empty wake).
-- `MongoJobStore.put` uses atomic upsert with `$setOnInsert` for `created` (aligned with SQL stores).
+- `Worker.run_forever` logs job errors and continues; exits when `run_once` returns `None` (channel stopped or stop wake), not on an idle/empty queue alone.
+- `MongoJobStore.put` uses atomic upsert with `$setOnInsert` for `created` (aligned with SQL stores); retries `$set`-only on concurrent first-insert `DuplicateKeyError`.
 - `Config.load_config()` uses `parse_known_args()` for `-c/--config` (unknown host argv ignored); bare `-c` no longer becomes `True`.
 - `scripts/check_mutable_class_attrs.py` also flags annotated class attributes (`AnnAssign`).
 

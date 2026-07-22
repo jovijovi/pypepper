@@ -7,6 +7,7 @@ from typing import Any
 from mongoengine import Document, IntField, StringField, disconnect
 from mongoengine import connect as mongo_connect
 from mongoengine.context_managers import switch_db
+from pymongo.errors import DuplicateKeyError
 
 from pypepper.helper.db import mongodb as mongodb_helper
 from pypepper.scheduler.store.interfaces import IJobStore, JobRecord
@@ -102,23 +103,24 @@ class MongoJobStore(IJobStore):
         with switch_db(SchedulerJobDoc, self._alias):
             # Atomic upsert: never overwrite existing ``created`` (SQL ON CONFLICT semantics).
             collection = SchedulerJobDoc._get_collection()
-            collection.update_one(
-                {"_id": record.id},
-                {
-                    "$set": {
-                        "category": record.category,
-                        "channel_id": record.channel_id,
-                        "status": record.status,
-                        "updated": record.updated,
-                        "workflow_count": record.workflow_count,
-                        "version": record.version,
-                    },
-                    "$setOnInsert": {
-                        "created": record.created,
-                    },
+            update = {
+                "$set": {
+                    "category": record.category,
+                    "channel_id": record.channel_id,
+                    "status": record.status,
+                    "updated": record.updated,
+                    "workflow_count": record.workflow_count,
+                    "version": record.version,
                 },
-                upsert=True,
-            )
+                "$setOnInsert": {
+                    "created": record.created,
+                },
+            }
+            try:
+                collection.update_one({"_id": record.id}, update, upsert=True)
+            except DuplicateKeyError:
+                # Concurrent first-insert race: peer won the insert; apply $set only.
+                collection.update_one({"_id": record.id}, {"$set": update["$set"]}, upsert=False)
 
     def get(self, job_id: str) -> JobRecord | None:
         with switch_db(SchedulerJobDoc, self._alias):

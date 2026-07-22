@@ -52,9 +52,7 @@ def _is_mutable_value(value: ast.expr | None) -> bool:
 
 
 def _should_flag_name(attr_name: str) -> bool:
-    if attr_name == '__slots__':
-        return False
-    if not (attr_name.startswith('_') or attr_name == '__slots__'):
+    if attr_name == '__slots__' or not attr_name.startswith('_'):
         return False
     if attr_name.isupper():
         return False

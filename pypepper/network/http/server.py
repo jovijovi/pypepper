@@ -7,7 +7,8 @@ from pypepper.common.config import config
 from pypepper.network.http.handlers import handlers
 from pypepper.network.http.interfaces import ITaskHandler
 
-# Compatibility import target; prefer :func:`create_app` for a registered app.
+# Compatibility shell only — never registered. Prefer :func:`create_app`.
+# ``run`` / ``run_without_tls`` / ``run_with_tls`` ignore this object.
 app = FastAPI()
 
 

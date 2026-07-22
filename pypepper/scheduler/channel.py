@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from asyncio import Queue, QueueFull
 from collections.abc import MutableMapping
@@ -10,36 +11,55 @@ from typing import Any
 
 from pypepper.common.log import log
 
-# Wake blocked ``receive()`` when ``request_stop()`` is called.
-_STOP = object()
-
 
 class Channel:
     def __init__(self, maxsize: int = 0):
         self.stop = False
         self._queue: Queue[Any] = Queue(maxsize)
+        # Wakes a blocked ``receive()`` without consuming queue capacity.
+        self._stopped = asyncio.Event()
 
     async def send(self, value: Any) -> bool:
+        if self.stop:
+            return False
         try:
             self._queue.put_nowait(value)
             return True
         except QueueFull:
             return False
 
-    async def receive(self):
-        item = await self._queue.get()
-        if item is _STOP:
+    async def receive(self) -> Any | None:
+        """
+        Wait for the next item, or ``None`` when the channel has been stopped.
+
+        Stop does not drain the queue; callers that check ``stop`` before
+        ``receive`` (e.g. Worker) abandon pending items intentionally.
+        """
+        while True:
+            if self.stop and self._queue.empty():
+                return None
+            get_task = asyncio.create_task(self._queue.get())
+            stop_task = asyncio.create_task(self._stopped.wait())
+            done, pending = await asyncio.wait(
+                {get_task, stop_task},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for task in pending:
+                task.cancel()
+            for task in pending:
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+            if get_task in done:
+                return get_task.result()
+            # Stop won: abandon without popping jobs (capacity preserved).
             return None
-        return item
 
     def request_stop(self) -> None:
         """Mark the channel stopped and wake a blocked ``receive()`` if needed."""
         self.stop = True
-        with contextlib.suppress(QueueFull):
-            # QueueFull: worker is not waiting on receive; next run_once sees stop.
-            self._queue.put_nowait(_STOP)
+        self._stopped.set()
 
-    def length(self):
+    def length(self) -> int:
         return self._queue.qsize()
 
 

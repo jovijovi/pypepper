@@ -72,7 +72,8 @@ Each `Job` owns an FSM from `build_scheduler_fsm()`:
 skips work if the job is already cancelled, and stops before `COMPLETE` at workflow
 boundaries. It does **not** interrupt a sync workflow mid-`to_thread`. Prefer
 `Channel.request_stop()` to stop the consumer loop (sets `stop` and wakes a blocked
-`receive()`); assigning `Channel.stop = True` alone will not unblock an empty receive.
+`receive()` via an event, without occupying queue slots). Assigning `Channel.stop = True`
+alone will not unblock an empty receive. While stopped, `Channel.send` returns `False`.
 `Channel.stop` / `request_stop` are not job cancel.
 
 ## Workflow retries and rounds

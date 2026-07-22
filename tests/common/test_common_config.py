@@ -388,13 +388,20 @@ def test_load_config_memory_job_store_does_not_defer():
 
 def test_load_config_cli_path_and_bare_flag(monkeypatch, tmp_path):
     cfg = tmp_path / "cli-config.yaml"
-    cfg.write_text("log:\n  level: INFO\n  colorize: false\n")
+    cfg.write_text(
+        "log:\n  level: INFO\n  colorize: false\n"
+        "custom:\n  marker: from-cli-path\n"
+    )
 
     monkeypatch.setattr("sys.argv", ["prog", "-c", str(cfg), "--unrelated"])
     config.load_config()
-    assert config.get_yml_config() is not None
+    yml = config.get_yml_config()
+    assert yml is not None
+    assert yml.custom.marker == "from-cli-path"
 
     monkeypatch.setattr("sys.argv", ["prog", "-c"])
     # Bare -c must not open(True); falls back to default conf path.
     config.load_config()
-    assert config.get_yml_config() is not None
+    yml = config.get_yml_config()
+    assert yml is not None
+    assert not hasattr(yml, "custom") or getattr(getattr(yml, "custom", None), "marker", None) != "from-cli-path"

@@ -1,5 +1,4 @@
 import asyncio
-import json
 
 import pytest
 
@@ -76,12 +75,14 @@ def _make_job(channel_id: str, name: str, work) -> Job:
 @pytest.mark.asyncio
 async def test_run_forever_continues_after_job_failure():
     executed = []
+    good_done = asyncio.Event()
 
     def fail(task, context):
         raise RuntimeError("boom")
 
     def ok(task, context):
         executed.append(task.name)
+        good_done.set()
         return task.name
 
     chan = Channel()
@@ -89,15 +90,11 @@ async def test_run_forever_continues_after_job_failure():
     await chan.send(_make_job('forever-fail', 'good', ok))
 
     worker = Worker(chan)
-
-    async def stop_soon():
-        await asyncio.sleep(0.05)
-        chan.request_stop()
-
-    stop_task = asyncio.create_task(stop_soon())
-    await worker.run_forever()
-    await stop_task
+    forever = asyncio.create_task(worker.run_forever())
+    await asyncio.wait_for(good_done.wait(), timeout=5.0)
     assert executed == ['good']
+    chan.request_stop()
+    await asyncio.wait_for(forever, timeout=2.0)
 
 
 @pytest.mark.asyncio
@@ -113,3 +110,27 @@ async def test_request_stop_unblocks_empty_receive():
     await asyncio.wait_for(worker.run_forever(), timeout=2.0)
     await stop_task
     assert chan.stop is True
+
+
+@pytest.mark.asyncio
+async def test_request_stop_does_not_steal_bounded_capacity():
+    """Regression: stop must not fill the only free slot on a bounded channel."""
+    chan = Channel(maxsize=1)
+    assert await chan.send("occupier") is True
+    assert await chan.receive() == "occupier"
+    assert chan.length() == 0
+    chan.request_stop()
+    assert chan.length() == 0
+    # send refuses because stopped (not because queue full)
+    assert await chan.send("after-stop") is False
+    assert chan.length() == 0
+
+
+@pytest.mark.asyncio
+async def test_request_stop_abandons_queued_jobs():
+    chan = Channel()
+    await chan.send("left-behind")
+    chan.request_stop()
+    worker = Worker(chan)
+    assert await worker.run_once() is None
+    assert chan.length() == 1

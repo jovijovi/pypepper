@@ -90,14 +90,17 @@ def test_mongodb_crud():
 
 
 def test_mongodb_concurrent_put_preserves_created():
-    """Concurrent upserts must not overwrite the first ``created`` value."""
+    """Concurrent first inserts must keep a single stable ``created``."""
     from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
 
     store = configure_job_store("mongodb", uri=MONGO_URI)
     store.clear()
     job_id = "mongo-concurrent-created"
+    barrier = Barrier(2)
 
     def _put(created: str, updated: str) -> None:
+        barrier.wait(timeout=5)
         store.put(
             JobRecord(
                 id=job_id,
@@ -120,7 +123,8 @@ def test_mongodb_concurrent_put_preserves_created():
     got = store.get(job_id)
     assert got is not None
     assert got.created in ("t-a", "t-b")
-    # Second writer must not rewrite created to the other value after both finish.
+    assert got.channel_id == "ch"
+    # Later put must not rewrite created.
     store.put(
         JobRecord(
             id=job_id,
