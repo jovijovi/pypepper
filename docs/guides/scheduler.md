@@ -53,7 +53,9 @@ Create a bounded channel with `manager.new(channel_id, maxsize=N)` (or
 `available(..., maxsize=N)` on first create) **before** `Worker` /
 `Job.scheduled()`. If the channel already exists, a later `maxsize` is ignored
 (same instance). Full send returns `False` from `Channel.send`;
-`Job.scheduled()` raises `ChannelFullError` when enqueue is rejected.
+`Job.scheduled()` raises `ChannelFullError` when the queue is full, or
+`ChannelStoppedError` (a `ChannelFullError` subclass) when the channel is stopped.
+Both are pre-enqueue failures (safe to roll back).
 
 ## Status machine
 
@@ -73,7 +75,8 @@ skips work if the job is already cancelled, and stops before `COMPLETE` at workf
 boundaries. It does **not** interrupt a sync workflow mid-`to_thread`. Prefer
 `Channel.request_stop()` to stop the consumer loop (sets `stop` and wakes a blocked
 `receive()` via an event, without occupying queue slots). Assigning `Channel.stop = True`
-alone will not unblock an empty receive. While stopped, `Channel.send` returns `False`.
+alone will not unblock an empty receive. While stopped, `Channel.send` returns `False`
+and `Job.scheduled()` raises `ChannelStoppedError` (a `ChannelFullError` subclass).
 `Channel.stop` / `request_stop` are not job cancel.
 
 ## Workflow retries and rounds

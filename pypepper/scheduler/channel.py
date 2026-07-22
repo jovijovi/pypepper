@@ -30,29 +30,30 @@ class Channel:
 
     async def receive(self) -> Any | None:
         """
-        Wait for the next item, or ``None`` when the channel has been stopped.
+        Wait for the next item, or ``None`` when stop wins and nothing was dequeued.
 
-        Stop does not drain the queue; callers that check ``stop`` before
-        ``receive`` (e.g. Worker) abandon pending items intentionally.
+        If ``stop`` is already set and the queue is empty, return ``None`` immediately.
+        Otherwise race a queue ``get`` against the stop event: whichever completes first
+        wins. A pending item may still be returned to a direct ``receive()`` caller when
+        both are ready. ``Worker.run_once`` checks ``stop`` before calling ``receive``,
+        so it abandons queued items without draining.
         """
-        while True:
-            if self.stop and self._queue.empty():
-                return None
-            get_task = asyncio.create_task(self._queue.get())
-            stop_task = asyncio.create_task(self._stopped.wait())
-            done, pending = await asyncio.wait(
-                {get_task, stop_task},
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-            for task in pending:
-                task.cancel()
-            for task in pending:
-                with contextlib.suppress(asyncio.CancelledError):
-                    await task
-            if get_task in done:
-                return get_task.result()
-            # Stop won: abandon without popping jobs (capacity preserved).
+        if self.stop and self._queue.empty():
             return None
+        get_task = asyncio.create_task(self._queue.get())
+        stop_task = asyncio.create_task(self._stopped.wait())
+        done, pending = await asyncio.wait(
+            {get_task, stop_task},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+        for task in pending:
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        if get_task in done:
+            return get_task.result()
+        return None
 
     def request_stop(self) -> None:
         """Mark the channel stopped and wake a blocked ``receive()`` if needed."""

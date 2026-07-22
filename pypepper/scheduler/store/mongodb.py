@@ -120,7 +120,15 @@ class MongoJobStore(IJobStore):
                 collection.update_one({"_id": record.id}, update, upsert=True)
             except DuplicateKeyError:
                 # Concurrent first-insert race: peer won the insert; apply $set only.
-                collection.update_one({"_id": record.id}, {"$set": update["$set"]}, upsert=False)
+                result = collection.update_one(
+                    {"_id": record.id},
+                    {"$set": update["$set"]},
+                    upsert=False,
+                )
+                if result.matched_count == 0:
+                    raise RuntimeError(
+                        f"MongoJobStore.put: document missing after DuplicateKeyError (id={record.id})"
+                    ) from None
 
     def get(self, job_id: str) -> JobRecord | None:
         with switch_db(SchedulerJobDoc, self._alias):

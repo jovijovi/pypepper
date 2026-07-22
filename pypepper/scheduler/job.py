@@ -25,6 +25,10 @@ class ChannelFullError(RuntimeError):
     """Bounded channel rejected an enqueue (pre-execution; safe to roll back)."""
 
 
+class ChannelStoppedError(ChannelFullError):
+    """Channel was stopped; enqueue rejected (pre-execution; safe to roll back)."""
+
+
 def _raise_if_transition_failed(resp_error: object) -> None:
     if resp_error is None:
         return
@@ -53,6 +57,8 @@ class Processor:
         *,
         on_enqueued: Callable[[], None] | None = None,
     ) -> None:
+        if chan.stop:
+            raise ChannelStoppedError(f"channel stopped: channel_id={job.channel_id}, job_id={job.id}")
         ok = await chan.send(job)
         if not ok:
             raise ChannelFullError(f"channel full: channel_id={job.channel_id}, job_id={job.id}")

@@ -134,3 +134,35 @@ async def test_request_stop_abandons_queued_jobs():
     worker = Worker(chan)
     assert await worker.run_once() is None
     assert chan.length() == 1
+
+
+@pytest.mark.asyncio
+async def test_direct_receive_may_drain_after_stop_when_queued():
+    """Worker abandons; a direct receive() may still dequeue a pending item."""
+    chan = Channel()
+    await chan.send("queued")
+    chan.request_stop()
+    assert await Worker(chan).run_once() is None
+    assert chan.length() == 1
+    assert await chan.receive() == "queued"
+    assert chan.length() == 0
+
+
+def test_scheduled_raises_channel_stopped_error():
+    from pypepper.scheduler.channel import manager
+    from pypepper.scheduler.job import ChannelFullError, ChannelStoppedError, Job
+
+    chan = Channel()
+    chan.request_stop()
+    channel_id = "stopped-enqueue"
+    manager.put(channel_id, chan)
+    try:
+        job = Job(category="x", channel_id=channel_id)
+        with pytest.raises(ChannelStoppedError, match="channel stopped"):
+            job.scheduled()
+        # Subclass remains catchable as ChannelFullError for older callers.
+        job2 = Job(category="x", channel_id=channel_id)
+        with pytest.raises(ChannelFullError, match="channel stopped"):
+            job2.scheduled()
+    finally:
+        manager.remove(channel_id)
