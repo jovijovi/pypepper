@@ -54,8 +54,11 @@ Create a bounded channel with `manager.new(channel_id, maxsize=N)` (or
 `Job.scheduled()`. If the channel already exists, a later `maxsize` is ignored
 (same instance). Full send returns `False` from `Channel.send`;
 `Job.scheduled()` raises `ChannelFullError` when the queue is full, or
-`ChannelStoppedError` (a `ChannelFullError` subclass) when the channel is stopped.
-Both are pre-enqueue failures (safe to roll back).
+`ChannelStoppedError` (a `ChannelFullError` / `ChannelEnqueueError` subclass) when the
+channel is stopped. Catch `ChannelStoppedError` before `ChannelFullError` when deciding
+retries (stop is not capacity backpressure). Both are pre-enqueue failures (safe to roll
+back). `Channel.send` returns `False` for stop or full — check `channel.stop` after
+`False`, or prefer `Job.scheduled()` which raises typed errors.
 
 ## Status machine
 
@@ -75,9 +78,19 @@ skips work if the job is already cancelled, and stops before `COMPLETE` at workf
 boundaries. It does **not** interrupt a sync workflow mid-`to_thread`. Prefer
 `Channel.request_stop()` to stop the consumer loop (sets `stop` and wakes a blocked
 `receive()` via an event, without occupying queue slots). Assigning `Channel.stop = True`
-alone will not unblock an empty receive. While stopped, `Channel.send` returns `False`
-and `Job.scheduled()` raises `ChannelStoppedError` (a `ChannelFullError` subclass).
-`Channel.stop` / `request_stop` are not job cancel.
+is equivalent to `request_stop()` (sets the flag and wakes). While stopped, `Channel.send`
+returns `False` and `Job.scheduled()` raises `ChannelStoppedError`. Worker does **not**
+drain on stop: when `stop` is already set, `run_once` returns `None` and leftovers stay
+queued (still Scheduled metadata, not cancelled/failed) until a direct `receive()` or
+process exit. An in-flight `receive()` that started before stop may still return a ready
+item. Use `Job.cancel()` for cancel semantics. `Channel.stop` / `request_stop` are not
+job cancel.
+
+`Worker.run_forever` logs job errors and continues (behavior change vs raise-and-exit).
+Exit when `run_once` returns `None` (channel stopped / stop wake), not on an idle empty
+queue alone. Continue-on-error does not by itself redeliver: after a RUN-start persist
+failure that restores pre-RUN, the Worker re-enqueues the job when the channel accepts
+it; if re-enqueue fails because the channel is full, `JobRedeliveryError` stops the loop.
 
 ## Workflow retries and rounds
 
@@ -157,13 +170,16 @@ Connections reuse [`helper.db`](helper-db.md) settings style (`uri` or discrete 
 
 `Job.scheduled()` / `Processor.run` must be called from a **sync** context. They raise
 `RuntimeError` if an event loop is already running. From async code: apply `INIT` then
-`SCHEDULE`, call `job.save()`, then `await Channel.send(job)` and consume with `Worker`.
+`SCHEDULE`, call `job.save()`, then `await Channel.send(job)` (check the bool — `False`
+means stopped or full; inspect `channel.stop`) and consume with `Worker`. Prefer
+`Job.scheduled()` from sync code so failures raise `ChannelStoppedError` /
+`ChannelFullError`.
 
 ### Persist-failure rules
 
 - **Schedule** (`INIT`/`SCHEDULE` + `save` in `dispatch`): roll back FSM and `Job.status` so `scheduled()` can retry (no store delete needed if `save` never succeeded).
 - **Enqueue** (channel/processor setup or send rejected): roll back FSM/`Job.status` and best-effort delete the Scheduled store row. If delete fails, a Scheduled row may remain (ghost). After the job is successfully sent to the channel, do **not** roll back — a raised error then is a committed enqueue plus secondary failure (the job may still run); do not treat it as “nothing queued.”
-- **Start (`RUN`)**: if Running snapshot fails, do not run workflows; prefer persist `Failed`. If that also fails and the job is already `Cancelled`, keep Cancelled and retry `job.save()` only — do **not** restore pre-RUN over a winning cancel. Otherwise restore pre-RUN.
+- **Start (`RUN`)**: if Running snapshot fails, do not run workflows; prefer persist `Failed`. If that also fails and the job is already `Cancelled`, keep Cancelled and retry `job.save()` only — do **not** restore pre-RUN over a winning cancel. Otherwise restore pre-RUN and **re-enqueue** the job on the channel when possible so `run_forever` continue-on-error does not orphan it; if re-enqueue fails while the channel is full, raise `JobRedeliveryError` (stops `run_forever`).
 - **After work** (COMPLETE/FAIL via Worker): keep the terminal FSM; retry `job.save()` only — do not re-run workflows because the snapshot write failed.
 - **Cancel** (`Job.cancel()`): apply `CANCEL` then `save()`; on persist failure keep Cancelled in the FSM and retry `job.save()` only. The Worker does not apply `CANCEL` — it skips or exits when the job is already cancelled (and retries Cancelled persist if the store lags).
 - `Job.save()` updates in-memory `status`/`updated` only after the store `put` succeeds.

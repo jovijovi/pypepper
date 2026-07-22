@@ -9,7 +9,7 @@ from pypepper.common.log import log
 from pypepper.event.interfaces import IEvent
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel
-from pypepper.scheduler.job import Job
+from pypepper.scheduler.job import Job, JobRedeliveryError
 from pypepper.scheduler.status import Status
 
 
@@ -68,8 +68,13 @@ class Worker:
                 job = await self.run_once()
                 if job is None:
                     return
+            except JobRedeliveryError:
+                # Dequeued + restored job could not be put back; stop the loop loudly.
+                raise
             except Exception as e:
-                # Continues after job failures (intentional BC vs raise-and-exit).
+                # Intentional behavior change vs raise-and-exit: log and continue.
+                # Continue-on-error does not redeliver by itself; RUN-start restore
+                # paths re-enqueue inside ``_process`` when possible.
                 log.error(f"Worker run_forever job error (continuing): {e!r}")
 
     async def _process(self, job: Job) -> None:
@@ -108,7 +113,19 @@ class Worker:
                 log.error(
                     f"Job RUN persist failed: id={job.id}, error={save_exc}; FAIL persist also failed: {fail_save_exc}"
                 )
-                raise save_exc from fail_save_exc
+                # Job already left the channel; put it back so continue-on-error
+                # does not leave a Scheduled snapshot undeliverable.
+                requeued = await self.channel.send(job)
+                if requeued:
+                    log.error(f"Job re-enqueued after RUN persist restore: id={job.id}")
+                    raise save_exc from fail_save_exc
+                if self.channel.stop:
+                    log.error(f"Job RUN persist restore left job off-channel while stopped: id={job.id}")
+                    raise save_exc from fail_save_exc
+                raise JobRedeliveryError(
+                    f"Job RUN persist restore could not re-enqueue "
+                    f"(channel full): id={job.id}, channel_id={job.channel_id}"
+                ) from save_exc
             log.error(
                 f"Job RUN persist failed: id={job.id}, error={save_exc}; "
                 f"persisted Failed instead (do not re-run workflows)"

@@ -101,34 +101,39 @@ class MongoJobStore(IJobStore):
 
     def put(self, record: JobRecord) -> None:
         with switch_db(SchedulerJobDoc, self._alias):
-            # Atomic upsert: never overwrite existing ``created`` (SQL ON CONFLICT semantics).
+            # Atomic upsert: preserve ``created`` on insert (SQL ON CONFLICT–aligned);
+            # DuplicateKey retry below reapplies ``$set`` only.
             collection = SchedulerJobDoc._get_collection()
+            set_fields = {
+                "category": record.category,
+                "channel_id": record.channel_id,
+                "status": record.status,
+                "updated": record.updated,
+                "workflow_count": record.workflow_count,
+                "version": record.version,
+            }
             update = {
-                "$set": {
-                    "category": record.category,
-                    "channel_id": record.channel_id,
-                    "status": record.status,
-                    "updated": record.updated,
-                    "workflow_count": record.workflow_count,
-                    "version": record.version,
-                },
+                "$set": set_fields,
                 "$setOnInsert": {
                     "created": record.created,
                 },
             }
             try:
                 collection.update_one({"_id": record.id}, update, upsert=True)
-            except DuplicateKeyError:
+            except DuplicateKeyError as dke:
                 # Concurrent first-insert race: peer won the insert; apply $set only.
+                from pypepper.common.log import log
+
+                log.warn(f"MongoJobStore.put DuplicateKeyError retry $set-only: id={record.id}")
                 result = collection.update_one(
                     {"_id": record.id},
-                    {"$set": update["$set"]},
+                    {"$set": set_fields},
                     upsert=False,
                 )
                 if result.matched_count == 0:
                     raise RuntimeError(
                         f"MongoJobStore.put: document missing after DuplicateKeyError (id={record.id})"
-                    ) from None
+                    ) from dke
 
     def get(self, job_id: str) -> JobRecord | None:
         with switch_db(SchedulerJobDoc, self._alias):

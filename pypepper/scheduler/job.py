@@ -21,12 +21,26 @@ from pypepper.scheduler.store import JobRecord, get_job_store
 from pypepper.scheduler.workflow import Workflow
 
 
-class ChannelFullError(RuntimeError):
-    """Bounded channel rejected an enqueue (pre-execution; safe to roll back)."""
+class ChannelEnqueueError(RuntimeError):
+    """Enqueue rejected before the job lands on the channel (safe to roll back)."""
+
+
+class ChannelFullError(ChannelEnqueueError):
+    """
+    Bounded channel capacity rejection (pre-execution; safe to roll back).
+
+    Catch :class:`ChannelStoppedError` before this type when deciding retries:
+    stopped channels are not capacity backpressure. ``ChannelStoppedError`` remains a
+    subclass for older ``except ChannelFullError`` handlers.
+    """
 
 
 class ChannelStoppedError(ChannelFullError):
     """Channel was stopped; enqueue rejected (pre-execution; safe to roll back)."""
+
+
+class JobRedeliveryError(RuntimeError):
+    """Dequeued job could not be returned to the channel after a RUN-start restore."""
 
 
 def _raise_if_transition_failed(resp_error: object) -> None:
@@ -57,10 +71,11 @@ class Processor:
         *,
         on_enqueued: Callable[[], None] | None = None,
     ) -> None:
-        if chan.stop:
-            raise ChannelStoppedError(f"channel stopped: channel_id={job.channel_id}, job_id={job.id}")
         ok = await chan.send(job)
         if not ok:
+            # Classify after send so a concurrent request_stop is not labeled "full".
+            if chan.stop:
+                raise ChannelStoppedError(f"channel stopped: channel_id={job.channel_id}, job_id={job.id}")
             raise ChannelFullError(f"channel full: channel_id={job.channel_id}, job_id={job.id}")
         # Job is on the channel: callers must not roll back schedule/store after this.
         if on_enqueued is not None:

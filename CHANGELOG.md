@@ -3,19 +3,21 @@
 ## Unreleased
 
 ### Added
-- `Channel.request_stop()`: set `stop` and wake a blocked `receive()` via `asyncio.Event` (does not consume queue capacity). `send` returns `False` while stopped.
-- `ChannelStoppedError` (`ChannelFullError` subclass) when enqueue is rejected because the channel is stopped (message `channel stopped:...`; full queue still raises `ChannelFullError` with `channel full:...`).
+- `Channel.request_stop()`: set `stop` and wake a blocked `receive()` via `asyncio.Event` (does not consume queue capacity). `send` returns `False` while stopped. Assigning `Channel.stop = True` uses the same wake path.
+- `ChannelEnqueueError` base; `ChannelStoppedError` (`ChannelFullError` subclass) when enqueue is rejected because the channel is stopped (message `channel stopped:...`; full queue still raises `ChannelFullError` with `channel full:...`). Catch stopped before full when deciding retries.
+- `JobRedeliveryError`: raised when RUN-start restore cannot re-enqueue a dequeued job (channel full); `Worker.run_forever` re-raises and stops.
 - `network.http.server.create_app()`: build a FastAPI app with handlers/middleware registered once; `run` / `run_without_tls` / `run_with_tls` use it instead of re-registering on the module-level `app` (module `app` stays unregistered).
 
 ### Changed
 - Packaging: runtime dependencies in `pyproject.toml` use compatible-release pins (`~=x.y.z`); exact pins remain in `requirements.txt` / `uv.lock`. Dropped unused runtime `pip` (still in the `dev` dependency group). `requires-python` is now `>=3.10, <3.15` so CPython 3.14.x patches remain installable. `.pypirc` is excluded from Docker build context via `.dockerignore`.
-- `Worker.run_forever` logs job errors and continues; exits when `run_once` returns `None` (channel stopped or stop wake), not on an idle/empty queue alone.
-- `MongoJobStore.put` uses atomic upsert with `$setOnInsert` for `created` (aligned with SQL stores); retries `$set`-only on concurrent first-insert `DuplicateKeyError`, and raises if that retry matches no document.
-- `Config.load_config()` uses `parse_known_args()` for `-c/--config` (unknown host argv ignored); bare `-c` no longer becomes `True`.
+- `Worker.run_forever` logs job errors and continues; exits when `run_once` returns `None` (channel stopped or stop wake), not on an idle/empty queue alone. After RUN-start restore it re-enqueues when possible; `JobRedeliveryError` stops the loop.
+- `MongoJobStore.put` uses atomic upsert with `$setOnInsert` for `created` (aligned with SQL stores); retries `$set`-only on concurrent first-insert `DuplicateKeyError`, and raises if that retry matches no document (preserves DKE cause chain).
+- `Config.load_config()` uses `parse_known_args()` for `-c/--config` (unknown host argv logged and ignored); bare `-c` no longer becomes `True`.
+- `run_with_tls` raises when `mutualTLS` is set without `caFile`.
 - `scripts/check_mutable_class_attrs.py` also flags annotated class attributes (`AnnAssign`).
 
 ### Fixed
-- `Cache.get` no longer treats falsy keys (`0`, `""`, `False`) as missing.
+- `Cache.get` no longer treats falsy keys (`0`, `""`, `False`) as missing (`False` and `0` remain the same dict key).
 - `context.born(length)` raises `ValueError` when `length < 1` (was `RecursionError` for `0`).
 
 ## 0.6.3

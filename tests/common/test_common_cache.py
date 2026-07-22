@@ -95,6 +95,11 @@ def test_cache_falsy_keys_are_readable():
     assert c.get(0) == "zero"
     assert c.get("") == "empty"
     assert c.get(1, "missing") == "missing"
+    # bool False hashes equal to 0 in Python dicts; still readable as a key.
+    c2 = cache.new_cache()
+    c2.set(False, "false")
+    assert c2.get(False) == "false"
+    assert c2.get(0) == "false"
 
 
 if __name__ == '__main__':

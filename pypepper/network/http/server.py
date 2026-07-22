@@ -35,27 +35,21 @@ def run_with_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0
     if not cert_file or not key_file:
         raise ValueError("HTTPS enabled but certFile/keyFile missing in network.httpsServer config")
 
-    application = create_app(handlers_)
+    mutual_tls = bool(getattr(https, "mutualTLS", False))
+    if mutual_tls and not ca_file:
+        raise ValueError("HTTPS mutualTLS enabled but caFile missing in network.httpsServer config")
 
-    if getattr(https, "mutualTLS", False) and ca_file:
-        uvicorn.run(
-            application,
-            host=host,
-            port=port,
-            timeout_keep_alive=30,
-            ssl_certfile=cert_file,
-            ssl_keyfile=key_file,
-            ssl_ca_certs=ca_file,
-        )
-    else:
-        uvicorn.run(
-            application,
-            host=host,
-            port=port,
-            timeout_keep_alive=30,
-            ssl_certfile=cert_file,
-            ssl_keyfile=key_file,
-        )
+    application = create_app(handlers_)
+    run_kwargs: dict = {
+        "host": host,
+        "port": port,
+        "timeout_keep_alive": 30,
+        "ssl_certfile": cert_file,
+        "ssl_keyfile": key_file,
+    }
+    if mutual_tls:
+        run_kwargs["ssl_ca_certs"] = ca_file
+    uvicorn.run(application, **run_kwargs)
 
 
 def run(handlers_: ITaskHandler | None = None) -> None:

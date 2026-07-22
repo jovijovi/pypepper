@@ -405,3 +405,6 @@ def test_load_config_cli_path_and_bare_flag(monkeypatch, tmp_path):
     yml = config.get_yml_config()
     assert yml is not None
     assert not hasattr(yml, "custom") or getattr(getattr(yml, "custom", None), "marker", None) != "from-cli-path"
+    # Default conf/app.config.yaml exposes log.level (TRACE in repo fixture).
+    assert hasattr(yml, "log") and hasattr(yml.log, "level")
+    assert yml.log.level == "TRACE"

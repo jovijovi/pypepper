@@ -118,10 +118,11 @@ class Config:
             service_config_filename = os.path.abspath(filename)
         else:
             parser = self._get_parser()
-            args, _unknown = parser.parse_known_args()
+            args, unknown = parser.parse_known_args()
+            if unknown:
+                log.warn(f"Ignoring unknown CLI arguments: {unknown}")
             # Bare ``-c`` yields None (nargs=? without const); fall back to default path.
-            raw = args.config
-            service_config_filename = os.path.abspath(raw) if raw else os.path.abspath(self._default_config_filepath)
+            service_config_filename = os.path.abspath(args.config or self._default_config_filepath)
 
         with open(service_config_filename) as fd:
             data = fd.read()
