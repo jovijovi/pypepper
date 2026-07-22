@@ -21,7 +21,7 @@ Do this once before the first tag-triggered release.
    - Workflow name: `publish.yml`
    - Environment name: `pypi`
 
-No long-lived API token is stored in the repository. A local `.pypirc` (gitignored) is only for manual uploads.
+No long-lived API token is stored in the repository. A local `.pypirc` (gitignored and listed in `.dockerignore`) is only for manual uploads. If that file is exposed or you suspect a leak, revoke the token on PyPI / TestPyPI, create a new project-scoped token, and update your local `.pypirc`.
 
 ## Release checklist
 
@@ -41,7 +41,7 @@ Example: if `pyproject.toml` has `version = "0.6.3"`, the tag must be `v0.6.3`.
 
 ## Manual fallback
 
-Local publish (uses your machine credentials / `.pypirc`):
+Local publish (uses your machine credentials / `.pypirc`; prefer Trusted Publisher for tagged releases):
 
 ```shell
 make publish-test   # TestPyPI

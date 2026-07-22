@@ -144,6 +144,7 @@ celerybeat.pid
 
 # Environments
 .env
+/.pypirc
 .venv
 env/
 venv/

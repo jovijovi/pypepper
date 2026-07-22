@@ -6,7 +6,7 @@ authors = [
 ]
 description = "PyPepper is a microservice toolkit written in Python."
 readme = "README.md"
-requires-python = ">=3.10, <=3.14"
+requires-python = ">=3.10, <3.15"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -14,22 +14,21 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "arrow==1.4.0",
-    "cachetools==7.1.4",
-    "cryptography==49.0.0",
-    "fastapi==0.139.2",
-    "uvicorn==0.51.0",
-    "loguru==0.7.3",
-    "mongoengine==0.29.3",
-    "python-box==7.4.1",
-    "pymysql==1.2.0",
-    "psycopg[binary]==3.3.4",
-    "pyyaml==6.0.3",
-    "sqlalchemy==2.0.51",
-    "pip==26.1.2",
-    "opentelemetry-api==1.44.0",
-    "opentelemetry-sdk==1.44.0",
-    "opentelemetry-exporter-otlp-proto-http==1.44.0",
+    "arrow~=1.4.0",
+    "cachetools~=7.1.4",
+    "cryptography~=49.0.0",
+    "fastapi~=0.139.2",
+    "uvicorn~=0.51.0",
+    "loguru~=0.7.3",
+    "mongoengine~=0.29.3",
+    "python-box~=7.4.1",
+    "pymysql~=1.2.0",
+    "psycopg[binary]~=3.3.4",
+    "pyyaml~=6.0.3",
+    "sqlalchemy~=2.0.51",
+    "opentelemetry-api~=1.44.0",
+    "opentelemetry-sdk~=1.44.0",
+    "opentelemetry-exporter-otlp-proto-http~=1.44.0",
 ]
 
 [project.urls]
