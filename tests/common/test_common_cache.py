@@ -88,5 +88,14 @@ def test_empty_cache_set():
     assert nothing2 is None
 
 
+def test_cache_falsy_keys_are_readable():
+    c = cache.new_cache()
+    c.set(0, "zero")
+    c.set("", "empty")
+    assert c.get(0) == "zero"
+    assert c.get("") == "empty"
+    assert c.get(1, "missing") == "missing"
+
+
 if __name__ == '__main__':
     pytest.main()

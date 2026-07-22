@@ -7,13 +7,21 @@ from pypepper.common.config import config
 from pypepper.network.http.handlers import handlers
 from pypepper.network.http.interfaces import ITaskHandler
 
+# Compatibility import target; prefer :func:`create_app` for a registered app.
 app = FastAPI()
 
 
+def create_app(handlers_: ITaskHandler | None = None) -> FastAPI:
+    """Build a new FastAPI app with handlers and middleware registered once."""
+    application = FastAPI()
+    handlers.register_handlers(application, handlers_)
+    handlers.use_middleware(application, handlers_)
+    return application
+
+
 def run_without_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0") -> None:
-    handlers.register_handlers(app, handlers_)
-    handlers.use_middleware(app, handlers_)
-    uvicorn.run(app, host=host, port=port, timeout_keep_alive=30)
+    application = create_app(handlers_)
+    uvicorn.run(application, host=host, port=port, timeout_keep_alive=30)
 
 
 def run_with_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0") -> None:
@@ -26,12 +34,11 @@ def run_with_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0
     if not cert_file or not key_file:
         raise ValueError("HTTPS enabled but certFile/keyFile missing in network.httpsServer config")
 
-    handlers.register_handlers(app, handlers_)
-    handlers.use_middleware(app, handlers_)
+    application = create_app(handlers_)
 
     if getattr(https, "mutualTLS", False) and ca_file:
         uvicorn.run(
-            app,
+            application,
             host=host,
             port=port,
             timeout_keep_alive=30,
@@ -41,7 +48,7 @@ def run_with_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0
         )
     else:
         uvicorn.run(
-            app,
+            application,
             host=host,
             port=port,
             timeout_keep_alive=30,

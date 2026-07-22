@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import contextlib
 from asyncio import Queue, QueueFull
 from collections.abc import MutableMapping
 from threading import Lock
 from typing import Any
 
 from pypepper.common.log import log
+
+# Wake blocked ``receive()`` when ``request_stop()`` is called.
+_STOP = object()
 
 
 class Channel:
@@ -23,7 +27,17 @@ class Channel:
             return False
 
     async def receive(self):
-        return await self._queue.get()
+        item = await self._queue.get()
+        if item is _STOP:
+            return None
+        return item
+
+    def request_stop(self) -> None:
+        """Mark the channel stopped and wake a blocked ``receive()`` if needed."""
+        self.stop = True
+        with contextlib.suppress(QueueFull):
+            # QueueFull: worker is not waiting on receive; next run_once sees stop.
+            self._queue.put_nowait(_STOP)
 
     def length(self):
         return self._queue.qsize()

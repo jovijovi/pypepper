@@ -100,27 +100,25 @@ class MongoJobStore(IJobStore):
 
     def put(self, record: JobRecord) -> None:
         with switch_db(SchedulerJobDoc, self._alias):
-            doc = SchedulerJobDoc.objects(id=record.id).first()
-            if doc is None:
-                SchedulerJobDoc(
-                    id=record.id,
-                    category=record.category,
-                    channel_id=record.channel_id,
-                    status=record.status,
-                    created=record.created,
-                    updated=record.updated,
-                    workflow_count=record.workflow_count,
-                    version=record.version,
-                ).save()
-                return
-            # Preserve original created (SQL upsert semantics).
-            doc.category = record.category
-            doc.channel_id = record.channel_id
-            doc.status = record.status
-            doc.updated = record.updated
-            doc.workflow_count = record.workflow_count
-            doc.version = record.version
-            doc.save()
+            # Atomic upsert: never overwrite existing ``created`` (SQL ON CONFLICT semantics).
+            collection = SchedulerJobDoc._get_collection()
+            collection.update_one(
+                {"_id": record.id},
+                {
+                    "$set": {
+                        "category": record.category,
+                        "channel_id": record.channel_id,
+                        "status": record.status,
+                        "updated": record.updated,
+                        "workflow_count": record.workflow_count,
+                        "version": record.version,
+                    },
+                    "$setOnInsert": {
+                        "created": record.created,
+                    },
+                },
+                upsert=True,
+            )
 
     def get(self, job_id: str) -> JobRecord | None:
         with switch_db(SchedulerJobDoc, self._alias):

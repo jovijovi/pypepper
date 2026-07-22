@@ -109,5 +109,12 @@ def test_trace_raises_for_missing_index():
         child.trace(-1)
 
 
+def test_born_rejects_non_positive_length():
+    with pytest.raises(ValueError, match="length must be >= 1"):
+        context.born(length=0)
+    with pytest.raises(ValueError, match="length must be >= 1"):
+        context.born(length=-1)
+
+
 if __name__ == '__main__':
     pytest.main()

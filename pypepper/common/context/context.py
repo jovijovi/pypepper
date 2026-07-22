@@ -106,6 +106,9 @@ def born(
     :return: context.
     """
 
+    if length < 1:
+        raise ValueError(f"born length must be >= 1, got {length}")
+
     if parent:
         if parent.index == length - 1:
             return parent

@@ -5,6 +5,7 @@ Detects patterns like:
   class Foo:
       _store = {}
       _lock = Lock()
+      _annotated: dict = {}
 
 Instance state must be initialized in __init__ / __new__.
 Allowlisted intentional class constants are skipped.
@@ -28,44 +29,69 @@ ALLOWLIST_ATTR_NAMES = {'_init_lock', '_instance'}
 MUTABLE_CALLS = {'Lock', 'RLock', 'dict', 'list', 'set', 'Cache'}
 
 
+def _mutable_call_name(value: ast.expr) -> str | None:
+    if not isinstance(value, ast.Call):
+        return None
+    func = value.func
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
+
+
+def _is_mutable_value(value: ast.expr | None) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, (ast.Dict, ast.List, ast.Set)):
+        return True
+    if isinstance(value, ast.Call):
+        name = _mutable_call_name(value)
+        return name in MUTABLE_CALLS
+    return False
+
+
+def _should_flag_name(attr_name: str) -> bool:
+    if attr_name == '__slots__':
+        return False
+    if not (attr_name.startswith('_') or attr_name == '__slots__'):
+        return False
+    if attr_name.isupper():
+        return False
+    if attr_name in ALLOWLIST_ATTR_NAMES:
+        return False
+    return True
+
+
 class Visitor(ast.NodeVisitor):
     def __init__(self, path: Path):
         self.path = path
         self.errors: list[str] = []
         self._rel = str(path.relative_to(ROOT))
 
+    def _report(self, node: ast.AST, class_name: str, attr_name: str) -> None:
+        key = (self._rel, class_name, attr_name)
+        if key in ALLOWLIST_ATTRS:
+            return
+        self.errors.append(
+            f'{self._rel}:{node.lineno}: class {class_name}.{attr_name} '
+            f'is a mutable class attribute; initialize in __init__/__new__'
+        )
+
     def visit_ClassDef(self, node: ast.ClassDef):
         for stmt in node.body:
-            if not isinstance(stmt, ast.Assign):
-                continue
-            if not isinstance(stmt.value, (ast.Dict, ast.List, ast.Set, ast.Call)):
-                continue
-            if isinstance(stmt.value, ast.Call):
-                func = stmt.value.func
-                name = None
-                if isinstance(func, ast.Name):
-                    name = func.id
-                elif isinstance(func, ast.Attribute):
-                    name = func.attr
-                if name not in MUTABLE_CALLS:
+            if isinstance(stmt, ast.Assign):
+                if not _is_mutable_value(stmt.value):
                     continue
-            for target in stmt.targets:
-                if isinstance(target, ast.Name) and (
-                    target.id.startswith('_') or target.id == '__slots__'
-                ):
-                    if target.id == '__slots__':
-                        continue
-                    if target.id.isupper():
-                        continue
-                    if target.id in ALLOWLIST_ATTR_NAMES:
-                        continue
-                    key = (self._rel, node.name, target.id)
-                    if key in ALLOWLIST_ATTRS:
-                        continue
-                    self.errors.append(
-                        f'{self._rel}:{stmt.lineno}: class {node.name}.{target.id} '
-                        f'is a mutable class attribute; initialize in __init__/__new__'
-                    )
+                for target in stmt.targets:
+                    if isinstance(target, ast.Name) and _should_flag_name(target.id):
+                        self._report(stmt, node.name, target.id)
+            elif isinstance(stmt, ast.AnnAssign):
+                if not _is_mutable_value(stmt.value):
+                    continue
+                target = stmt.target
+                if isinstance(target, ast.Name) and _should_flag_name(target.id):
+                    self._report(stmt, node.name, target.id)
         self.generic_visit(node)
 
 

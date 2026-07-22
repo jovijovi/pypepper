@@ -49,7 +49,7 @@ class Cache(TTLCache):
 
         with self._lock:
             try:
-                return self[key] if key else default
+                return self[key]
             except KeyError:
                 return default
 
