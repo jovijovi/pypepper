@@ -1,6 +1,6 @@
 version = 1
 revision = 3
-requires-python = ">=3.10, <=3.14"
+requires-python = ">=3.10, <3.15"
 
 [[package]]
 name = "annotated-doc"
@@ -1973,7 +1973,6 @@ dependencies = [
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-sdk" },
-    { name = "pip" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pymysql" },
     { name = "python-box" },
@@ -2003,22 +2002,21 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "arrow", specifier = "==1.4.0" },
-    { name = "cachetools", specifier = "==7.1.4" },
-    { name = "cryptography", specifier = "==49.0.0" },
-    { name = "fastapi", specifier = "==0.139.2" },
-    { name = "loguru", specifier = "==0.7.3" },
-    { name = "mongoengine", specifier = "==0.29.3" },
-    { name = "opentelemetry-api", specifier = "==1.44.0" },
-    { name = "opentelemetry-exporter-otlp-proto-http", specifier = "==1.44.0" },
-    { name = "opentelemetry-sdk", specifier = "==1.44.0" },
-    { name = "pip", specifier = "==26.1.2" },
-    { name = "psycopg", extras = ["binary"], specifier = "==3.3.4" },
-    { name = "pymysql", specifier = "==1.2.0" },
-    { name = "python-box", specifier = "==7.4.1" },
-    { name = "pyyaml", specifier = "==6.0.3" },
-    { name = "sqlalchemy", specifier = "==2.0.51" },
-    { name = "uvicorn", specifier = "==0.51.0" },
+    { name = "arrow", specifier = "~=1.4.0" },
+    { name = "cachetools", specifier = "~=7.1.4" },
+    { name = "cryptography", specifier = "~=49.0.0" },
+    { name = "fastapi", specifier = "~=0.139.2" },
+    { name = "loguru", specifier = "~=0.7.3" },
+    { name = "mongoengine", specifier = "~=0.29.3" },
+    { name = "opentelemetry-api", specifier = "~=1.44.0" },
+    { name = "opentelemetry-exporter-otlp-proto-http", specifier = "~=1.44.0" },
+    { name = "opentelemetry-sdk", specifier = "~=1.44.0" },
+    { name = "psycopg", extras = ["binary"], specifier = "~=3.3.4" },
+    { name = "pymysql", specifier = "~=1.2.0" },
+    { name = "python-box", specifier = "~=7.4.1" },
+    { name = "pyyaml", specifier = "~=6.0.3" },
+    { name = "sqlalchemy", specifier = "~=2.0.51" },
+    { name = "uvicorn", specifier = "~=0.51.0" },
 ]
 
 [package.metadata.requires-dev]
