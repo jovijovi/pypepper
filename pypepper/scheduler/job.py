@@ -21,8 +21,44 @@ from pypepper.scheduler.store import JobRecord, get_job_store
 from pypepper.scheduler.workflow import Workflow
 
 
-class ChannelFullError(RuntimeError):
-    """Bounded channel rejected an enqueue (pre-execution; safe to roll back)."""
+class ChannelEnqueueError(RuntimeError):
+    """Enqueue rejected before the job lands on the channel (safe to roll back)."""
+
+
+class ChannelFullError(ChannelEnqueueError):
+    """Bounded channel capacity rejection (pre-execution; safe to roll back)."""
+
+
+class ChannelStoppedError(ChannelEnqueueError):
+    """
+    Channel was stopped; enqueue rejected (pre-execution; safe to roll back).
+
+    Sibling of :class:`ChannelFullError` (not a subclass): catch this before treating
+    :class:`ChannelFullError` as retryable backpressure. Prefer catching
+    :class:`ChannelEnqueueError` for any pre-landing rejection.
+    """
+
+
+class JobRedeliveryError(RuntimeError):
+    """
+    Dequeued job could not be returned to the channel after a RUN-start restore
+    (channel full or stopped). ``Worker.run_forever`` re-raises and stops.
+    """
+
+    def __init__(self, message: str, *, reason: str) -> None:
+        super().__init__(message)
+        if reason not in ("full", "stopped"):
+            raise ValueError(f"JobRedeliveryError.reason must be 'full' or 'stopped', got {reason!r}")
+        self.reason = reason
+
+
+class JobRequeuedError(RuntimeError):
+    """
+    Job was restored and put back on the channel after RUN-start persist failure.
+
+    ``Worker.run_forever`` re-raises (does not continue) so supervisors see a non-success
+    exit and avoid persist-failure busy-spin; the job remains queued for a later consumer.
+    """
 
 
 def _raise_if_transition_failed(resp_error: object) -> None:
@@ -55,6 +91,9 @@ class Processor:
     ) -> None:
         ok = await chan.send(job)
         if not ok:
+            # Classify after send so a concurrent request_stop is not labeled "full".
+            if chan.stop:
+                raise ChannelStoppedError(f"channel stopped: channel_id={job.channel_id}, job_id={job.id}")
             raise ChannelFullError(f"channel full: channel_id={job.channel_id}, job_id={job.id}")
         # Job is on the channel: callers must not roll back schedule/store after this.
         if on_enqueued is not None:

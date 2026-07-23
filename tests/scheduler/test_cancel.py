@@ -359,7 +359,7 @@ async def test_channel_stop_does_not_cancel_queued_job():
 
     chan = Channel()
     await chan.send(job)
-    chan.stop = True
+    chan.request_stop()
     worker = Worker(chan)
     assert await worker.run_once() is None
 

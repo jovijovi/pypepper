@@ -113,12 +113,15 @@ async def test_worker_run_save_deferred_restores_pre_run(tmp_path):
         reset_job_store()
         assert config._deferred_durable_job_store_backend == "postgres"
 
-        with pytest.raises(ValueError, match="setup_from_config"):
+        from pypepper.scheduler.job import JobRequeuedError
+
+        with pytest.raises(JobRequeuedError, match="re-enqueued"):
             await Worker(chan).run_once()
 
         assert executed == []
         assert job._fsm.current().value == Status.SCHEDULED
         assert job.status == Status.SCHEDULED.value
+        assert chan.length() == 1
     finally:
         reset_job_store_mismatch_warning()
         _restore_memory_config()

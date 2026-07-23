@@ -89,6 +89,60 @@ def test_mongodb_crud():
     _crud_roundtrip("mongodb", MONGO_URI)
 
 
+def test_mongodb_concurrent_put_preserves_created():
+    """Concurrent first inserts must keep a single stable ``created``."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    store = configure_job_store("mongodb", uri=MONGO_URI)
+    store.clear()
+    job_id = "mongo-concurrent-created"
+    barrier = Barrier(2)
+
+    def _put(created: str, updated: str) -> None:
+        barrier.wait(timeout=5)
+        store.put(
+            JobRecord(
+                id=job_id,
+                category="c",
+                channel_id="ch",
+                status=Status.SCHEDULED.value,
+                created=created,
+                updated=updated,
+                workflow_count=1,
+                version=1,
+            )
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f1 = pool.submit(_put, "t-a", "u1")
+        f2 = pool.submit(_put, "t-b", "u2")
+        f1.result()
+        f2.result()
+
+    got = store.get(job_id)
+    assert got is not None
+    assert got.created in ("t-a", "t-b")
+    assert got.channel_id == "ch"
+    # Later put must not rewrite created.
+    store.put(
+        JobRecord(
+            id=job_id,
+            category="c2",
+            channel_id="ch",
+            status=Status.IN_PROGRESS.value,
+            created="should-not-overwrite",
+            updated="u3",
+            workflow_count=2,
+            version=2,
+        )
+    )
+    again = store.get(job_id)
+    assert again is not None
+    assert again.created == got.created
+    store.delete(job_id)
+
+
 async def _worker_lifecycle(backend: str, uri: str, channel_id: str) -> None:
     configure_job_store(backend, uri=uri)
     get_job_store().clear()

@@ -2,7 +2,14 @@
 
 from . import events
 from .channel import Channel
-from .job import Job
+from .job import (
+    ChannelEnqueueError,
+    ChannelFullError,
+    ChannelStoppedError,
+    Job,
+    JobRedeliveryError,
+    JobRequeuedError,
+)
 from .status import Status
 from .store import (
     configure_job_store,
@@ -16,7 +23,12 @@ from .workflow import Workflow
 
 __all__ = [
     "Channel",
+    "ChannelEnqueueError",
+    "ChannelFullError",
+    "ChannelStoppedError",
     "Job",
+    "JobRedeliveryError",
+    "JobRequeuedError",
     "Status",
     "Task",
     "Worker",

@@ -7,6 +7,7 @@ from typing import Any
 from mongoengine import Document, IntField, StringField, disconnect
 from mongoengine import connect as mongo_connect
 from mongoengine.context_managers import switch_db
+from pymongo.errors import DuplicateKeyError
 
 from pypepper.helper.db import mongodb as mongodb_helper
 from pypepper.scheduler.store.interfaces import IJobStore, JobRecord
@@ -100,27 +101,39 @@ class MongoJobStore(IJobStore):
 
     def put(self, record: JobRecord) -> None:
         with switch_db(SchedulerJobDoc, self._alias):
-            doc = SchedulerJobDoc.objects(id=record.id).first()
-            if doc is None:
-                SchedulerJobDoc(
-                    id=record.id,
-                    category=record.category,
-                    channel_id=record.channel_id,
-                    status=record.status,
-                    created=record.created,
-                    updated=record.updated,
-                    workflow_count=record.workflow_count,
-                    version=record.version,
-                ).save()
-                return
-            # Preserve original created (SQL upsert semantics).
-            doc.category = record.category
-            doc.channel_id = record.channel_id
-            doc.status = record.status
-            doc.updated = record.updated
-            doc.workflow_count = record.workflow_count
-            doc.version = record.version
-            doc.save()
+            # Atomic upsert: preserve ``created`` on insert (SQL ON CONFLICT–aligned);
+            # DuplicateKey retry below reapplies ``$set`` only.
+            collection = SchedulerJobDoc._get_collection()
+            set_fields = {
+                "category": record.category,
+                "channel_id": record.channel_id,
+                "status": record.status,
+                "updated": record.updated,
+                "workflow_count": record.workflow_count,
+                "version": record.version,
+            }
+            update = {
+                "$set": set_fields,
+                "$setOnInsert": {
+                    "created": record.created,
+                },
+            }
+            try:
+                collection.update_one({"_id": record.id}, update, upsert=True)
+            except DuplicateKeyError as dke:
+                # Concurrent first-insert race: peer won the insert; apply $set only.
+                from pypepper.common.log import log
+
+                log.warn(f"MongoJobStore.put DuplicateKeyError retry $set-only: id={record.id}")
+                result = collection.update_one(
+                    {"_id": record.id},
+                    {"$set": set_fields},
+                    upsert=False,
+                )
+                if result.matched_count == 0:
+                    raise RuntimeError(
+                        f"MongoJobStore.put: document missing after DuplicateKeyError (id={record.id})"
+                    ) from dke
 
     def get(self, job_id: str) -> JobRecord | None:
         with switch_db(SchedulerJobDoc, self._alias):

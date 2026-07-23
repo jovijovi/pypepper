@@ -107,7 +107,6 @@ class Config:
             "-c",
             "--config",
             type=str,
-            const=True,
             default=os.path.join(self._default_config_filepath),
             nargs="?",
             help="config filename & path",
@@ -119,8 +118,11 @@ class Config:
             service_config_filename = os.path.abspath(filename)
         else:
             parser = self._get_parser()
-            args = parser.parse_args()
-            service_config_filename = args.config or os.path.abspath(self._default_config_filepath)
+            args, unknown = parser.parse_known_args()
+            if unknown:
+                log.warn(f"Ignoring unknown CLI arguments: {unknown}")
+            # Bare ``-c`` yields None (nargs=? without const); fall back to default path.
+            service_config_filename = os.path.abspath(args.config or self._default_config_filepath)
 
         with open(service_config_filename) as fd:
             data = fd.read()

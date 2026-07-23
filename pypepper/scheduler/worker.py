@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import asyncio
-from typing import cast
+from typing import NoReturn, cast
 
 from pypepper.common.log import log
 from pypepper.event.interfaces import IEvent
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel
-from pypepper.scheduler.job import Job
+from pypepper.scheduler.job import Job, JobRedeliveryError, JobRequeuedError
 from pypepper.scheduler.status import Status
 
 
@@ -55,13 +55,47 @@ class Worker:
         if self.channel.stop:
             return None
 
-        job = cast(Job, await self.channel.receive())
+        raw = await self.channel.receive()
+        if raw is None:
+            return None
+        job = cast(Job, raw)
         await self._process(job)
         return job
 
     async def run_forever(self) -> None:
         while not self.channel.stop:
-            await self.run_once()
+            try:
+                job = await self.run_once()
+                if job is None:
+                    return
+            except JobRequeuedError as e:
+                # Job is back on the channel; re-raise so supervisors see failure
+                # (do not continue into a persist-failure busy-spin).
+                log.error(f"Worker run_forever stopping after re-enqueue: {e!r}")
+                raise
+            except JobRedeliveryError:
+                # Dequeued + restored job could not be put back; stop the loop loudly.
+                raise
+            except Exception as e:
+                # Intentional behavior change vs raise-and-exit: log and continue.
+                # Continue-on-error does not redeliver by itself; RUN-start restore
+                # paths re-enqueue inside ``_process`` when possible.
+                log.error(f"Worker run_forever job error (continuing): {e!r}")
+
+    async def _requeue_after_run_restore(self, job: Job, save_exc: BaseException) -> NoReturn:
+        """Re-enqueue after pre-RUN restore, or raise. Never returns normally."""
+        requeued = await self.channel.send(job)
+        if requeued:
+            log.error(f"Job re-enqueued after RUN persist restore: id={job.id}")
+            raise JobRequeuedError(
+                f"Job re-enqueued after RUN persist restore: id={job.id}, channel_id={job.channel_id}"
+            ) from save_exc
+        reason = "stopped" if self.channel.stop else "full"
+        raise JobRedeliveryError(
+            f"Job RUN persist restore could not re-enqueue "
+            f"(channel {reason}): id={job.id}, channel_id={job.channel_id}",
+            reason=reason,
+        ) from save_exc
 
     async def _process(self, job: Job) -> None:
         if job.is_cancelled():
@@ -99,7 +133,7 @@ class Worker:
                 log.error(
                     f"Job RUN persist failed: id={job.id}, error={save_exc}; FAIL persist also failed: {fail_save_exc}"
                 )
-                raise save_exc from fail_save_exc
+                await self._requeue_after_run_restore(job, save_exc)
             log.error(
                 f"Job RUN persist failed: id={job.id}, error={save_exc}; "
                 f"persisted Failed instead (do not re-run workflows)"

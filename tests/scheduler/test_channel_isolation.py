@@ -7,7 +7,7 @@ from pypepper.scheduler import channel
 async def test_channel_stop_is_per_instance():
     c1 = channel.new()
     c2 = channel.new()
-    c1.stop = True
+    c1.request_stop()
     assert c2.stop is False
 
 

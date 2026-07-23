@@ -242,18 +242,14 @@ def test_yaml_declared_backend_early_returns(monkeypatch):
     monkeypatch.setattr(
         config,
         "get_yml_config",
-        lambda: SimpleNamespace(
-            scheduler=SimpleNamespace(jobStore=SimpleNamespace(backend=None))
-        ),
+        lambda: SimpleNamespace(scheduler=SimpleNamespace(jobStore=SimpleNamespace(backend=None))),
     )
     assert store_mod._yaml_declared_job_store_backend() is None
 
     monkeypatch.setattr(
         config,
         "get_yml_config",
-        lambda: SimpleNamespace(
-            scheduler=SimpleNamespace(jobStore=SimpleNamespace(backend="   "))
-        ),
+        lambda: SimpleNamespace(scheduler=SimpleNamespace(jobStore=SimpleNamespace(backend="   "))),
     )
     assert store_mod._yaml_declared_job_store_backend() is None
 
@@ -384,3 +380,33 @@ def test_load_config_memory_job_store_does_not_defer():
     config.load_config("./conf/app.config.yaml")
     assert config._deferred_durable_job_store_backend is None
     Job().save()
+
+
+def test_load_config_cli_path_and_bare_flag(monkeypatch, tmp_path):
+    cfg = tmp_path / "cli-config.yaml"
+    cfg.write_text("log:\n  level: INFO\n  colorize: false\ncustom:\n  marker: from-cli-path\n")
+
+    monkeypatch.setattr("sys.argv", ["prog", "-c", str(cfg), "--unrelated"])
+    config.load_config()
+    yml = config.get_yml_config()
+    assert yml is not None
+    assert yml.custom.marker == "from-cli-path"
+
+    monkeypatch.setattr("sys.argv", ["prog", "-c"])
+    # Bare -c must not open(True); falls back to default conf path.
+    opened: list[str] = []
+    real_open = open
+
+    def spy_open(path, *args, **kwargs):
+        opened.append(str(path))
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", spy_open)
+    config.load_config()
+    yml = config.get_yml_config()
+    assert yml is not None
+    assert opened, "expected default config path to be opened"
+    assert opened[-1].endswith("conf/app.config.yaml") or "app.config.yaml" in opened[-1]
+    assert "True" not in opened[-1]
+    assert not hasattr(yml, "custom") or getattr(getattr(yml, "custom", None), "marker", None) != "from-cli-path"
+    assert hasattr(yml, "log") and hasattr(yml.log, "level")

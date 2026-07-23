@@ -28,10 +28,16 @@ config.load_config("./conf/app.config.yaml")
 server.run(AppHandlers())
 ```
 
+`server.run` / `run_without_tls` / `run_with_tls` build a fresh app via `create_app(...)`
+(handlers + middleware registered once). Prefer `create_app` in tests instead of
+re-registering on the module-level `server.app`.
+
 Built-in routes from `BaseHandlers`: `/health`, `/ping`, `/metrics`.
 `RequestIdMiddleware` injects `X-Request-ID`.
 
-TLS uses `network.httpsServer` (`certFile` / `keyFile` / optional `caFile` for mTLS).
+TLS uses `network.httpsServer` (`certFile` / `keyFile`). When `mutualTLS` is enabled,
+`caFile` is **required** and the server sets `ssl_cert_reqs=ssl.CERT_REQUIRED`
+(uvicorn would otherwise default to `CERT_NONE` even with `ssl_ca_certs`).
 
 ## SSE handler
 
