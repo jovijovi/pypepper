@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.4
+
 ### Breaking
 - `Channel.stop` is **read-only**; use `Channel.request_stop()` to stop (assignment `Channel.stop = True` no longer works).
 - `ChannelStoppedError` is a **sibling** of `ChannelFullError` (not a subclass). Code that only catches `ChannelFullError` no longer treats channel-stopped as full/backpressure.
