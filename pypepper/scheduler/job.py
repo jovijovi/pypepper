@@ -45,14 +45,19 @@ class JobRedeliveryError(RuntimeError):
     (channel full or stopped). ``Worker.run_forever`` re-raises and stops.
     """
 
+    def __init__(self, message: str, *, reason: str) -> None:
+        super().__init__(message)
+        if reason not in ("full", "stopped"):
+            raise ValueError(f"JobRedeliveryError.reason must be 'full' or 'stopped', got {reason!r}")
+        self.reason = reason
+
 
 class JobRequeuedError(RuntimeError):
     """
     Job was restored and put back on the channel after RUN-start persist failure.
 
-    ``Worker.run_forever`` exits the loop (does not continue immediately) to avoid
-    busy-spinning when the store keeps failing; the job remains queued for a later
-    consumer.
+    ``Worker.run_forever`` re-raises (does not continue) so supervisors see a non-success
+    exit and avoid persist-failure busy-spin; the job remains queued for a later consumer.
     """
 
 

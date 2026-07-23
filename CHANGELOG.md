@@ -2,16 +2,21 @@
 
 ## Unreleased
 
+### Breaking
+- `Channel.stop` is **read-only**; use `Channel.request_stop()` to stop (assignment `Channel.stop = True` no longer works).
+- `ChannelStoppedError` is a **sibling** of `ChannelFullError` (not a subclass). Code that only catches `ChannelFullError` no longer treats channel-stopped as full/backpressure.
+- `Worker.run_forever` **re-raises** `JobRequeuedError` after a successful RUN-restore re-enqueue (non-success exit for supervisors; job stays queued). Previously the loop returned after logging.
+
 ### Added
-- `Channel.request_stop()`: set `stop` and wake a blocked `receive()` via `asyncio.Event` (does not consume queue capacity). `send` returns `False` while stopped. Assigning `Channel.stop = True` uses the same wake path.
+- `Channel.request_stop()`: set `stop` and wake a blocked `receive()` via `asyncio.Event` (does not consume queue capacity). `send` returns `False` while stopped.
 - `ChannelEnqueueError` base with sibling `ChannelFullError` / `ChannelStoppedError` (stopped is **not** a subclass of full). Messages `channel full:...` vs `channel stopped:...`. Prefer catching `ChannelEnqueueError` or stopped explicitly for retries.
-- `JobRedeliveryError`: raised when RUN-start restore cannot re-enqueue (channel full **or** stopped); `Worker.run_forever` re-raises and stops.
-- `JobRequeuedError`: raised after successful re-enqueue following RUN persist restore; `run_forever` exits (job stays queued) to avoid persist-failure busy-spin.
+- `JobRedeliveryError`: raised when RUN-start restore cannot re-enqueue (channel full **or** stopped); `.reason` is `"full"` or `"stopped"`; `Worker.run_forever` re-raises and stops.
+- `JobRequeuedError`: raised after successful re-enqueue following RUN persist restore; `run_forever` re-raises (job stays queued) to avoid persist-failure busy-spin.
 - `network.http.server.create_app()`: build a FastAPI app with handlers/middleware registered once; `run` / `run_without_tls` / `run_with_tls` use it instead of re-registering on the module-level `app` (module `app` stays unregistered).
 
 ### Changed
 - Packaging: runtime dependencies in `pyproject.toml` use compatible-release pins (`~=x.y.z`); exact pins remain in `requirements.txt` / `uv.lock`. Dropped unused runtime `pip` (still in the `dev` dependency group). `requires-python` is now `>=3.10, <3.15` so CPython 3.14.x patches remain installable. `.pypirc` is excluded from Docker build context via `.dockerignore`.
-- `Worker.run_forever` logs job errors and continues; exits when `run_once` returns `None` (channel stopped or stop wake), not on an idle/empty queue alone. After RUN-start restore it re-enqueues when possible (`JobRequeuedError` exits the loop); `JobRedeliveryError` (full or stopped) stops the loop.
+- `Worker.run_forever` logs job errors and continues; exits when `run_once` returns `None` (channel stopped or stop wake), not on an idle/empty queue alone. After RUN-start restore it re-enqueues when possible (`JobRequeuedError` re-raised); `JobRedeliveryError` (full or stopped) stops the loop.
 - `MongoJobStore.put` uses atomic upsert with `$setOnInsert` for `created` (aligned with SQL stores); retries `$set`-only on concurrent first-insert `DuplicateKeyError`, and raises if that retry matches no document (preserves DKE cause chain).
 - `Config.load_config()` uses `parse_known_args()` for `-c/--config` (unknown host argv logged and ignored); bare `-c` no longer becomes `True`.
 - `run_with_tls` raises when `mutualTLS` is set without `caFile`, and sets `ssl_cert_reqs=ssl.CERT_REQUIRED` (uvicorn defaults to `CERT_NONE` even with `ssl_ca_certs`).

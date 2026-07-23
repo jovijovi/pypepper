@@ -21,17 +21,8 @@ class Channel:
 
     @property
     def stop(self) -> bool:
+        """True after :meth:`request_stop` (read-only; use ``request_stop()`` to stop)."""
         return self._stop
-
-    @stop.setter
-    def stop(self, value: bool) -> None:
-        """Assigning ``True`` is equivalent to :meth:`request_stop` (sets flag and wakes)."""
-        if value:
-            self._stop = True
-            self._stopped.set()
-        else:
-            self._stop = False
-            self._stopped.clear()
 
     async def send(self, value: Any) -> bool:
         """
@@ -40,6 +31,9 @@ class Channel:
         Returns ``False`` when the channel is stopped or the bounded queue is full.
         Callers that need the reason must check ``channel.stop`` after a ``False``
         result (``Job.scheduled`` / ``Processor.async_run`` do this).
+
+        Stop is best-effort: a concurrent ``request_stop()`` between the stop check
+        and ``put_nowait`` may still enqueue; prefer ``Job.scheduled()`` for typed errors.
         """
         if self.stop:
             return False
@@ -87,7 +81,8 @@ class Channel:
 
     def request_stop(self) -> None:
         """Mark the channel stopped and wake a blocked ``receive()`` if needed."""
-        self.stop = True
+        self._stop = True
+        self._stopped.set()
 
     def length(self) -> int:
         return self._queue.qsize()
