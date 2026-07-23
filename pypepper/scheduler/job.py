@@ -26,21 +26,34 @@ class ChannelEnqueueError(RuntimeError):
 
 
 class ChannelFullError(ChannelEnqueueError):
+    """Bounded channel capacity rejection (pre-execution; safe to roll back)."""
+
+
+class ChannelStoppedError(ChannelEnqueueError):
     """
-    Bounded channel capacity rejection (pre-execution; safe to roll back).
+    Channel was stopped; enqueue rejected (pre-execution; safe to roll back).
 
-    Catch :class:`ChannelStoppedError` before this type when deciding retries:
-    stopped channels are not capacity backpressure. ``ChannelStoppedError`` remains a
-    subclass for older ``except ChannelFullError`` handlers.
+    Sibling of :class:`ChannelFullError` (not a subclass): catch this before treating
+    :class:`ChannelFullError` as retryable backpressure. Prefer catching
+    :class:`ChannelEnqueueError` for any pre-landing rejection.
     """
-
-
-class ChannelStoppedError(ChannelFullError):
-    """Channel was stopped; enqueue rejected (pre-execution; safe to roll back)."""
 
 
 class JobRedeliveryError(RuntimeError):
-    """Dequeued job could not be returned to the channel after a RUN-start restore."""
+    """
+    Dequeued job could not be returned to the channel after a RUN-start restore
+    (channel full or stopped). ``Worker.run_forever`` re-raises and stops.
+    """
+
+
+class JobRequeuedError(RuntimeError):
+    """
+    Job was restored and put back on the channel after RUN-start persist failure.
+
+    ``Worker.run_forever`` exits the loop (does not continue immediately) to avoid
+    busy-spinning when the store keeps failing; the job remains queued for a later
+    consumer.
+    """
 
 
 def _raise_if_transition_failed(resp_error: object) -> None:

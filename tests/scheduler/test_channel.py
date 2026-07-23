@@ -118,7 +118,7 @@ async def test_channel_manager_ignores_maxsize_after_unbounded_create():
 def test_channel_manager_new_maxsize_scheduled_raises_channel_full():
     import asyncio
 
-    from pypepper.scheduler.job import ChannelFullError, Job
+    from pypepper.scheduler.job import ChannelFullError, ChannelStoppedError, Job
 
     manager = channel.manager
     channel_id = "mgr-new-bounded-full"
@@ -127,11 +127,13 @@ def test_channel_manager_new_maxsize_scheduled_raises_channel_full():
     assert asyncio.run(bounded.send("occupier")) is True
     try:
         job = Job(category="x", channel_id=channel_id)
-        with pytest.raises(ChannelFullError, match="channel full"):
+        with pytest.raises(ChannelFullError, match="channel full") as ei:
             job.scheduled()
+        assert not isinstance(ei.value, ChannelStoppedError)
+        assert "channel stopped" not in str(ei.value)
     finally:
         manager.remove(channel_id)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pytest.main()

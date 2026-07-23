@@ -9,7 +9,7 @@ from pypepper.common.log import log
 from pypepper.event.interfaces import IEvent
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel
-from pypepper.scheduler.job import Job, JobRedeliveryError
+from pypepper.scheduler.job import Job, JobRedeliveryError, JobRequeuedError
 from pypepper.scheduler.status import Status
 
 
@@ -68,6 +68,11 @@ class Worker:
                 job = await self.run_once()
                 if job is None:
                     return
+            except JobRequeuedError as e:
+                # Job is back on the channel; exit instead of continuing into a
+                # persist-failure busy-spin on an empty/unbounded queue.
+                log.error(f"Worker run_forever exiting after re-enqueue: {e!r}")
+                return
             except JobRedeliveryError:
                 # Dequeued + restored job could not be put back; stop the loop loudly.
                 raise
@@ -118,13 +123,13 @@ class Worker:
                 requeued = await self.channel.send(job)
                 if requeued:
                     log.error(f"Job re-enqueued after RUN persist restore: id={job.id}")
-                    raise save_exc from fail_save_exc
-                if self.channel.stop:
-                    log.error(f"Job RUN persist restore left job off-channel while stopped: id={job.id}")
-                    raise save_exc from fail_save_exc
+                    raise JobRequeuedError(
+                        f"Job re-enqueued after RUN persist restore: id={job.id}, channel_id={job.channel_id}"
+                    ) from save_exc
+                reason = "stopped" if self.channel.stop else "full"
                 raise JobRedeliveryError(
                     f"Job RUN persist restore could not re-enqueue "
-                    f"(channel full): id={job.id}, channel_id={job.channel_id}"
+                    f"(channel {reason}): id={job.id}, channel_id={job.channel_id}"
                 ) from save_exc
             log.error(
                 f"Job RUN persist failed: id={job.id}, error={save_exc}; "

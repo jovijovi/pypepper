@@ -1,5 +1,7 @@
 """FastAPI HTTP server run helpers (plain and TLS)."""
 
+import ssl
+
 import uvicorn
 from fastapi import FastAPI
 
@@ -48,7 +50,9 @@ def run_with_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0
         "ssl_keyfile": key_file,
     }
     if mutual_tls:
+        # CERT_REQUIRED: uvicorn defaults to CERT_NONE even when ca certs are set.
         run_kwargs["ssl_ca_certs"] = ca_file
+        run_kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
     uvicorn.run(application, **run_kwargs)
 
 

@@ -23,18 +23,18 @@ async def test_worker_processes_job_workflows():
     workflow = Workflow()
     workflow.add_task(
         Task(
-            channel_id='ch',
-            dag_id='dag',
-            fingerprint='fp',
-            name='step1',
-            category='c',
-            description='',
+            channel_id="ch",
+            dag_id="dag",
+            fingerprint="fp",
+            name="step1",
+            category="c",
+            description="",
             tags=[],
             executor=CallableExecutor(work),
         )
     )
 
-    job = Job(category='test', channel_id='worker-test')
+    job = Job(category="test", channel_id="worker-test")
     job.workflows = [workflow]
     # Mimic dispatch lifecycle before enqueue
     assert job._fsm.on(events.INIT).error is None
@@ -47,7 +47,7 @@ async def test_worker_processes_job_workflows():
     processed = await worker.run_once()
 
     assert processed is job
-    assert executed == ['step1']
+    assert executed == ["step1"]
     assert job._fsm.current().value == Status.COMPLETED
 
 
@@ -55,17 +55,17 @@ def _make_job(channel_id: str, name: str, work) -> Job:
     workflow = Workflow()
     workflow.add_task(
         Task(
-            channel_id='ch',
-            dag_id='dag',
-            fingerprint=f'fp-{name}',
+            channel_id="ch",
+            dag_id="dag",
+            fingerprint=f"fp-{name}",
             name=name,
-            category='c',
-            description='',
+            category="c",
+            description="",
             tags=[],
             executor=CallableExecutor(work),
         )
     )
-    job = Job(category='test', channel_id=channel_id)
+    job = Job(category="test", channel_id=channel_id)
     job.workflows = [workflow]
     assert job._fsm.on(events.INIT).error is None
     assert job._fsm.on(events.SCHEDULE).error is None
@@ -86,29 +86,26 @@ async def test_run_forever_continues_after_job_failure():
         return task.name
 
     chan = Channel()
-    await chan.send(_make_job('forever-fail', 'bad', fail))
-    await chan.send(_make_job('forever-fail', 'good', ok))
+    await chan.send(_make_job("forever-fail", "bad", fail))
+    await chan.send(_make_job("forever-fail", "good", ok))
 
     worker = Worker(chan)
     forever = asyncio.create_task(worker.run_forever())
     await asyncio.wait_for(good_done.wait(), timeout=5.0)
-    assert executed == ['good']
+    assert executed == ["good"]
     chan.request_stop()
     await asyncio.wait_for(forever, timeout=2.0)
 
 
 @pytest.mark.asyncio
 async def test_request_stop_unblocks_empty_receive():
+    """Prove Event wake: receive must be pending before stop."""
     chan = Channel()
-    worker = Worker(chan)
-
-    async def stop_soon():
-        await asyncio.sleep(0.05)
-        chan.request_stop()
-
-    stop_task = asyncio.create_task(stop_soon())
-    await asyncio.wait_for(worker.run_forever(), timeout=2.0)
-    await stop_task
+    recv = asyncio.create_task(chan.receive())
+    await asyncio.sleep(0)
+    assert not recv.done()
+    chan.request_stop()
+    assert await asyncio.wait_for(recv, timeout=2.0) is None
     assert chan.stop is True
 
 
@@ -146,27 +143,28 @@ async def test_direct_receive_drains_after_stop_when_queued():
     assert chan.length() == 1
     assert await chan.receive() == "queued"
     assert chan.length() == 0
+    assert await chan.receive() is None
 
 
 @pytest.mark.asyncio
 async def test_stop_assignment_wakes_blocked_receive():
     """Assigning Channel.stop = True uses the same wake path as request_stop()."""
     chan = Channel()
-    worker = Worker(chan)
-
-    async def stop_soon():
-        await asyncio.sleep(0.05)
-        chan.stop = True
-
-    stop_task = asyncio.create_task(stop_soon())
-    await asyncio.wait_for(worker.run_forever(), timeout=2.0)
-    await stop_task
+    recv = asyncio.create_task(chan.receive())
+    await asyncio.sleep(0)
+    assert not recv.done()
+    chan.stop = True
+    assert await asyncio.wait_for(recv, timeout=2.0) is None
     assert chan.stop is True
 
 
 def test_scheduled_raises_channel_stopped_error_and_rolls_back():
     from pypepper.scheduler.channel import manager
     from pypepper.scheduler.job import ChannelEnqueueError, ChannelFullError, ChannelStoppedError, Job
+
+    assert not issubclass(ChannelStoppedError, ChannelFullError)
+    assert issubclass(ChannelStoppedError, ChannelEnqueueError)
+    assert issubclass(ChannelFullError, ChannelEnqueueError)
 
     chan = Channel()
     chan.request_stop()
@@ -180,33 +178,27 @@ def test_scheduled_raises_channel_stopped_error_and_rolls_back():
         assert job.status == Status.UNKNOWN.value
         assert Job.get_saved(job.id) is None
 
-        # Subclass remains catchable as ChannelFullError / ChannelEnqueueError.
         job2 = Job(category="x", channel_id=channel_id)
-        with pytest.raises(ChannelFullError, match="channel stopped"):
-            job2.scheduled()
-        job3 = Job(category="x", channel_id=channel_id)
         with pytest.raises(ChannelEnqueueError, match="channel stopped"):
-            job3.scheduled()
+            job2.scheduled()
+        assert job2._fsm.current().value == Status.UNKNOWN
         assert Job.get_saved(job2.id) is None
-        assert Job.get_saved(job3.id) is None
     finally:
         manager.remove(channel_id)
 
 
 @pytest.mark.asyncio
-async def test_run_forever_reenqueues_after_run_persist_restore(monkeypatch):
-    """RUN persist + FAIL persist both fail → restore + re-enqueue; continue picks it up."""
+async def test_run_forever_reenqueues_then_exits_after_run_persist_restore(monkeypatch):
+    """RUN+FAIL persist fail → restore + re-enqueue + JobRequeuedError; later run_once completes."""
     executed = []
-    good_done = asyncio.Event()
     save_calls = {"n": 0}
 
-    def boom_then_ok(task, context):
+    def work(task, context):
         executed.append(task.name)
-        good_done.set()
         return task.name
 
     chan = Channel()
-    job = _make_job("reenqueue", "retry-me", boom_then_ok)
+    job = _make_job("reenqueue", "retry-me", work)
     await chan.send(job)
 
     original_save = Job.save
@@ -221,11 +213,16 @@ async def test_run_forever_reenqueues_after_run_persist_restore(monkeypatch):
     monkeypatch.setattr(Job, "save", flaky_save)
 
     worker = Worker(chan)
-    forever = asyncio.create_task(worker.run_forever())
-    await asyncio.wait_for(good_done.wait(), timeout=5.0)
+    await worker.run_forever()
+    assert chan.length() == 1
+    assert job._fsm.current().value == Status.SCHEDULED
+    assert save_calls["n"] == 2
+
+    processed = await worker.run_once()
+    assert processed is job
     assert executed == ["retry-me"]
-    chan.request_stop()
-    await asyncio.wait_for(forever, timeout=2.0)
+    assert job._fsm.current().value == Status.COMPLETED
+    assert save_calls["n"] > 2
 
 
 @pytest.mark.asyncio
@@ -234,6 +231,44 @@ async def test_run_forever_raises_job_redelivery_when_reenqueue_full(monkeypatch
 
     chan = Channel(maxsize=1)
     job = _make_job("orphan", "stuck", lambda t, c: None)
+    await chan.send(job)
+
+    original_save = Job.save
+    saves = {"n": 0}
+    send_after_restore = {"n": 0}
+
+    def flaky_save(self):
+        saves["n"] += 1
+        if saves["n"] <= 2:
+            raise RuntimeError("persist-fail")
+        return original_save(self)
+
+    monkeypatch.setattr(Job, "save", flaky_save)
+
+    real_send = Channel.send
+
+    async def send_full_after_restore(self, value):
+        if isinstance(value, Job) and saves["n"] >= 2:
+            send_after_restore["n"] += 1
+            return False
+        return await real_send(self, value)
+
+    monkeypatch.setattr(Channel, "send", send_full_after_restore)
+
+    worker = Worker(chan)
+    with pytest.raises(JobRedeliveryError, match="channel full"):
+        await worker.run_forever()
+    assert send_after_restore["n"] == 1
+    assert chan.length() == 0
+    assert job._fsm.current().value == Status.SCHEDULED
+
+
+@pytest.mark.asyncio
+async def test_run_forever_raises_job_redelivery_when_reenqueue_stopped(monkeypatch):
+    from pypepper.scheduler.job import JobRedeliveryError
+
+    chan = Channel()
+    job = _make_job("orphan-stop", "stuck", lambda t, c: None)
     await chan.send(job)
 
     original_save = Job.save
@@ -249,14 +284,16 @@ async def test_run_forever_raises_job_redelivery_when_reenqueue_full(monkeypatch
 
     real_send = Channel.send
 
-    async def send_full_after_restore(self, value):
-        # After restore, refuse re-enqueue (simulate full) while stop is false.
+    async def send_stopped_after_restore(self, value):
         if isinstance(value, Job) and saves["n"] >= 2:
+            self.stop = True
             return False
         return await real_send(self, value)
 
-    monkeypatch.setattr(Channel, "send", send_full_after_restore)
+    monkeypatch.setattr(Channel, "send", send_stopped_after_restore)
 
     worker = Worker(chan)
-    with pytest.raises(JobRedeliveryError, match="could not re-enqueue"):
+    with pytest.raises(JobRedeliveryError, match="channel stopped"):
         await worker.run_forever()
+    assert chan.length() == 0
+    assert job._fsm.current().value == Status.SCHEDULED

@@ -333,6 +333,8 @@ class _FailOnInProgressAndFailedStore(InMemoryJobStore):
 
 @pytest.mark.asyncio
 async def test_run_and_fail_persist_both_fail_restores_pre_run():
+    from pypepper.scheduler.job import JobRequeuedError
+
     set_job_store(_FailOnInProgressAndFailedStore())
     executed = []
 
@@ -346,12 +348,13 @@ async def test_run_and_fail_persist_both_fail_restores_pre_run():
     chan = Channel()
     await chan.send(job)
 
-    with pytest.raises(RuntimeError, match="run-and-fail-persist-failed"):
+    with pytest.raises(JobRequeuedError, match="re-enqueued"):
         await Worker(chan).run_once()
 
     assert executed == []
     assert job._fsm.current().value == Status.SCHEDULED
     assert job.status == Status.SCHEDULED.value
+    assert chan.length() == 1
     saved = Job.get_saved(job.id)
     assert saved is not None
     assert saved.status == Status.SCHEDULED.value
