@@ -1,5 +1,5 @@
 arrow==1.4.0
-cachetools==7.1.4
+cachetools==7.1.5
 cryptography==49.0.0
 fastapi==0.139.2
 uvicorn==0.51.0
