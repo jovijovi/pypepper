@@ -1,7 +1,7 @@
 arrow==1.4.0
-cachetools==7.1.4
+cachetools==7.1.6
 cryptography==49.0.0
-fastapi==0.139.2
+fastapi==0.140.7
 uvicorn==0.51.0
 loguru==0.7.3
 mongoengine==0.29.3
