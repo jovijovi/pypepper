@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.25.0
+# syntax=docker/dockerfile:1.26.0
 #
 # Dependabot (ecosystem: docker, directory: /docker) tracks the literal
 # FROM python:... pins below. Keep them in sync with Makefile PYTHON_VER /
