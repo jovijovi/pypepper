@@ -9,7 +9,7 @@ python-box==7.4.1
 pymysql==1.2.0
 psycopg[binary]==3.3.4
 pyyaml==6.0.3
-sqlalchemy==2.0.51
+sqlalchemy==2.0.52
 opentelemetry-api==1.44.0
 opentelemetry-sdk==1.44.0
 opentelemetry-exporter-otlp-proto-http==1.44.0
