@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.6.5
+
+### Changed
+- Updated production dependencies: `cachetools` 7.1.4 → 7.1.7, `cryptography` 49.0.0 → 50.0.0, `fastapi` 0.139.2 → 0.141.1, `uvicorn` 0.51.0 → 0.52.1, and `sqlalchemy` 2.0.51 → 2.0.52.
+- Refreshed development dependencies, including `coverage` 7.15.3, `mkdocs-material` 9.7.6, `mkdocstrings` 1.0.6, `pip` 26.2, `ruff` 0.16.1, and `twine` 7.0.0.
+- Updated GitHub Actions workflows from `actions/setup-python@v6` to `@v7`.
+- Updated the Dockerfile frontend from 1.25.0 to 1.26.0 and the uv image from 0.11.30 to 0.12.3.
+
 ## 0.6.4
 
 ### Breaking
