@@ -1,11 +1,11 @@
-# syntax=docker/dockerfile:1.25.0
+# syntax=docker/dockerfile:1.26.0
 #
 # Dependabot (ecosystem: docker, directory: /docker) tracks the literal
 # FROM python:... pins below. Keep them in sync with Makefile PYTHON_VER /
 # IMAGE_TAG when bumping by hand. UV_IMAGE stays ARG-indirect (not the
 # primary Dependabot target). Dependabot cannot update ARG-interpolated FROM.
 
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.30
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.12.3
 
 FROM ${UV_IMAGE} AS uvbin
 
