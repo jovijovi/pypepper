@@ -1,6 +1,6 @@
 APP_NAME:=pypepper
 OS:=linux
-PYTHON_VER:=3.13.14
+PYTHON_VER:=3.13.15
 IMAGE_TAG:=slim-trixie
 
 PROJECT_DIR:=$(shell pwd -L)
