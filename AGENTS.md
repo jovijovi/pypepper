@@ -18,7 +18,7 @@
 - CI runs a dedicated lint/docs job first; the test matrix uses `docker compose -f devenv/ci.yaml up -d` for service-backed cases.
 
 ## Coding Style & Naming Conventions
-- Target Python `>=3.10, <=3.14`; use 4-space indentation and PEP 8 style.
+- Target Python `>=3.10, <3.15`; use 4-space indentation and PEP 8 style.
 - Prefer explicit type hints and concise docstrings for public classes/functions.
 - Use `snake_case` for modules, functions, and test files; `PascalCase` for classes; constants in `UPPER_SNAKE_CASE`.
 - Keep imports package-qualified (for example, `from pypepper.common...`).
