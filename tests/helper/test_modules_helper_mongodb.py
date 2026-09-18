@@ -3,6 +3,8 @@ from mongoengine import Document, StringField
 
 from pypepper.helper.db import mongodb
 
+pytestmark = pytest.mark.requires_mongodb
+
 
 class Animals(Document):
     name = StringField(max_length=128, required=True)

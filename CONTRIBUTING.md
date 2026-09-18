@@ -28,11 +28,12 @@ make test
 Optional supply-chain check (also runs in the CI lint job):
 
 ```shell
-make audit           # pip-audit==2.10.1 on requirements.txt (pinned in requirements-dev)
+make audit           # pip-audit==2.10.1 on requirements.txt and uv.lock (uv required)
 ```
 
 Ignored vulns (if any) live in [`.pip-audit-ignore.txt`](.pip-audit-ignore.txt)
-with a reason — prefer upgrading instead of ignoring.
+with a reason — prefer upgrading instead of ignoring. `make audit` also scans
+the frozen lock graph so CI matches Dependabot's `uv.lock` view.
 
 Docs:
 

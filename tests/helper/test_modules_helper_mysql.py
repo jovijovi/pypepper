@@ -7,6 +7,8 @@ from sqlalchemy.sql import functions
 
 from pypepper.helper.db import mysql
 
+pytestmark = pytest.mark.requires_mysql
+
 Base = declarative_base()
 
 

@@ -21,7 +21,7 @@ class IConfig(metaclass=ABCMeta):
         host: str | None = None,
         port: int = 0,
         db: str | None = None,
-    ):
+    ) -> None:
         self.uri = uri
         self.username = username
         self.password = password

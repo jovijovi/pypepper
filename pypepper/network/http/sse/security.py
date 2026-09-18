@@ -141,7 +141,7 @@ class SSESecurityManager:
 sse_security = SSESecurityManager()
 
 
-def require_sse_api_key(func: Callable) -> Callable:
+def require_sse_api_key(func: Callable[..., Any]) -> Callable[..., Any]:
     """
     API Key authentication decorator
 
@@ -162,7 +162,7 @@ def require_sse_api_key(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    async def wrapper(request: Request, *args: Any, **kwargs: Any):
+    async def wrapper(request: Request, *args: Any, **kwargs: Any) -> Any:
         sse_config = config.get_yml_config().sse
         if not sse_config.authentication.enabled and not _auth_off_allowed():
             _warn_auth_off_blocked_once()

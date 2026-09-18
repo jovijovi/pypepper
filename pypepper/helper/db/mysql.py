@@ -22,7 +22,7 @@ class Config(IConfig, metaclass=ABCMeta):
         port: int = 3306,
         db: str | None = None,
         charset: str = "utf8mb4",
-    ):
+    ) -> None:
         super().__init__(
             uri=uri,
             username=username,

@@ -44,6 +44,17 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["pypepper"]
 
+# Keep the lock graph off vulnerable transitives Dependabot flags in uv.lock.
+# FastAPI 0.141.1 requires starlette>=0.46.0 (no upper bound) and ships SSE on 1.x.
+[tool.uv]
+constraint-dependencies = [
+    "starlette>=1.1.0",
+    "urllib3>=2.7.0",
+    "idna>=3.15",
+    "Pygments>=2.20.0",
+    "click>=8.3.3",
+]
+
 [dependency-groups]
 dev = [
     "build==1.6.0",
@@ -126,6 +137,7 @@ module = [
     "pypepper.network.http.sse.stream",
     "pypepper.network.http.sse.handlers",
     "pypepper.network.http.sse.interfaces",
+    "pypepper.network.http.sse.security",
 ]
 disallow_untyped_defs = true
 warn_return_any = true
@@ -140,6 +152,16 @@ module = [
     "pypepper.scheduler.tag",
     "pypepper.scheduler.events",
     "pypepper.scheduler.base",
+    "pypepper.scheduler.store",
+    "pypepper.scheduler.store.*",
+]
+disallow_untyped_defs = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pypepper.helper.db",
+    "pypepper.helper.db.*",
 ]
 disallow_untyped_defs = true
 warn_return_any = true

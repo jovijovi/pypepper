@@ -26,9 +26,9 @@ MYSQL_URI = "mysql+pymysql://root:example@localhost:3306/mock_pypepper?charset=u
 MONGO_URI = "mongodb://test:test@localhost:27017/test"
 
 _BACKENDS = (
-    ("postgres", POSTGRES_URI),
-    ("mysql", MYSQL_URI),
-    ("mongodb", MONGO_URI),
+    pytest.param("postgres", POSTGRES_URI, marks=pytest.mark.requires_postgres, id="postgres"),
+    pytest.param("mysql", MYSQL_URI, marks=pytest.mark.requires_mysql, id="mysql"),
+    pytest.param("mongodb", MONGO_URI, marks=pytest.mark.requires_mongodb, id="mongodb"),
 )
 
 
@@ -77,18 +77,22 @@ def _crud_roundtrip(backend: str, uri: str) -> None:
     assert store.get(record.id) is None
 
 
+@pytest.mark.requires_postgres
 def test_postgres_crud():
     _crud_roundtrip("postgres", POSTGRES_URI)
 
 
+@pytest.mark.requires_mysql
 def test_mysql_crud():
     _crud_roundtrip("mysql", MYSQL_URI)
 
 
+@pytest.mark.requires_mongodb
 def test_mongodb_crud():
     _crud_roundtrip("mongodb", MONGO_URI)
 
 
+@pytest.mark.requires_mongodb
 def test_mongodb_concurrent_put_preserves_created():
     """Concurrent first inserts must keep a single stable ``created``."""
     from concurrent.futures import ThreadPoolExecutor
@@ -180,16 +184,19 @@ async def _worker_lifecycle(backend: str, uri: str, channel_id: str) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.requires_postgres
 async def test_postgres_worker_lifecycle():
     await _worker_lifecycle("postgres", POSTGRES_URI, "pg-lifecycle")
 
 
 @pytest.mark.asyncio
+@pytest.mark.requires_mysql
 async def test_mysql_worker_lifecycle():
     await _worker_lifecycle("mysql", MYSQL_URI, "mysql-lifecycle")
 
 
 @pytest.mark.asyncio
+@pytest.mark.requires_mongodb
 async def test_mongodb_worker_lifecycle():
     await _worker_lifecycle("mongodb", MONGO_URI, "mongo-lifecycle")
 

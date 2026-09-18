@@ -83,6 +83,18 @@ def test_channel_manager():
     print("All channel removed")
 
 
+def test_channel_manager_rejects_empty_key_and_channel():
+    manager = channel.manager
+    with pytest.raises(ValueError, match="invalid key"):
+        manager.get("")
+    with pytest.raises(ValueError, match="invalid key"):
+        manager.put("", channel.new())
+    with pytest.raises(ValueError, match="invalid channel"):
+        manager.put("job-empty-chan", None)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="invalid key"):
+        manager.remove("")
+
+
 @pytest.mark.asyncio
 async def test_channel_manager_maxsize_applies_only_on_first_create():
     manager = channel.manager

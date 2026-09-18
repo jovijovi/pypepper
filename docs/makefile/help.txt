@@ -17,7 +17,7 @@
 - Check (lint + mutable class attrs):
   make check
 
-- Audit production requirements (pip-audit==2.10.1, pinned with dev deps):
+- Audit production requirements.txt and the uv.lock graph (pip-audit==2.10.1, uv required):
   make audit
 
 - Test:

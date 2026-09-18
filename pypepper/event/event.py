@@ -110,9 +110,12 @@ class Event(IEvent):
         self.data.payload = payload
 
     def add_payload(self, payload_id: str, category: str, raw: bytes, hash_alg: str | None = None) -> None:
-        assert payload_id, "payload ID is empty"
-        assert category, "category is empty"
-        assert raw, "payload raw is empty"
+        if not payload_id:
+            raise ValueError("payload ID is empty")
+        if not category:
+            raise ValueError("category is empty")
+        if not raw:
+            raise ValueError("payload raw is empty")
 
         self.data.payload.id = payload_id
         self.data.payload.category = category

@@ -31,9 +31,9 @@ jobs:
       - name: Docs
         run: make docs
 
-      - name: Audit production requirements
+      - name: Audit production requirements and lock graph
         run: |
-          python -m pip install 'pip-audit==2.10.1'
+          python -m pip install 'pip-audit==2.10.1' uv
           python ./scripts/pip_audit.py
 
   test:

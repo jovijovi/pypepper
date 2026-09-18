@@ -111,14 +111,17 @@ class ChannelManager:
         pass
 
     def put(self, key: str, chan: Channel) -> None:
-        assert key, "invalid key"
-        assert chan, "invalid channel"
+        if not key:
+            raise ValueError("invalid key")
+        if not chan:
+            raise ValueError("invalid channel")
 
         with self._lock:
             self._job_channel[key] = chan
 
     def get(self, key: str) -> Channel | None:
-        assert key, "invalid key"
+        if not key:
+            raise ValueError("invalid key")
 
         with self._lock:
             if len(self._job_channel) == 0:
@@ -127,7 +130,8 @@ class ChannelManager:
             return self._job_channel.get(key)
 
     def remove(self, key: str):
-        assert key, "invalid key"
+        if not key:
+            raise ValueError("invalid key")
 
         with self._lock:
             if len(self._job_channel) == 0:
