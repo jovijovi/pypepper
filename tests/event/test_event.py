@@ -158,6 +158,23 @@ def test_add_invalid_payload():
         )
 
 
+def test_add_payload_validation_survives_python_optimize():
+    from tests.support.optimize import assert_valueerror_under_optimize
+
+    assert_valueerror_under_optimize(
+        "from pypepper.event import event; event.new().add_payload('', 'c', b'x', 'SHA256')",
+        "payload ID is empty",
+    )
+    assert_valueerror_under_optimize(
+        "from pypepper.event import event; event.new().add_payload('id', '', b'x', 'SHA256')",
+        "category is empty",
+    )
+    assert_valueerror_under_optimize(
+        "from pypepper.event import event; event.new().add_payload('id', 'c', b'', 'SHA256')",
+        "payload raw is empty",
+    )
+
+
 def test_event_sign_verify():
     evt = event.new()
 

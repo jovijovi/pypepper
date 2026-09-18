@@ -93,6 +93,34 @@ def test_channel_manager_rejects_empty_key_and_channel():
         manager.put("job-empty-chan", None)  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="invalid key"):
         manager.remove("")
+    with pytest.raises(ValueError, match="invalid key"):
+        manager.new("")
+    with pytest.raises(ValueError, match="invalid key"):
+        manager.available("")
+    assert "" not in manager._job_channel
+
+
+def test_channel_manager_put_none_does_not_mutate():
+    manager = channel.manager
+    chan = channel.new()
+    manager.put("keep", chan)
+    with pytest.raises(ValueError, match="invalid channel"):
+        manager.put("keep", None)  # type: ignore[arg-type]
+    assert manager.get("keep") is chan
+
+
+def test_channel_validation_survives_python_optimize():
+    from tests.support.optimize import assert_valueerror_under_optimize
+
+    assert_valueerror_under_optimize("from pypepper.scheduler.channel import manager; manager.get('')", "invalid key")
+    assert_valueerror_under_optimize(
+        "from pypepper.scheduler.channel import manager; manager.new('')",
+        "invalid key",
+    )
+    assert_valueerror_under_optimize(
+        "from pypepper.scheduler import channel; channel.manager.put('k', None)",
+        "invalid channel",
+    )
 
 
 @pytest.mark.asyncio

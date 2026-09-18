@@ -122,7 +122,7 @@ class Dispatcher:
     def _put_processor(self, key: str, processor: Processor) -> None:
         if not key:
             raise ValueError("invalid key")
-        if not processor:
+        if processor is None:
             raise ValueError("invalid processor")
 
         with self._lock:

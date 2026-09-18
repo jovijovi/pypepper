@@ -175,6 +175,7 @@ class IEvent(metaclass=ABCMeta):
         :param raw: raw data
         :param hash_alg: hash algorithm
         :return: None
+        :raises ValueError: empty payload_id, category, or raw
         """
         pass
 

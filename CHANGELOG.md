@@ -9,11 +9,11 @@
 - Development dependencies: `build` 1.6.0, `coverage` 7.16.0, `mkdocs-material` 9.7.7, `mypy` 2.3.1, `packaging` 26.3, `pip` 26.2.1, and `ruff` 0.16.6.
 - Docker image Python 3.13.14 → 3.13.15; uv image 0.12.3 → 0.12.16.
 - AGENTS/CLAUDE coding-style Python range is `>=3.10, <3.15` (aligned with `requires-python`).
-- Lock-graph transitives: `starlette` 0.46.2 → 1.6.0 (FastAPI 0.141.1 allows `starlette>=0.46.0`; 1.x closes the Starlette advisories Dependabot reported), `urllib3` 2.6.3 → 2.8.0, `idna` 3.11 → 3.20, `Pygments` 2.19.2 → 2.21.0, `click` 8.3.1 → 8.5.0. Floors are set in `[tool.uv]` constraint-dependencies.
-- `make audit` / CI pip-audit now scan production `requirements.txt` and the frozen `uv.lock` graph (`uv export --frozen --all-groups`). Do not list those advisories in `.pip-audit-ignore.txt`.
-- `ChannelManager.put` / `get` / `remove`, `Dispatcher._put_processor` / `_get_processor`, and `Event.add_payload` raise `ValueError` instead of `assert` (still raised under `python -O`). Callers that caught `AssertionError` on these paths must catch `ValueError`.
+- Lock-graph transitives: `starlette` 0.46.2 → 1.6.0 (FastAPI 0.141.1 allows `starlette>=0.46.0`; uv floor `starlette>=1.3.1` closes GHSA-jp82-gr82-jpxm and GHSA-82w8-x6qw-7x6p — `>=1.1.0` is not enough), `urllib3` 2.6.3 → 2.8.0, `idna` 3.11 → 3.20, `Pygments` 2.19.2 → 2.21.0, `click` 8.3.1 → 8.5.0. Floors are set in `[tool.uv]` constraint-dependencies.
+- `make audit` / CI pip-audit scan production `requirements.txt` and the locked `uv.lock` graph (`uv export --locked --all-groups`, `--disable-pip --no-deps --strict`; environment markers stripped so the host interpreter does not drop lock entries). Do not list those advisories in `.pip-audit-ignore.txt`.
+- `ChannelManager.put` / `get` / `remove` / `new`, `Dispatcher._put_processor` / `_get_processor`, and `Event.add_payload` raise `ValueError` instead of `assert` (still raised under `python -O`). Channel and processor checks use `is None`. Callers that caught `AssertionError` on these paths must catch `ValueError`.
 - mypy `disallow_untyped_defs` now includes `pypepper.scheduler.store`, `pypepper.network.http.sse.security`, and `pypepper.helper.db`.
-- DB integration tests skip when localhost Postgres (5432) / MySQL (3306) / MongoDB (27017) are unreachable, with a `docker compose -f devenv/ci.yaml up -d` hint. CI still starts devenv and runs them.
+- DB integration tests skip when localhost Postgres (5432) / MySQL (3306) / MongoDB (27017) are unreachable (`docker compose -f devenv/ci.yaml up -d --wait`). CI sets `PYPEPPER_REQUIRE_DEVENV=1` so a down devenv fails instead of skip.
 
 ## 0.6.5
 

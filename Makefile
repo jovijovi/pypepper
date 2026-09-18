@@ -44,7 +44,7 @@ docs-serve:
 	mkdocs serve
 
 audit:
-	@echo "[BUILD] Auditing production requirements and uv.lock graph..."
+	@echo "[BUILD] Auditing production requirements and locked uv.lock graph..."
 	python3 -m pip install -q 'pip-audit==2.10.1'
 	python3 ./scripts/pip_audit.py
 

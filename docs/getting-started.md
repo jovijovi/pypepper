@@ -30,7 +30,9 @@ make test    # check + pytest with coverage (>= 90%; branch coverage enabled)
 
 Local and CI upload branch coverage (`branch = true`). Codecov project compares overall coverage vs the PR base; patch compares changed lines vs an auto target; both allow a 1% threshold.
 
-DB-backed helper tests expect services from `devenv/ci.yaml` on localhost:
+DB-backed helper tests expect services from `devenv/ci.yaml` on localhost.
+If those ports are down, the marked tests skip (coverage is not a CI backstop).
+CI sets `PYPEPPER_REQUIRE_DEVENV=1` so a missing devenv fails the job.
 
 ```shell
 docker compose -f devenv/ci.yaml up -d --wait

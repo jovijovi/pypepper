@@ -113,7 +113,7 @@ class ChannelManager:
     def put(self, key: str, chan: Channel) -> None:
         if not key:
             raise ValueError("invalid key")
-        if not chan:
+        if chan is None:
             raise ValueError("invalid channel")
 
         with self._lock:
@@ -147,6 +147,8 @@ class ChannelManager:
         If the key already exists, the existing channel is returned and ``maxsize``
         is ignored (create bounded channels before Worker/dispatch).
         """
+        if not key:
+            raise ValueError("invalid key")
         with self._lock:
             chan = self._job_channel.get(key)
             if chan is None:
