@@ -4,4 +4,5 @@
 # Example:
 # GHSA-xxxx-xxxx-xxxx  # reason; track in issue #N
 #
-# Empty by default: any known vuln in requirements.txt fails the audit.
+# Empty by default: any known vuln in requirements.txt or the locked uv.lock
+# graph (environment markers stripped) fails the audit.

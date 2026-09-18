@@ -93,7 +93,7 @@ make lint     # ruff + mypy
 make check    # lint + mutable class-attr guard
 make test     # check + pytest (coverage ≥ 90%, branch on)
 make docs     # mkdocs build --strict
-make audit    # pip-audit on production requirements
+make audit    # pip-audit on requirements.txt and locked uv.lock
 make docker   # local image
 make clean
 ```

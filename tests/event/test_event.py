@@ -133,35 +133,46 @@ def test_add_payload():
 def test_add_invalid_payload():
     evt = event.new()
 
-    try:
+    with pytest.raises(ValueError, match="payload ID is empty"):
         evt.add_payload(
             payload_id='',
             category='test_category',
             raw=b"raw_bytes",
             hash_alg="SHA256",
         )
-    except Exception as e:
-        print("Expected error=", e)
 
-    try:
+    with pytest.raises(ValueError, match="category is empty"):
         evt.add_payload(
             payload_id='6829a99a-60b0-4e9d-b04c-9c532a3bae40',
             category='',
             raw=b"raw_bytes",
             hash_alg="SHA256",
         )
-    except Exception as e:
-        print("Expected error=", e)
 
-    try:
+    with pytest.raises(ValueError, match="payload raw is empty"):
         evt.add_payload(
             payload_id='6829a99a-60b0-4e9d-b04c-9c532a3bae40',
             category='test_category',
             raw=bytes(),
             hash_alg="SHA256",
         )
-    except Exception as e:
-        print("Expected error=", e)
+
+
+def test_add_payload_validation_survives_python_optimize():
+    from tests.support.optimize import assert_valueerror_under_optimize
+
+    assert_valueerror_under_optimize(
+        "from pypepper.event import event; event.new().add_payload('', 'c', b'x', 'SHA256')",
+        "payload ID is empty",
+    )
+    assert_valueerror_under_optimize(
+        "from pypepper.event import event; event.new().add_payload('id', '', b'x', 'SHA256')",
+        "category is empty",
+    )
+    assert_valueerror_under_optimize(
+        "from pypepper.event import event; event.new().add_payload('id', 'c', b'', 'SHA256')",
+        "payload raw is empty",
+    )
 
 
 def test_event_sign_verify():

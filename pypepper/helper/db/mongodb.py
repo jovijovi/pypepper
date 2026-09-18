@@ -28,7 +28,7 @@ class Config(IConfig, metaclass=ABCMeta):
         db: str | None = None,
         auth_source: str = "admin",
         uuid_representation: str = "standard",
-    ):
+    ) -> None:
         super().__init__(
             uri=uri,
             username=username,
@@ -62,5 +62,5 @@ def connect(cfg: Config) -> None:
         )
 
 
-def close():
+def close() -> None:
     disconnect_all()

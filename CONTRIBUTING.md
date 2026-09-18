@@ -18,7 +18,9 @@ make test            # check + pytest with coverage (>= 90%)
 
 Local and CI use branch coverage; Codecov project/patch status is relative to the PR base with a 1% threshold (`codecov.yml`).
 
-DB-backed tests need services from `devenv/ci.yaml`:
+DB-backed tests need services from `devenv/ci.yaml`. When those ports are down,
+tests marked `requires_postgres` / `requires_mysql` / `requires_mongodb` skip.
+Set `PYPEPPER_REQUIRE_DEVENV=1` to fail instead of skip (CI and tag pretest set this).
 
 ```shell
 docker compose -f devenv/ci.yaml up -d --wait
@@ -28,11 +30,14 @@ make test
 Optional supply-chain check (also runs in the CI lint job):
 
 ```shell
-make audit           # pip-audit==2.10.1 on requirements.txt (pinned in requirements-dev)
+make audit           # pip-audit==2.10.1 on requirements.txt and locked uv.lock (uv required)
 ```
 
 Ignored vulns (if any) live in [`.pip-audit-ignore.txt`](.pip-audit-ignore.txt)
-with a reason — prefer upgrading instead of ignoring.
+with a reason — prefer upgrading instead of ignoring. The lock pass uses
+`uv export --locked`, strips environment markers, and runs pip-audit with
+`--disable-pip --no-deps --strict` so the host Python/OS does not drop lock
+entries Dependabot still reports.
 
 Docs:
 

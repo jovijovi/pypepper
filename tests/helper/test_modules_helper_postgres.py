@@ -7,6 +7,8 @@ from sqlalchemy.sql import functions
 
 from pypepper.helper.db import postgres
 
+pytestmark = pytest.mark.requires_postgres
+
 Base = declarative_base()
 
 

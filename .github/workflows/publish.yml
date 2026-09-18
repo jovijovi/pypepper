@@ -55,20 +55,35 @@ jobs:
 
       - name: Start devenv
         run: |
-          docker compose -f ./devenv/ci.yaml up -d --wait || (
-            echo "compose --wait unsupported, falling back to health poll"
+          set -euo pipefail
+          if docker compose -f ./devenv/ci.yaml up -d --wait; then
+            echo "compose --wait succeeded"
+          else
+            echo "compose --wait unsupported or failed, falling back to health poll"
             docker compose -f ./devenv/ci.yaml up -d
-            for i in 1 2 3 4 5 6 7 8 9 10; do
-              docker compose -f ./devenv/ci.yaml ps | grep -q healthy && break
+            ok=0
+            for i in $(seq 1 40); do
+              if python ./scripts/check_devenv_healthy.py; then
+                ok=1
+                break
+              fi
               sleep 3
             done
-          )
+            if [ "$ok" != 1 ]; then
+              echo "devenv health poll timed out"
+              docker compose -f ./devenv/ci.yaml ps
+              exit 1
+            fi
+          fi
+          python ./scripts/check_devenv_healthy.py
           docker compose -f ./devenv/ci.yaml ps
 
       - name: Mutable class attribute check
         run: python ./scripts/check_mutable_class_attrs.py
 
       - name: Test with coverage
+        env:
+          PYPEPPER_REQUIRE_DEVENV: "1"
         run: pytest --cov=pypepper --cov-report=term --cov-fail-under=90 tests/
 
       - name: Stop devenv

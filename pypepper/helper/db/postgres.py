@@ -22,7 +22,7 @@ class Config(IConfig, metaclass=ABCMeta):
         port: int = 5432,
         db: str | None = None,
         sslmode: str | None = None,
-    ):
+    ) -> None:
         super().__init__(
             uri=uri,
             username=username,

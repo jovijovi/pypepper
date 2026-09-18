@@ -120,14 +120,17 @@ class Dispatcher:
         pass
 
     def _put_processor(self, key: str, processor: Processor) -> None:
-        assert key, "invalid key"
-        assert processor, "invalid processor"
+        if not key:
+            raise ValueError("invalid key")
+        if processor is None:
+            raise ValueError("invalid processor")
 
         with self._lock:
             self._processors[key] = processor
 
     def _get_processor(self, key: str) -> Processor | None:
-        assert key, "invalid key"
+        if not key:
+            raise ValueError("invalid key")
 
         with self._lock:
             if len(self._processors) == 0:
