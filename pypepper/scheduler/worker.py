@@ -60,24 +60,39 @@ class Worker:
         return job
 
     async def run_forever(self) -> None:
+        stopped_redelivery: JobRedeliveryError | None = None
         while True:
             try:
                 job = await self.run_once()
-                if job is None:
-                    return
             except JobRequeuedError as e:
                 # Job is back on the channel; re-raise so supervisors see failure
                 # (do not continue into a persist-failure busy-spin).
                 log.error(f"Worker run_forever stopping after re-enqueue: {e!r}")
                 raise
-            except JobRedeliveryError:
-                # Dequeued + restored job could not be put back; stop the loop loudly.
+            except JobRedeliveryError as e:
+                # Full: stop immediately. Stopped: finish draining leftovers, then
+                # re-raise outside this handler so supervisors still see non-success
+                # (the unrestored job is not on the channel).
+                if e.reason == "stopped":
+                    log.error(
+                        f"Worker run_forever drain continues after redelivery "
+                        f"(channel stopped; job not on channel): {e!r}"
+                    )
+                    if stopped_redelivery is None:
+                        stopped_redelivery = e
+                    continue
                 raise
             except Exception as e:
                 # Intentional behavior change vs raise-and-exit: log and continue.
                 # Continue-on-error does not redeliver by itself; RUN-start restore
                 # paths re-enqueue inside ``_process`` when possible.
                 log.error(f"Worker run_forever job error (continuing): {e!r}")
+                continue
+
+            if job is None:
+                if stopped_redelivery is not None:
+                    raise stopped_redelivery
+                return
 
     async def _requeue_after_run_restore(self, job: Job, save_exc: BaseException) -> NoReturn:
         """Re-enqueue after pre-RUN restore, or raise. Never returns normally."""

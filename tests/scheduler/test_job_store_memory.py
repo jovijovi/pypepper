@@ -81,6 +81,128 @@ def test_memory_put_upserts():
     assert got.created == "t0"
 
 
+def test_memory_put_does_not_downgrade_status():
+    store = get_job_store()
+    store.put(
+        JobRecord(
+            id="job-fence",
+            category="a",
+            channel_id="ch",
+            status=Status.COMPLETED.value,
+            created="t0",
+            updated="t1",
+            workflow_count=1,
+        )
+    )
+    store.put(
+        JobRecord(
+            id="job-fence",
+            category="stale",
+            channel_id="ch-stale",
+            status=Status.SCHEDULED.value,
+            created="should-not-overwrite",
+            updated="t2",
+            workflow_count=0,
+        )
+    )
+    got = store.get("job-fence")
+    assert got is not None
+    assert got.status == Status.COMPLETED.value
+    assert got.category == "a"
+    assert got.channel_id == "ch"
+    assert got.created == "t0"
+    assert got.updated == "t1"
+    assert got.workflow_count == 1
+
+
+def test_memory_put_does_not_replace_distinct_terminals():
+    store = get_job_store()
+    store.put(
+        JobRecord(
+            id="job-term",
+            category="a",
+            channel_id="ch",
+            status=Status.COMPLETED.value,
+            created="t0",
+            updated="t1",
+        )
+    )
+    store.put(
+        JobRecord(
+            id="job-term",
+            category="b",
+            channel_id="ch",
+            status=Status.CANCELLED.value,
+            created="t0",
+            updated="t2",
+        )
+    )
+    got = store.get("job-term")
+    assert got is not None
+    assert got.status == Status.COMPLETED.value
+    assert got.category == "a"
+
+
+def test_memory_put_same_status_updates_fields():
+    store = get_job_store()
+    store.put(
+        JobRecord(
+            id="job-same",
+            category="a",
+            channel_id="ch",
+            status=Status.COMPLETED.value,
+            created="t0",
+            updated="t1",
+            workflow_count=1,
+        )
+    )
+    store.put(
+        JobRecord(
+            id="job-same",
+            category="b",
+            channel_id="ch",
+            status=Status.COMPLETED.value,
+            created="should-not-overwrite",
+            updated="t2",
+            workflow_count=2,
+        )
+    )
+    got = store.get("job-same")
+    assert got is not None
+    assert got.status == Status.COMPLETED.value
+    assert got.category == "b"
+    assert got.created == "t0"
+    assert got.updated == "t2"
+    assert got.workflow_count == 2
+
+
+def test_save_does_not_rewind_in_memory_when_store_already_ahead():
+    """Stale Scheduled snapshot must not overwrite Completed or rewind Job.status."""
+    job = Job(category="x", channel_id="fence-save")
+    assert job._fsm.on(events.INIT).error is None
+    assert job._fsm.on(events.SCHEDULE).error is None
+    get_job_store().put(
+        JobRecord(
+            id=job.id,
+            category=job.category,
+            channel_id=job.channel_id,
+            status=Status.COMPLETED.value,
+            created=job.created,
+            updated=job.updated,
+            workflow_count=0,
+            version=1,
+        )
+    )
+    before_status = job.status
+    before_updated = job.updated
+    job.save()
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.COMPLETED.value
+    assert job.status == before_status
+    assert job.updated == before_updated
+
+
 def test_scheduled_persists_scheduled_status():
     job = Job(category="Foo", channel_id="mem-sched")
     job.scheduled()
@@ -549,8 +671,9 @@ def test_enqueue_failure_rolls_back_for_any_error(monkeypatch):
 @pytest.mark.asyncio
 async def test_scheduled_raises_when_event_loop_running():
     job = Job(category="x", channel_id="async-forbidden")
-    with pytest.raises(RuntimeError, match="sync context"):
+    with pytest.raises(RuntimeError, match=r"await Channel\.send\(job\).*then job\.save\(\)") as ei:
         job.scheduled()
+    assert "job.save(), then await Channel.send" not in str(ei.value)
     assert Job.get_saved(job.id) is None
 
 

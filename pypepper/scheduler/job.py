@@ -42,7 +42,8 @@ class ChannelStoppedError(ChannelEnqueueError):
 class JobRedeliveryError(RuntimeError):
     """
     Dequeued job could not be returned to the channel after a RUN-start restore
-    (channel full or stopped). ``Worker.run_forever`` re-raises and stops.
+    (channel full or stopped). ``Worker.run_forever`` re-raises. When ``reason`` is
+    ``stopped``, leftover queued jobs are drained first; ``full`` stops immediately.
     """
 
     def __init__(self, message: str, *, reason: str) -> None:
@@ -78,8 +79,9 @@ class Processor:
             return
         raise RuntimeError(
             "Processor.run / Job.scheduled() must be called from a sync context "
-            "(no running event loop); from async code apply INIT→SCHEDULE, call "
-            "job.save(), then await Channel.send(job) and consume with Worker"
+            "(no running event loop); from async code apply INIT→SCHEDULE, "
+            "await Channel.send(job) (False means stopped or full; inspect "
+            "channel.stop), then job.save(), and consume with Worker"
         )
 
     @staticmethod
@@ -295,8 +297,17 @@ class Job(IJob):
             workflow_count=len(self.workflows),
             version=self.version,
         )
-        get_job_store().put(record)
-        # Mutate in-memory fields only after durable persist succeeds.
+        store = get_job_store()
+        store.put(record)
+        # Mutate in-memory fields only after durable persist succeeds, and only
+        # if this snapshot actually landed (put skips earlier-lifecycle writes).
+        durable = store.get(self.id)
+        if durable is None or durable.status != status:
+            log.debug(
+                f"Job save skipped stale snapshot: id={self.id}, "
+                f"attempted={status}, durable={None if durable is None else durable.status}"
+            )
+            return
         self.status = status
         self.updated = updated
         log.debug(f"Job saved: id={self.id}, channel_id={self.channel_id}, status={self.status}")

@@ -4,9 +4,11 @@
 
 ### Breaking
 - `Channel.send` and `request_stop` are serialized: a successful enqueue and a stop-reject are mutually exclusive (no TOCTOU put after stop).
-- `Worker.run_once` / `run_forever` drain queued jobs after stop (stop is still not cancel). `run_forever` exits when the channel is stopped **and** empty.
+- `Worker.run_once` / `run_forever` drain queued jobs after stop (stop is still not cancel). `run_forever` exits when the channel is stopped **and** empty. If a RUN-start restore cannot re-enqueue because the channel is already stopped (`JobRedeliveryError.reason == "stopped"`), leftovers are still drained; the error is re-raised after the queue is empty.
 - `Job.scheduled()` persists Scheduled **after** a successful channel send. Enqueue failure rolls back in memory only (no store row, no cleanup delete). A `save()` failure after send does not roll back; the job stays on the channel.
 - `round_timeout`: started execute is joined before retry or `Workflow.run()` return. Hung execute blocks the workflow / Worker. No orphan overlap on the shared timeout pool.
+- `IJobStore.put` skips a snapshot whose status is earlier than the durable row (Scheduled cannot overwrite InProgress/terminal; Failed/Completed/Cancelled do not overwrite each other). `Job.save()` does not rewind in-memory `status`/`updated` when the write is skipped.
+- `Processor.run` / `Job.scheduled()` RuntimeError for async callers: apply `INIT`→`SCHEDULE`, `await Channel.send`, then `job.save()` (not save-then-send).
 
 ## 0.6.6
 

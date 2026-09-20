@@ -11,6 +11,20 @@ from pypepper.scheduler.task import Task
 from pypepper.scheduler.workflow import Workflow
 
 
+def _hold_until(release: threading.Event, started: threading.Event) -> None:
+    started.set()
+    assert release.wait(timeout=60)
+
+
+def _release_after(started: threading.Event, release: threading.Event, delay: float = 1.5) -> None:
+    def _go() -> None:
+        started.wait(timeout=60)
+        time.sleep(delay)
+        release.set()
+
+    threading.Thread(target=_go, daemon=True).start()
+
+
 def _task(name: str, executor, **kwargs) -> Task:
     return Task(
         channel_id="c",
@@ -124,11 +138,13 @@ def test_workflow_round_times_succeeds_on_later_round():
 
 def test_workflow_round_timeout_counts_as_failure_then_retry():
     calls = {"n": 0}
+    started = threading.Event()
+    release = threading.Event()
 
     def slow_then_fast(task, context):
         calls["n"] += 1
         if calls["n"] == 1:
-            time.sleep(1.5)
+            _hold_until(release, started)
             return "late"
         return "ok"
 
@@ -141,6 +157,7 @@ def test_workflow_round_timeout_counts_as_failure_then_retry():
     )
     workflow = Workflow()
     workflow.add_task(task)
+    _release_after(started, release)
     assert workflow.run() == ["ok"]
     assert calls["n"] == 2
 
@@ -333,17 +350,14 @@ def test_workflow_all_rounds_exhausted():
 
 def test_workflow_round_timeout_joins_started_execute_before_return():
     """Hung execute still raises TimeoutError, but only after the pool thread finishes."""
+    started = threading.Event()
     release = threading.Event()
     exited = threading.Event()
 
     def hang(task, context):
-        release.wait(timeout=60)
+        _hold_until(release, started)
         exited.set()
         return "never"
-
-    def release_later() -> None:
-        time.sleep(1.5)
-        release.set()
 
     task = _task(
         "hang",
@@ -354,12 +368,12 @@ def test_workflow_round_timeout_joins_started_execute_before_return():
     )
     workflow = Workflow()
     workflow.add_task(task)
-    threading.Thread(target=release_later, daemon=True).start()
-    started = time.monotonic()
+    _release_after(started, release)
+    t0 = time.monotonic()
     try:
         with pytest.raises(TimeoutError, match="execute still running"):
             workflow.run()
-        elapsed = time.monotonic() - started
+        elapsed = time.monotonic() - t0
         assert elapsed >= 0.9
         assert exited.is_set()
     finally:
@@ -368,9 +382,11 @@ def test_workflow_round_timeout_joins_started_execute_before_return():
 
 def test_workflow_round_timeout_started_failure_is_logged_after_join():
     """Started execute that fails after wait-timeout is joined, then logged."""
+    started = threading.Event()
+    release = threading.Event()
 
     def hang_then_fail(task, context):
-        time.sleep(1.2)
+        _hold_until(release, started)
         raise RuntimeError("join-fail")
 
     warnings: list[str] = []
@@ -387,10 +403,14 @@ def test_workflow_round_timeout_started_failure_is_logged_after_join():
     )
     workflow = Workflow()
     workflow.add_task(task)
-    with patch("pypepper.scheduler.workflow.log.warn", side_effect=capture_warn):
-        with pytest.raises(TimeoutError, match="execute still running"):
-            workflow.run()
-    assert any("join-fail" in msg for msg in warnings)
+    _release_after(started, release)
+    try:
+        with patch("pypepper.scheduler.workflow.log.warn", side_effect=capture_warn):
+            with pytest.raises(TimeoutError, match="execute still running"):
+                workflow.run()
+        assert any("join-fail" in msg for msg in warnings)
+    finally:
+        release.set()
 
 
 def test_workflow_round_timeout_retry_does_not_overlap_started_execute():
@@ -398,6 +418,8 @@ def test_workflow_round_timeout_retry_does_not_overlap_started_execute():
     max_concurrent = {"n": 0}
     lock = threading.Lock()
     calls = {"n": 0}
+    started = threading.Event()
+    release = threading.Event()
 
     def work(task, context):
         calls["n"] += 1
@@ -406,7 +428,7 @@ def test_workflow_round_timeout_retry_does_not_overlap_started_execute():
             max_concurrent["n"] = max(max_concurrent["n"], concurrent["n"])
         try:
             if calls["n"] == 1:
-                time.sleep(1.2)
+                _hold_until(release, started)
                 return "late"
             return "ok"
         finally:
@@ -422,6 +444,7 @@ def test_workflow_round_timeout_retry_does_not_overlap_started_execute():
     )
     workflow = Workflow()
     workflow.add_task(task)
+    _release_after(started, release)
     assert workflow.run() == ["ok"]
     assert calls["n"] == 2
     assert max_concurrent["n"] == 1

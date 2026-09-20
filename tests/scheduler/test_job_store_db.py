@@ -77,6 +77,45 @@ def _crud_roundtrip(backend: str, uri: str) -> None:
     assert store.get(record.id) is None
 
 
+def _status_fence_roundtrip(backend: str, uri: str) -> None:
+    store = configure_job_store(backend, uri=uri)
+    job_id = f"db-fence-{backend}"
+    store.clear()
+    store.put(
+        JobRecord(
+            id=job_id,
+            category="keep",
+            channel_id="ch",
+            status=Status.COMPLETED.value,
+            created="t0",
+            updated="t1",
+            workflow_count=1,
+            version=1,
+        )
+    )
+    store.put(
+        JobRecord(
+            id=job_id,
+            category="stale",
+            channel_id="ch-stale",
+            status=Status.SCHEDULED.value,
+            created="should-not-overwrite",
+            updated="t2",
+            workflow_count=0,
+            version=2,
+        )
+    )
+    got = store.get(job_id)
+    assert got is not None
+    assert got.status == Status.COMPLETED.value
+    assert got.category == "keep"
+    assert got.channel_id == "ch"
+    assert got.created == "t0"
+    assert got.updated == "t1"
+    assert got.workflow_count == 1
+    store.delete(job_id)
+
+
 @pytest.mark.requires_postgres
 def test_postgres_crud():
     _crud_roundtrip("postgres", POSTGRES_URI)
@@ -90,6 +129,21 @@ def test_mysql_crud():
 @pytest.mark.requires_mongodb
 def test_mongodb_crud():
     _crud_roundtrip("mongodb", MONGO_URI)
+
+
+@pytest.mark.requires_postgres
+def test_postgres_put_does_not_downgrade_status():
+    _status_fence_roundtrip("postgres", POSTGRES_URI)
+
+
+@pytest.mark.requires_mysql
+def test_mysql_put_does_not_downgrade_status():
+    _status_fence_roundtrip("mysql", MYSQL_URI)
+
+
+@pytest.mark.requires_mongodb
+def test_mongodb_put_does_not_downgrade_status():
+    _status_fence_roundtrip("mongodb", MONGO_URI)
 
 
 @pytest.mark.requires_mongodb

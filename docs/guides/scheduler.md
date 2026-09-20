@@ -93,9 +93,10 @@ Exit when `run_once` returns `None` (channel stopped **and** empty), not on an i
 queue alone. Continue-on-error does not by itself redeliver: after a RUN-start persist
 failure that restores pre-RUN, the Worker re-enqueues when possible and raises
 `JobRequeuedError` so `run_forever` **re-raises** (job stays queued; avoids busy-spin;
-supervisors see a non-success exit). If re-enqueue fails because the channel is full
-**or** stopped, `JobRedeliveryError` (with `.reason` of `full` or `stopped`) stops the
-loop loudly.
+supervisors see a non-success exit). If re-enqueue fails because the channel is full,
+`JobRedeliveryError` (`.reason` of `full`) stops the loop immediately. If it fails
+because the channel is stopped, leftovers are still drained, then
+`JobRedeliveryError` (`.reason` of `stopped`) is re-raised.
 
 ## Workflow retries and rounds
 
@@ -184,12 +185,12 @@ inspect `channel.stop`), then `job.save()`, and consume with `Worker`. Prefer
 
 - **Schedule** (`INIT`/`SCHEDULE` in `dispatch`): roll back FSM and `Job.status` so `scheduled()` can retry (no store write yet).
 - **Enqueue** (channel/processor setup or send rejected): roll back FSM/`Job.status` with **no store write**. After a successful send, persist Scheduled. If that `save()` fails, do **not** roll back — the job is on the channel (store may lack a Scheduled row until Worker RUN `save`); do not treat it as “nothing queued.”
-- **Start (`RUN`)**: if Running snapshot fails, do not run workflows; prefer persist `Failed`. If that also fails and the job is already `Cancelled`, keep Cancelled and retry `job.save()` only — do **not** restore pre-RUN over a winning cancel. Otherwise restore pre-RUN and **re-enqueue** when possible, then raise `JobRequeuedError` so `run_forever` **re-raises** (job stays queued; no busy-spin). If re-enqueue fails (channel full **or** stopped), raise `JobRedeliveryError` with `.reason` of `full` or `stopped` (stops `run_forever`).
+- **Start (`RUN`)**: if Running snapshot fails, do not run workflows; prefer persist `Failed`. If that also fails and the job is already `Cancelled`, keep Cancelled and retry `job.save()` only — do **not** restore pre-RUN over a winning cancel. Otherwise restore pre-RUN and **re-enqueue** when possible, then raise `JobRequeuedError` so `run_forever` **re-raises** (job stays queued; no busy-spin). If re-enqueue fails because the channel is **full**, raise `JobRedeliveryError` with `.reason` of `full` (stops `run_forever` immediately). If it fails because the channel is **stopped**, raise `JobRedeliveryError` with `.reason` of `stopped`; `run_forever` finishes draining leftovers, then re-raises.
 - **After work** (COMPLETE/FAIL via Worker): keep the terminal FSM; retry `job.save()` only — do not re-run workflows because the snapshot write failed.
 - **Cancel** (`Job.cancel()`): apply `CANCEL` then `save()`; on persist failure keep Cancelled in the FSM and retry `job.save()` only. The Worker does not apply `CANCEL` — it skips or exits when the job is already cancelled (and retries Cancelled persist if the store lags).
 - `Job.save()` updates in-memory `status`/`updated` only after the store `put` succeeds.
 - `Job.to_record()` reports FSM status (authoritative), which may lead last durable store status and in-memory `Job.status` when a terminal persist fails.
-- `IJobStore.put` upserts by `id` and must not overwrite an existing row's `created`.
+- `IJobStore.put` upserts by `id` and must not overwrite an existing row's `created`. It must not replace a durable status with an earlier lifecycle (Scheduled cannot overwrite InProgress/terminal). Distinct terminals (Failed/Completed/Cancelled) do not overwrite each other. `Job.save()` does not rewind in-memory `status`/`updated` when that write is skipped.
 - Invalid FSM transitions raise; do not persist or run work after a failed transition.
 
 See also: [API Reference / Scheduler](../reference/scheduler.md).
