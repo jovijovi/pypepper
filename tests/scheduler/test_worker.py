@@ -1,4 +1,5 @@
 import asyncio
+import threading
 
 import pytest
 
@@ -133,26 +134,129 @@ async def test_request_stop_does_not_steal_bounded_capacity():
 
 
 @pytest.mark.asyncio
-async def test_request_stop_abandons_queued_jobs():
+async def test_request_stop_drains_queued_jobs():
+    executed = []
+
+    def work(task, context):
+        executed.append(task.name)
+        return task.name
+
+    job = _make_job("drain", "left-behind", work)
     chan = Channel()
-    await chan.send("left-behind")
+    await chan.send(job)
     chan.request_stop()
     worker = Worker(chan)
+    processed = await worker.run_once()
+    assert processed is job
+    assert executed == ["left-behind"]
+    assert job._fsm.current().value == Status.COMPLETED
     assert await worker.run_once() is None
-    assert chan.length() == 1
+    assert chan.length() == 0
 
 
 @pytest.mark.asyncio
 async def test_direct_receive_drains_after_stop_when_queued():
-    """When stop is already set, direct receive() deterministically drains via get_nowait."""
+    """When stop is already set, receive() deterministically drains via get_nowait."""
     chan = Channel()
     await chan.send("queued")
     chan.request_stop()
-    assert await Worker(chan).run_once() is None
-    assert chan.length() == 1
     assert await chan.receive() == "queued"
     assert chan.length() == 0
     assert await chan.receive() is None
+
+
+@pytest.mark.asyncio
+async def test_run_forever_drains_queued_jobs_after_stop():
+    executed = []
+
+    def work(task, context):
+        executed.append(task.name)
+        return task.name
+
+    chan = Channel()
+    await chan.send(_make_job("drain-forever", "first", work))
+    await chan.send(_make_job("drain-forever", "second", work))
+    chan.request_stop()
+    await Worker(chan).run_forever()
+    assert executed == ["first", "second"]
+    assert chan.length() == 0
+
+
+@pytest.mark.asyncio
+async def test_concurrent_send_and_request_stop_are_atomic():
+    """Successful enqueue and stop-reject are mutually exclusive."""
+    for _ in range(50):
+        chan = Channel()
+        send_ok = False
+
+        async def sender() -> None:
+            nonlocal send_ok
+            send_ok = await chan.send("item")
+
+        async def stopper() -> None:
+            chan.request_stop()
+
+        await asyncio.gather(sender(), stopper())
+        if send_ok:
+            assert chan.length() == 1
+            assert await chan.receive() == "item"
+            assert chan.length() == 0
+        else:
+            assert chan.stop is True
+            assert chan.length() == 0
+            assert await chan.receive() is None
+
+
+def test_thread_send_and_request_stop_are_atomic():
+    """Lock must serialize send vs stop across threads (Job.scheduled vs Worker)."""
+    for _ in range(50):
+        chan = Channel()
+        barrier = threading.Barrier(2)
+        send_ok = {"v": False}
+
+        def sender() -> None:
+            barrier.wait(timeout=5)
+            send_ok["v"] = asyncio.run(chan.send("item"))
+
+        def stopper() -> None:
+            barrier.wait(timeout=5)
+            chan.request_stop()
+
+        t_send = threading.Thread(target=sender)
+        t_stop = threading.Thread(target=stopper)
+        t_send.start()
+        t_stop.start()
+        t_send.join(timeout=5)
+        t_stop.join(timeout=5)
+        assert not t_send.is_alive() and not t_stop.is_alive()
+        if send_ok["v"]:
+            assert chan.length() == 1
+            assert asyncio.run(chan.receive()) == "item"
+            assert chan.length() == 0
+        else:
+            assert chan.stop is True
+            assert chan.length() == 0
+            assert asyncio.run(chan.receive()) is None
+
+
+@pytest.mark.asyncio
+async def test_live_wait_stop_drains_queued_item_when_get_is_pending():
+    """If stop wins the live wait, a ready queue item is still drained (get_nowait)."""
+    chan = Channel()
+    await chan.send("queued")
+    started = asyncio.Event()
+
+    async def hanging_get() -> object:
+        started.set()
+        await asyncio.sleep(3600)
+        raise AssertionError("queue.get should have been cancelled")
+
+    chan._queue.get = hanging_get  # type: ignore[method-assign]
+    recv = asyncio.create_task(chan.receive())
+    await asyncio.wait_for(started.wait(), timeout=2.0)
+    chan.request_stop()
+    assert await asyncio.wait_for(recv, timeout=2.0) == "queued"
+    assert chan.length() == 0
 
 
 @pytest.mark.asyncio
@@ -160,6 +264,13 @@ async def test_stop_property_is_read_only():
     chan = Channel()
     with pytest.raises(AttributeError):
         chan.stop = True  # type: ignore[misc]
+    chan.request_stop()
+    assert chan.stop is True
+
+
+def test_request_stop_is_idempotent():
+    chan = Channel()
+    chan.request_stop()
     chan.request_stop()
     assert chan.stop is True
 
@@ -297,7 +408,47 @@ async def test_run_forever_raises_job_redelivery_when_channel_actually_stopped(m
 
     worker = Worker(chan)
     with pytest.raises(JobRedeliveryError, match="channel stopped") as ei:
-        await worker.run_forever()
+        await asyncio.wait_for(worker.run_forever(), timeout=2.0)
     assert ei.value.reason == "stopped"
     assert chan.length() == 0
     assert job._fsm.current().value == Status.SCHEDULED
+
+
+@pytest.mark.asyncio
+async def test_run_forever_drains_after_stopped_redelivery(monkeypatch):
+    """Stopped redelivery must not abort drain: leftovers still run, then the error is re-raised."""
+    from pypepper.scheduler.job import JobRedeliveryError
+
+    executed: list[str] = []
+
+    def work(task, context):
+        executed.append(task.name)
+        return task.name
+
+    chan = Channel()
+    job_fail = _make_job("drain-redeliver", "lost", work)
+    job_ok = _make_job("drain-redeliver", "kept", work)
+    await chan.send(job_fail)
+    await chan.send(job_ok)
+    chan.request_stop()
+
+    original_save = Job.save
+    fail_id = job_fail.id
+
+    def flaky_save(self):
+        if self.id == fail_id and self._current_status() in (
+            Status.IN_PROGRESS.value,
+            Status.FAILED.value,
+        ):
+            raise RuntimeError("persist-fail")
+        return original_save(self)
+
+    monkeypatch.setattr(Job, "save", flaky_save)
+
+    with pytest.raises(JobRedeliveryError, match="channel stopped") as ei:
+        await asyncio.wait_for(Worker(chan).run_forever(), timeout=2.0)
+    assert ei.value.reason == "stopped"
+    assert executed == ["kept"]
+    assert job_fail._fsm.current().value == Status.SCHEDULED
+    assert job_ok._fsm.current().value == Status.COMPLETED
+    assert chan.length() == 0

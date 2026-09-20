@@ -11,6 +11,7 @@ from pymongo.errors import DuplicateKeyError
 
 from pypepper.helper.db import mongodb as mongodb_helper
 from pypepper.scheduler.store.interfaces import IJobStore, JobRecord
+from pypepper.scheduler.store.lifecycle import existing_statuses_put_may_replace
 
 _DEFAULT_ALIAS = "pypepper_scheduler_jobs"
 
@@ -101,8 +102,6 @@ class MongoJobStore(IJobStore):
 
     def put(self, record: JobRecord) -> None:
         with switch_db(SchedulerJobDoc, self._alias):
-            # Atomic upsert: preserve ``created`` on insert (SQL ON CONFLICT–aligned);
-            # DuplicateKey retry below reapplies ``$set`` only.
             collection = SchedulerJobDoc._get_collection()
             set_fields = {
                 "category": record.category,
@@ -112,28 +111,40 @@ class MongoJobStore(IJobStore):
                 "workflow_count": record.workflow_count,
                 "version": record.version,
             }
-            update = {
-                "$set": set_fields,
-                "$setOnInsert": {
-                    "created": record.created,
-                },
+            allowed = list(existing_statuses_put_may_replace(record.status))
+            filt = {"_id": record.id, "status": {"$in": allowed}}
+            result = collection.update_one(filt, {"$set": set_fields}, upsert=False)
+            if result.matched_count:
+                return
+            doc = {
+                "_id": record.id,
+                "category": record.category,
+                "channel_id": record.channel_id,
+                "status": record.status,
+                "created": record.created,
+                "updated": record.updated,
+                "workflow_count": record.workflow_count,
+                "version": record.version,
             }
             try:
-                collection.update_one({"_id": record.id}, update, upsert=True)
+                collection.insert_one(doc)
             except DuplicateKeyError as dke:
-                # Concurrent first-insert race: peer won the insert; apply $set only.
+                # Concurrent first-insert race, or an existing later status.
                 from pypepper.common.log import log
 
-                log.warn(f"MongoJobStore.put DuplicateKeyError retry $set-only: id={record.id}")
-                result = collection.update_one(
-                    {"_id": record.id},
-                    {"$set": set_fields},
-                    upsert=False,
-                )
-                if result.matched_count == 0:
+                retry = collection.update_one(filt, {"$set": set_fields}, upsert=False)
+                if retry.matched_count:
+                    log.warn(f"MongoJobStore.put DuplicateKeyError retry $set-only: id={record.id}")
+                    return
+                existing = collection.find_one({"_id": record.id})
+                if existing is None:
                     raise RuntimeError(
                         f"MongoJobStore.put: document missing after DuplicateKeyError (id={record.id})"
                     ) from dke
+                log.debug(
+                    f"MongoJobStore.put skipped status downgrade: id={record.id}, "
+                    f"attempted={record.status}, durable={existing.get('status')}"
+                )
 
     def get(self, job_id: str) -> JobRecord | None:
         with switch_db(SchedulerJobDoc, self._alias):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from starlette.testclient import TestClient
+from fastapi.testclient import TestClient
 
 from pypepper.common.tracing import setup_for_tests, shutdown
 from pypepper.network.http.handlers import handlers

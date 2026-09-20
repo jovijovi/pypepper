@@ -18,6 +18,8 @@ class Channel:
         self._queue: Queue[Any] = Queue(maxsize)
         # Wakes a blocked ``receive()`` without consuming queue capacity.
         self._stopped = asyncio.Event()
+        # Serializes send vs request_stop so a concurrent stop cannot lose an enqueue.
+        self._op_lock = Lock()
 
     @property
     def stop(self) -> bool:
@@ -32,29 +34,31 @@ class Channel:
         Callers that need the reason must check ``channel.stop`` after a ``False``
         result (``Job.scheduled`` / ``Processor.async_run`` do this).
 
-        Stop is best-effort: a concurrent ``request_stop()`` between the stop check
-        and ``put_nowait`` may still enqueue; prefer ``Job.scheduled()`` for typed errors.
+        ``send`` and ``request_stop`` share an instance lock: a successful enqueue
+        and a stop-reject are mutually exclusive. Prefer ``Job.scheduled()`` for
+        typed errors.
         """
-        if self.stop:
-            return False
-        try:
-            self._queue.put_nowait(value)
-            return True
-        except QueueFull:
-            return False
+        with self._op_lock:
+            if self._stop:
+                return False
+            try:
+                self._queue.put_nowait(value)
+                return True
+            except QueueFull:
+                return False
 
     async def receive(self) -> Any | None:
         """
-        Wait for the next item, or ``None`` when stop wins and nothing was dequeued.
+        Wait for the next item, or ``None`` when stop wins and the queue is empty.
 
         Cases:
         1. ``stop`` already set: non-blocking dequeue via ``get_nowait``, or ``None``
-           if empty (deterministic drain for direct callers).
-        2. Live wait: race queue ``get`` against the stop event; whichever completes
-           first wins. An in-flight ``receive()`` (including Worker's) may still return
-           a ready item if ``get`` completes in the same turn as stop.
-        3. ``Worker.run_once`` checks ``stop`` **before** calling ``receive``, so when
-           stop is already set it returns ``None`` without draining (abandons leftovers).
+           if empty (deterministic drain).
+        2. Live wait: race queue ``get`` against the stop event. A completed ``get``
+           is preferred. If stop wins, drain one ready item via ``get_nowait`` so
+           leftovers are not abandoned.
+        3. ``Worker.run_once`` always calls ``receive`` (including after stop) so
+           queued jobs are processed before the consumer exits.
 
         Do not enqueue ``None`` as a job payload: ``None`` means stop / empty.
         """
@@ -66,7 +70,7 @@ class Channel:
 
         get_task = asyncio.create_task(self._queue.get())
         stop_task = asyncio.create_task(self._stopped.wait())
-        done, pending = await asyncio.wait(
+        _done, pending = await asyncio.wait(
             {get_task, stop_task},
             return_when=asyncio.FIRST_COMPLETED,
         )
@@ -77,12 +81,18 @@ class Channel:
         # Prefer a completed get even if it finished while we cancelled siblings.
         if get_task.done() and not get_task.cancelled():
             return get_task.result()
-        return None
+        try:
+            return self._queue.get_nowait()
+        except asyncio.QueueEmpty:
+            return None
 
     def request_stop(self) -> None:
         """Mark the channel stopped and wake a blocked ``receive()`` if needed."""
-        self._stop = True
-        self._stopped.set()
+        with self._op_lock:
+            if self._stop:
+                return
+            self._stop = True
+            self._stopped.set()
 
     def length(self) -> int:
         return self._queue.qsize()

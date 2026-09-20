@@ -25,7 +25,15 @@ class IJobStore(metaclass=ABCMeta):
 
     @abstractmethod
     def put(self, record: JobRecord) -> None:
-        """Upsert by ``id``. Must not overwrite an existing row's ``created``."""
+        """
+        Upsert by ``id``.
+
+        Must not overwrite an existing row's ``created``. Must not replace a
+        durable status with an earlier lifecycle (for example Scheduled must
+        not overwrite InProgress/Completed/Failed/Cancelled). Distinct
+        terminals must not overwrite each other. Same status may update other
+        fields.
+        """
         pass
 
     @abstractmethod

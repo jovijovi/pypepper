@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine, select
+from sqlalchemy import Column, Integer, MetaData, String, Table, case, create_engine, select
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine
@@ -12,6 +12,7 @@ from sqlalchemy.engine import Engine
 from pypepper.helper.db import mysql, postgres
 from pypepper.helper.db.uri import build_mysql_uri, build_postgres_uri
 from pypepper.scheduler.store.interfaces import IJobStore, JobRecord
+from pypepper.scheduler.store.lifecycle import existing_statuses_put_may_replace
 
 TABLE_NAME = "scheduler_jobs"
 
@@ -114,6 +115,8 @@ class SqlJobStore(IJobStore):
             "workflow_count": record.workflow_count,
             "version": record.version,
         }
+        allowed = list(existing_statuses_put_may_replace(record.status))
+        may_replace = scheduler_jobs.c.status.in_(allowed)
         update_values = {
             "category": record.category,
             "channel_id": record.channel_id,
@@ -125,11 +128,26 @@ class SqlJobStore(IJobStore):
         with self._engine.begin() as conn:
             if self._backend == "postgres":
                 pg_stmt = pg_insert(scheduler_jobs).values(**values)
-                pg_stmt = pg_stmt.on_conflict_do_update(index_elements=["id"], set_=update_values)
+                pg_stmt = pg_stmt.on_conflict_do_update(
+                    index_elements=["id"],
+                    set_=update_values,
+                    where=may_replace,
+                )
                 conn.execute(pg_stmt)
                 return
             mysql_stmt = mysql_insert(scheduler_jobs).values(**values)
-            mysql_stmt = mysql_stmt.on_duplicate_key_update(**update_values)
+
+            def _gated(new_value: object, column: Column[Any]) -> object:
+                return case((may_replace, new_value), else_=column)
+
+            mysql_stmt = mysql_stmt.on_duplicate_key_update(
+                category=_gated(record.category, scheduler_jobs.c.category),
+                channel_id=_gated(record.channel_id, scheduler_jobs.c.channel_id),
+                status=_gated(record.status, scheduler_jobs.c.status),
+                updated=_gated(record.updated, scheduler_jobs.c.updated),
+                workflow_count=_gated(record.workflow_count, scheduler_jobs.c.workflow_count),
+                version=_gated(record.version, scheduler_jobs.c.version),
+            )
             conn.execute(mysql_stmt)
 
     def get(self, job_id: str) -> JobRecord | None:

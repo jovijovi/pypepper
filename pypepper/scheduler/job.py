@@ -42,7 +42,8 @@ class ChannelStoppedError(ChannelEnqueueError):
 class JobRedeliveryError(RuntimeError):
     """
     Dequeued job could not be returned to the channel after a RUN-start restore
-    (channel full or stopped). ``Worker.run_forever`` re-raises and stops.
+    (channel full or stopped). ``Worker.run_forever`` re-raises. When ``reason`` is
+    ``stopped``, leftover queued jobs are drained first; ``full`` stops immediately.
     """
 
     def __init__(self, message: str, *, reason: str) -> None:
@@ -78,8 +79,9 @@ class Processor:
             return
         raise RuntimeError(
             "Processor.run / Job.scheduled() must be called from a sync context "
-            "(no running event loop); from async code apply INIT→SCHEDULE, call "
-            "job.save(), then await Channel.send(job) and consume with Worker"
+            "(no running event loop); from async code apply INIT→SCHEDULE, "
+            "await Channel.send(job) (False means stopped or full; inspect "
+            "channel.stop), then job.save(), and consume with Worker"
         )
 
     @staticmethod
@@ -150,13 +152,14 @@ class Dispatcher:
         return self._new_processor(key)
 
     def dispatch(self, job: Job) -> None:
-        # Pre-channel schedule/enqueue failure must roll back so retry can re-enter.
+        # Pre-channel apply/enqueue failure must roll back so retry can re-enter.
+        # Persist Scheduled only after a successful send so enqueue failure cannot
+        # leave a store row (no cleanup delete / ghost).
         prev_state = job._fsm.current()
         prev_status = job.status
         try:
             job.apply_event(events.INIT)
             job.apply_event(events.SCHEDULE)
-            job.save()
         except Exception as exc:
             job.restore_lifecycle(prev_state, prev_status)
             log.error(f"Job schedule failed: id={job.id}, error={exc}")
@@ -165,7 +168,8 @@ class Dispatcher:
         job.log()
 
         # Setup + enqueue: roll back only if the job never landed on the channel.
-        # After successful send, exceptions are committed-enqueue + secondary failure.
+        # After successful send, persist Scheduled; exceptions are committed-enqueue
+        # plus secondary failure (including a failed save after send).
         enqueued = False
 
         def _mark_enqueued() -> None:
@@ -176,6 +180,7 @@ class Dispatcher:
             chan = manager.available(job.channel_id)
             processor = self._available_processor(job.channel_id)
             processor.run(job, chan, on_enqueued=_mark_enqueued)
+            job.save()
         except Exception as enqueue_exc:
             if enqueued:
                 log.error(
@@ -184,10 +189,6 @@ class Dispatcher:
                 )
                 raise
             job.restore_lifecycle(prev_state, prev_status)
-            try:
-                get_job_store().delete(job.id)
-            except Exception as delete_exc:
-                log.error(f"Job enqueue cleanup delete failed: id={job.id}, error={delete_exc}")
             log.error(f"Job enqueue failed: id={job.id}, channel_id={job.channel_id}, error={enqueue_exc}")
             raise
 
@@ -296,8 +297,17 @@ class Job(IJob):
             workflow_count=len(self.workflows),
             version=self.version,
         )
-        get_job_store().put(record)
-        # Mutate in-memory fields only after durable persist succeeds.
+        store = get_job_store()
+        store.put(record)
+        # Mutate in-memory fields only after durable persist succeeds, and only
+        # if this snapshot actually landed (put skips earlier-lifecycle writes).
+        durable = store.get(self.id)
+        if durable is None or durable.status != status:
+            log.debug(
+                f"Job save skipped stale snapshot: id={self.id}, "
+                f"attempted={status}, durable={None if durable is None else durable.status}"
+            )
+            return
         self.status = status
         self.updated = updated
         log.debug(f"Job saved: id={self.id}, channel_id={self.channel_id}, status={self.status}")
