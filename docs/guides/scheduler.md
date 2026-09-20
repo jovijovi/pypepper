@@ -2,6 +2,9 @@
 
 Workflow-based job pipeline: **Task → Workflow → Job → Channel → Worker**.
 
+0.7.0 breaking vs 0.6.6: `Channel.send` is `"ok"` / `"full"` / `"stopped"` (not `bool`);
+`IJobStore.put` and `Job.save` return `bool`. See [Upgrading from 0.6.x](../getting-started.md#upgrading-from-06x).
+
 ## Minimal path
 
 See the runnable example [`example/scheduler/app.py`](https://github.com/jovijovi/pypepper/blob/main/example/scheduler/app.py)

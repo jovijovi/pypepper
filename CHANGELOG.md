@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0
+
 ### Breaking
 - `Channel.send` returns `"ok"` / `"full"` / `"stopped"` (not `bool`). The reason is decided under the same lock as `request_stop`. Callers must compare to `"ok"`; do not wrap a bool compatibility layer.
 - `IJobStore.put` returns `bool` (`True` applied, `False` skipped by lifecycle fence or OCC version mismatch). Updates require `record.version` to equal the durable version; the store then writes `version+1`.
