@@ -271,5 +271,40 @@ async def test_last_event_id_unknown_does_not_pretend_history():
     await manager.disconnect("sse-replay-unknown-sub")
 
 
+def test_record_event_ignores_events_without_id():
+    manager = SSEConnectionManager()
+    manager._event_log.clear()
+    manager.record_event(SSEEvent(data={"n": 1}))
+    assert list(manager._event_log) == []
+
+
+@pytest.mark.asyncio
+async def test_broadcast_without_id_does_not_record():
+    manager = SSEConnectionManager()
+    manager._event_log.clear()
+    await manager.connect(connection_id="sse-bcast-no-id")
+    count = await manager.broadcast(SSEEvent(data={"x": 1}, event="tick"))
+    assert count == 1
+    assert list(manager._event_log) == []
+    await manager.disconnect("sse-bcast-no-id")
+
+
+@pytest.mark.asyncio
+async def test_last_event_id_replay_stops_when_queue_full(monkeypatch):
+    monkeypatch.setattr(SSEConnection, "max_queue_size", classmethod(lambda cls: 1))
+    manager = SSEConnectionManager()
+    manager._event_log.clear()
+    manager.record_event(SSEEvent(data={"n": 1}, id="full-1"))
+    manager.record_event(SSEEvent(data={"n": 2}, id="full-2"))
+    manager.record_event(SSEEvent(data={"n": 3}, id="full-3"))
+
+    resumed = await manager.connect(connection_id="sse-replay-full-sub", last_event_id="full-1")
+    assert resumed._queue.qsize() == 1
+    first = resumed._queue.get_nowait()
+    assert first.id == "full-2"
+    assert resumed._queue.empty()
+    await manager.disconnect("sse-replay-full-sub")
+
+
 if __name__ == "__main__":
     pytest.main()

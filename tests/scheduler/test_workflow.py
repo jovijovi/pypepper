@@ -613,3 +613,19 @@ def test_workflow_bounded_join_skips_overlapping_submit():
         assert calls["n"] == 1
     finally:
         release.set()
+
+
+def test_execute_once_pops_completed_inflight_future():
+    from concurrent.futures import Future as ConcurrentFuture
+
+    from pypepper.scheduler import workflow as wf
+
+    done: ConcurrentFuture[object | None] = ConcurrentFuture()
+    done.set_result("stale")
+    task = _task("pop-done", CallableExecutor(lambda t, c: "ok"), round_timeout=1)
+    wf._inflight[task.id] = done
+    try:
+        assert Workflow._execute_once(task) == "ok"
+        assert wf._inflight.get(task.id) is not done
+    finally:
+        wf._inflight.pop(task.id, None)

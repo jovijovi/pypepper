@@ -12,3 +12,31 @@ def test_mongodb_connect_requires_uri_or_discrete_fields():
 def test_mongodb_connect_rejects_empty_config():
     with pytest.raises(ValueError, match="invalid database config"):
         mongodb.connect(None)  # type: ignore[arg-type]
+
+
+def test_mongodb_connect_uses_discrete_fields(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_connect_db(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(mongodb, "connect_db", fake_connect_db)
+    mongodb.connect(
+        mongodb.Config(
+            username="u",
+            password="p",
+            host="localhost",
+            port=27018,
+            db="app",
+            auth_source="admin",
+        )
+    )
+    assert captured == {
+        "username": "u",
+        "password": "p",
+        "host": "localhost",
+        "port": 27018,
+        "db": "app",
+        "authentication_source": "admin",
+        "uuidRepresentation": "standard",
+    }

@@ -88,6 +88,94 @@ def test_from_record_roundtrip_runs_on_worker():
         manager.remove("rehydrate")
 
 
+def _payload_task(**overrides) -> dict:
+    spec = {
+        "channel_id": "ch",
+        "dag_id": "d",
+        "fingerprint": "f",
+        "name": "n",
+        "category": "c",
+        "executor_id": "echo",
+    }
+    spec.update(overrides)
+    return spec
+
+
+def test_from_record_missing_executor_id_raises():
+    record = JobRecord(
+        id="missing-exec-id",
+        category="x",
+        channel_id="ch",
+        status=Status.SCHEDULED.value,
+        created="t0",
+        updated="t0",
+        payload={"workflows": [{"tasks": [_payload_task(executor_id="")]}]},
+    )
+    with pytest.raises(ValueError, match="missing executor_id"):
+        Job.from_record(record)
+
+
+def test_from_record_restores_spec_id_and_skips_absent_id():
+    executor_registry.register("echo", CallableExecutor(lambda t, c: None))
+    with_id = Job.from_record(
+        JobRecord(
+            id="with-task-id",
+            category="x",
+            channel_id="ch",
+            status=Status.SCHEDULED.value,
+            created="t0",
+            updated="t0",
+            payload={"workflows": [{"tasks": [_payload_task(id="task-fixed")]}]},
+        )
+    )
+    assert with_id.workflows[0].tasks[0].id == "task-fixed"
+
+    without_id = Job.from_record(
+        JobRecord(
+            id="without-task-id",
+            category="x",
+            channel_id="ch",
+            status=Status.SCHEDULED.value,
+            created="t0",
+            updated="t0",
+            payload={"workflows": [{"tasks": [_payload_task()]}]},
+        )
+    )
+    assert without_id.workflows[0].tasks[0].id != "task-fixed"
+    assert without_id.workflows[0].tasks[0].executor_id == "echo"
+
+
+def test_from_record_without_payload_leaves_empty_workflows():
+    record = JobRecord(
+        id="no-payload",
+        category="x",
+        channel_id="ch",
+        status=Status.SCHEDULED.value,
+        created="t0",
+        updated="t0",
+    )
+    restored = Job.from_record(record)
+    assert restored.workflows == []
+    assert restored.status == Status.UNKNOWN.value
+
+
+def test_save_skips_version_refresh_when_get_returns_none():
+    class _PutOkGetNone(InMemoryJobStore):
+        def put(self, record: JobRecord) -> bool:
+            return True
+
+        def get(self, job_id: str) -> JobRecord | None:
+            return None
+
+    set_job_store(_PutOkGetNone())
+    job = Job(category="x", channel_id="save-get-none")
+    job.apply_event(events.INIT)
+    job.apply_event(events.SCHEDULE)
+    before = job.version
+    assert job.save() is True
+    assert job.version == before
+
+
 def test_from_record_unknown_executor_id_raises():
     record = JobRecord(
         id="missing-exec",
@@ -413,3 +501,107 @@ async def test_run_persist_skip_requeues_when_failed_also_skipped():
     assert saved is not None
     assert saved.status == Status.SCHEDULED.value
     assert chan.length() == 1
+
+
+def test_force_failed_lifecycle_is_noop_when_already_failed():
+    from pypepper.scheduler.worker import _force_failed_lifecycle
+
+    job = Job(category="x", channel_id="already-failed")
+    job.apply_event(events.INIT)
+    job.apply_event(events.SCHEDULE)
+    job.apply_event(events.RUN)
+    job.apply_event(events.FAIL)
+    _force_failed_lifecycle(job)
+    assert job.status == Status.FAILED.value
+    assert job._fsm.current() is not None
+    assert job._fsm.current().value == Status.FAILED
+
+
+@pytest.mark.asyncio
+async def test_run_skip_when_durable_failed_does_not_execute():
+    executed: list[int] = []
+    job = _skip_job("failed-race", executed)
+    assert job.save() is True
+    seeded = replace(job.to_record(), status=Status.FAILED.value, updated="t-fail")
+    assert get_job_store().put(seeded) is True
+    chan = Channel()
+    await chan.send(job)
+    await Worker(chan).run_once()
+    assert executed == []
+    assert job.status == Status.FAILED.value
+
+
+@pytest.mark.asyncio
+async def test_run_skip_when_durable_cancelled_and_job_already_cancelled():
+    executed: list[int] = []
+
+    class _CancelDuringRunPut(InMemoryJobStore):
+        job: Job | None = None
+
+        def put(self, record: JobRecord) -> bool:
+            if record.status == Status.IN_PROGRESS.value:
+                assert self.job is not None
+                self.job.apply_event(events.CANCEL)
+                super().put(
+                    JobRecord(
+                        id=record.id,
+                        category=record.category,
+                        channel_id=record.channel_id,
+                        status=Status.CANCELLED.value,
+                        created=record.created,
+                        updated=record.updated,
+                        workflow_count=record.workflow_count,
+                        version=record.version,
+                    )
+                )
+                return False
+            return super().put(record)
+
+    store = _CancelDuringRunPut()
+    set_job_store(store)
+    job = _skip_job("cancel-local-and-durable", executed)
+    store.job = job
+    assert job.save() is True
+    chan = Channel()
+    await chan.send(job)
+    await Worker(chan).run_once()
+    assert executed == []
+    assert job.is_cancelled()
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.CANCELLED.value
+
+
+@pytest.mark.asyncio
+async def test_undeliverable_failed_persist_skip_still_raises_redelivery(monkeypatch):
+    from pypepper.scheduler.job import JobRedeliveryError
+
+    executed: list[int] = []
+    job = _skip_job("undeliverable-skip", executed)
+    assert job.save() is True
+    chan = Channel(maxsize=1)
+    await chan.send(job)
+
+    original_restore = Job.restore_lifecycle
+    saves = {"n": 0}
+
+    def flaky_save(self):
+        saves["n"] += 1
+        if saves["n"] <= 2:
+            raise RuntimeError("persist-fail")
+        return False
+
+    def restore_and_fill(self, state, status):
+        original_restore(self, state, status)
+        chan._queue.put_nowait("filler")
+
+    monkeypatch.setattr(Job, "save", flaky_save)
+    monkeypatch.setattr(Job, "restore_lifecycle", restore_and_fill)
+
+    with pytest.raises(JobRedeliveryError, match="channel full") as ei:
+        await Worker(chan).run_once()
+    assert ei.value.reason == "full"
+    assert ei.value.job is job
+    assert executed == []
+    assert job._fsm.current() is not None
+    assert job._fsm.current().value == Status.FAILED
