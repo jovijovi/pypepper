@@ -32,7 +32,8 @@ server.run(AppHandlers())
 (handlers + middleware registered once). Prefer `create_app` in tests instead of
 re-registering on the module-level `server.app`.
 `server.run` raises if both `httpServer.enable` and `httpsServer.enable` are true
-(enable only one). `build_response` stays HTTP 200 by default; pass `status_code`
+(enable only one; 0.7.0 breaking vs 0.6.6, which let HTTP win silently).
+`build_response` stays HTTP 200 by default; pass `status_code`
 explicitly (business `code` is not mapped to HTTP).
 
 Built-in routes from `BaseHandlers`: `/health`, `/ping`, `/metrics`.

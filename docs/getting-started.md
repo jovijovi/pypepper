@@ -20,6 +20,17 @@ For runtime-only dependencies:
 uv pip install -r requirements.txt
 ```
 
+## Upgrading from 0.6.x
+
+**0.7.0** is a breaking release. Full notes: [CHANGELOG 0.7.0](https://github.com/jovijovi/pypepper/blob/main/CHANGELOG.md#070). Callers of 0.6.6 must at least:
+
+- Compare `Channel.send` to `"ok"` (not treat the result as `bool`; `"full"` / `"stopped"` are truthy).
+- Treat `IJobStore.put` and `Job.save` as returning `bool` (`False` means skipped, not applied).
+- Enable only one of `httpServer` / `httpsServer`; `server.run` raises if both are true.
+- From an already-running event loop, do not call `Job.scheduled()`; apply `INIT`→`SCHEDULE`, `await Channel.send`, then `job.save()`.
+
+Scheduler and HTTP details: [Scheduler](guides/scheduler.md), [Network and SSE](guides/network-sse.md).
+
 ## Validate locally
 
 ```shell

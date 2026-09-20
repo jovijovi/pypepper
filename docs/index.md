@@ -3,6 +3,8 @@
 PyPepper is a microservice toolkit for Python (`>=3.10, <=3.14`).
 It provides reusable building blocks rather than a full application framework.
 
+Package version **0.7.0**. Breaking changes vs 0.6.6 are in the [changelog](https://github.com/jovijovi/pypepper/blob/main/CHANGELOG.md#070) and [Getting Started](getting-started.md#upgrading-from-06x).
+
 Published docs: <https://jovijovi.github.io/pypepper/>
 
 ## Domains
