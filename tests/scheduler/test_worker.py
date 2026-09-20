@@ -133,26 +133,77 @@ async def test_request_stop_does_not_steal_bounded_capacity():
 
 
 @pytest.mark.asyncio
-async def test_request_stop_abandons_queued_jobs():
+async def test_request_stop_drains_queued_jobs():
+    executed = []
+
+    def work(task, context):
+        executed.append(task.name)
+        return task.name
+
+    job = _make_job("drain", "left-behind", work)
     chan = Channel()
-    await chan.send("left-behind")
+    await chan.send(job)
     chan.request_stop()
     worker = Worker(chan)
+    processed = await worker.run_once()
+    assert processed is job
+    assert executed == ["left-behind"]
+    assert job._fsm.current().value == Status.COMPLETED
     assert await worker.run_once() is None
-    assert chan.length() == 1
+    assert chan.length() == 0
 
 
 @pytest.mark.asyncio
 async def test_direct_receive_drains_after_stop_when_queued():
-    """When stop is already set, direct receive() deterministically drains via get_nowait."""
+    """When stop is already set, receive() deterministically drains via get_nowait."""
     chan = Channel()
     await chan.send("queued")
     chan.request_stop()
-    assert await Worker(chan).run_once() is None
-    assert chan.length() == 1
     assert await chan.receive() == "queued"
     assert chan.length() == 0
     assert await chan.receive() is None
+
+
+@pytest.mark.asyncio
+async def test_run_forever_drains_queued_jobs_after_stop():
+    executed = []
+
+    def work(task, context):
+        executed.append(task.name)
+        return task.name
+
+    chan = Channel()
+    await chan.send(_make_job("drain-forever", "first", work))
+    await chan.send(_make_job("drain-forever", "second", work))
+    chan.request_stop()
+    await Worker(chan).run_forever()
+    assert executed == ["first", "second"]
+    assert chan.length() == 0
+
+
+@pytest.mark.asyncio
+async def test_concurrent_send_and_request_stop_are_atomic():
+    """Successful enqueue and stop-reject are mutually exclusive."""
+    for _ in range(50):
+        chan = Channel()
+        send_ok = False
+
+        async def sender() -> None:
+            nonlocal send_ok
+            send_ok = await chan.send("item")
+
+        async def stopper() -> None:
+            chan.request_stop()
+
+        await asyncio.gather(sender(), stopper())
+        if send_ok:
+            assert chan.length() == 1
+            assert await chan.receive() == "item"
+            assert chan.length() == 0
+        else:
+            assert chan.stop is True
+            assert chan.length() == 0
+            assert await chan.receive() is None
 
 
 @pytest.mark.asyncio
@@ -160,6 +211,13 @@ async def test_stop_property_is_read_only():
     chan = Channel()
     with pytest.raises(AttributeError):
         chan.stop = True  # type: ignore[misc]
+    chan.request_stop()
+    assert chan.stop is True
+
+
+def test_request_stop_is_idempotent():
+    chan = Channel()
+    chan.request_stop()
     chan.request_stop()
     assert chan.stop is True
 

@@ -52,9 +52,6 @@ class Worker:
         self.channel = channel
 
     async def run_once(self) -> Job | None:
-        if self.channel.stop:
-            return None
-
         raw = await self.channel.receive()
         if raw is None:
             return None
@@ -63,7 +60,7 @@ class Worker:
         return job
 
     async def run_forever(self) -> None:
-        while not self.channel.stop:
+        while True:
             try:
                 job = await self.run_once()
                 if job is None:

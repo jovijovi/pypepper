@@ -48,13 +48,15 @@ def test_scheduled_raises_when_durable_job_store_deferred(tmp_path):
         with pytest.raises(ValueError, match="setup_from_config"):
             job.scheduled()
 
-        assert job._fsm.current().value == Status.UNKNOWN
+        # Send succeeded; Scheduled persist hit the deferred guard — committed enqueue.
+        assert job._fsm.current().value == Status.SCHEDULED
         assert job.status == Status.UNKNOWN.value
-        assert chan.length() == 0
+        assert chan.length() == 1
 
         config.mark_scheduler_job_store_applied()
         assert Job.get_saved(job.id) is None
     finally:
+        manager.remove(channel_id)
         _restore_memory_config()
 
 
@@ -64,8 +66,8 @@ async def test_worker_run_save_deferred_restores_pre_run(tmp_path):
     After a successful enqueue, re-arm deferred via reset_job_store; Worker RUN
     save must fail-fast and restore pre-RUN (Scheduled).
 
-    Uses INIT→SCHEDULE→save→send (async-safe) instead of Job.scheduled(), which
-    cannot run under a live event loop.
+    Uses INIT→SCHEDULE→save→send so the store already has a Scheduled row before
+    Worker RUN (async-safe; ``Job.scheduled()`` cannot run under a live event loop).
 
     Do not assert get_saved after reset_job_store: reset installs a fresh empty
     store, so None would not prove restore-to-Scheduled semantics.

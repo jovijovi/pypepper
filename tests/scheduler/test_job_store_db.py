@@ -221,43 +221,36 @@ class _FailPutProxy(IJobStore):
         self._inner.clear()
 
 
-class _FailDeleteProxy(IJobStore):
-    def __init__(self, inner: IJobStore) -> None:
-        self._inner = inner
-
-    def put(self, record: JobRecord) -> None:
-        self._inner.put(record)
-
-    def get(self, job_id: str) -> JobRecord | None:
-        return self._inner.get(job_id)
-
-    def delete(self, job_id: str) -> None:
-        raise RuntimeError("proxy-delete-failed")
-
-    def list(self, channel_id: str | None = None) -> list[JobRecord]:
-        return self._inner.list(channel_id)
-
-    def clear(self) -> None:
-        self._inner.clear()
-
-
 @pytest.mark.parametrize(("backend", "uri"), _BACKENDS)
-def test_db_scheduled_put_failure_rolls_back(backend: str, uri: str):
-    """Schedule-path put failure must not leave a durable row or advanced lifecycle."""
+def test_db_scheduled_put_failure_after_enqueue_keeps_job_on_channel(backend: str, uri: str):
+    """save() after successful send must not roll back; store has no row."""
+    import asyncio
+
+    from pypepper.scheduler.channel import manager
+
     inner = configure_job_store(backend, uri=uri)
     inner.clear()
     set_job_store(_FailPutProxy(inner))
-    job = Job(category="x", channel_id=f"ch-fail-put-{backend}")
-    with pytest.raises(RuntimeError, match="proxy-put-failed"):
-        job.scheduled()
-    assert job._fsm.current().value == Status.UNKNOWN
-    assert job.status == Status.UNKNOWN.value
-    assert inner.get(job.id) is None
+    channel_id = f"ch-fail-put-{backend}"
+    manager.remove(channel_id)
+    job = Job(category="x", channel_id=channel_id)
+    try:
+        with pytest.raises(RuntimeError, match="proxy-put-failed"):
+            job.scheduled()
+        assert job._fsm.current().value == Status.SCHEDULED
+        assert job.status == Status.UNKNOWN.value
+        assert inner.get(job.id) is None
+        chan = manager.get(channel_id)
+        assert chan is not None
+        assert chan.length() == 1
+        assert asyncio.run(chan.receive()) is job
+    finally:
+        manager.remove(channel_id)
 
 
 @pytest.mark.parametrize(("backend", "uri"), _BACKENDS)
-def test_db_enqueue_delete_failure_leaves_ghost(backend: str, uri: str):
-    """Channel-full cleanup delete failure may leave a Scheduled ghost on the DB store."""
+def test_db_enqueue_failure_writes_nothing(backend: str, uri: str):
+    """Channel-full enqueue failure must not persist a Scheduled row."""
     import asyncio
 
     from pypepper.scheduler.channel import manager
@@ -265,8 +258,8 @@ def test_db_enqueue_delete_failure_leaves_ghost(backend: str, uri: str):
 
     inner = configure_job_store(backend, uri=uri)
     inner.clear()
-    set_job_store(_FailDeleteProxy(inner))
-    channel_id = f"db-full-del-{backend}"
+    set_job_store(inner)
+    channel_id = f"db-full-{backend}"
     bounded = Channel(maxsize=1)
     assert asyncio.run(bounded.send("occupier")) is True
     manager.put(channel_id, bounded)
@@ -276,9 +269,7 @@ def test_db_enqueue_delete_failure_leaves_ghost(backend: str, uri: str):
             job.scheduled()
         assert job._fsm.current().value == Status.UNKNOWN
         assert job.status == Status.UNKNOWN.value
-        ghost = inner.get(job.id)
-        assert ghost is not None
-        assert ghost.status == Status.SCHEDULED.value
+        assert inner.get(job.id) is None
     finally:
         manager.remove(channel_id)
         inner.clear()

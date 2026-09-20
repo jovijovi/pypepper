@@ -361,11 +361,12 @@ async def test_channel_stop_does_not_cancel_queued_job():
     await chan.send(job)
     chan.request_stop()
     worker = Worker(chan)
-    assert await worker.run_once() is None
-
-    assert job._fsm.current().value == Status.SCHEDULED
+    processed = await worker.run_once()
+    assert processed is job
+    assert executed == ["step1"]
     assert not job.is_cancelled()
-    assert executed == []
+    assert job._fsm.current().value == Status.COMPLETED
     saved = Job.get_saved(job.id)
     assert saved is not None
-    assert saved.status == Status.SCHEDULED.value
+    assert saved.status == Status.COMPLETED.value
+    assert await worker.run_once() is None

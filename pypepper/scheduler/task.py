@@ -61,7 +61,7 @@ class Task(ITask):
         self.description = description
         self.tags = tags
         self.executor = executor
-        # Seconds per execute attempt; 0 = no timeout. Soft orphan/overlap only when > 0.
+        # Seconds per execute attempt; 0 = none. Started work is joined on timeout.
         self.round_timeout = round_timeout
         # Outer rounds; each round has its own inner retry budget.
         self.round_times = round_times

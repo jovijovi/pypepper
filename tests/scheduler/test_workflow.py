@@ -331,15 +331,19 @@ def test_workflow_all_rounds_exhausted():
     assert calls["n"] == 4  # 2 rounds × (1+1) attempts
 
 
-def test_workflow_round_timeout_hang_raises_within_budget():
-    """Hung execute must surface TimeoutError without waiting for the pool thread."""
+def test_workflow_round_timeout_joins_started_execute_before_return():
+    """Hung execute still raises TimeoutError, but only after the pool thread finishes."""
     release = threading.Event()
-    entered = threading.Event()
+    exited = threading.Event()
 
     def hang(task, context):
-        entered.set()
         release.wait(timeout=60)
+        exited.set()
         return "never"
+
+    def release_later() -> None:
+        time.sleep(1.5)
+        release.set()
 
     task = _task(
         "hang",
@@ -350,39 +354,32 @@ def test_workflow_round_timeout_hang_raises_within_budget():
     )
     workflow = Workflow()
     workflow.add_task(task)
+    threading.Thread(target=release_later, daemon=True).start()
     started = time.monotonic()
     try:
         with pytest.raises(TimeoutError, match="execute still running"):
             workflow.run()
         elapsed = time.monotonic() - started
-        assert elapsed < 5, f"soft timeout blocked too long: {elapsed:.2f}s"
-        assert entered.wait(timeout=2), "execute never started"
+        assert elapsed >= 0.9
+        assert exited.is_set()
     finally:
         release.set()
 
 
-def test_workflow_soft_timeout_orphan_failure_is_logged():
-    """Started orphans that fail after wait-timeout must log via done-callback."""
-    release = threading.Event()
-    entered = threading.Event()
-    logged = threading.Event()
+def test_workflow_round_timeout_started_failure_is_logged_after_join():
+    """Started execute that fails after wait-timeout is joined, then logged."""
 
     def hang_then_fail(task, context):
-        entered.set()
-        release.wait(timeout=60)
-        raise RuntimeError("orphan-boom")
+        time.sleep(1.2)
+        raise RuntimeError("join-fail")
 
-    from pypepper.common.log import log as pepper_log
+    warnings: list[str] = []
 
-    real_warn = pepper_log.warn
-
-    def warn_and_signal(msg, *args, **kwargs):
-        real_warn(msg, *args, **kwargs)
-        if "orphan execute failed" in str(msg) and "orphan-boom" in str(msg):
-            logged.set()
+    def capture_warn(msg, *args, **kwargs):
+        warnings.append(str(msg))
 
     task = _task(
-        "orphan-fail",
+        "join-fail",
         CallableExecutor(hang_then_fail),
         round_timeout=1,
         retry_count=0,
@@ -390,15 +387,44 @@ def test_workflow_soft_timeout_orphan_failure_is_logged():
     )
     workflow = Workflow()
     workflow.add_task(task)
-    try:
-        with patch("pypepper.scheduler.workflow.log.warn", side_effect=warn_and_signal):
-            with pytest.raises(TimeoutError, match="execute still running"):
-                workflow.run()
-            assert entered.wait(timeout=2), "execute never started"
-            release.set()
-            assert logged.wait(timeout=5), "orphan failure was not logged"
-    finally:
-        release.set()
+    with patch("pypepper.scheduler.workflow.log.warn", side_effect=capture_warn):
+        with pytest.raises(TimeoutError, match="execute still running"):
+            workflow.run()
+    assert any("join-fail" in msg for msg in warnings)
+
+
+def test_workflow_round_timeout_retry_does_not_overlap_started_execute():
+    concurrent = {"n": 0}
+    max_concurrent = {"n": 0}
+    lock = threading.Lock()
+    calls = {"n": 0}
+
+    def work(task, context):
+        calls["n"] += 1
+        with lock:
+            concurrent["n"] += 1
+            max_concurrent["n"] = max(max_concurrent["n"], concurrent["n"])
+        try:
+            if calls["n"] == 1:
+                time.sleep(1.2)
+                return "late"
+            return "ok"
+        finally:
+            with lock:
+                concurrent["n"] -= 1
+
+    task = _task(
+        "no-overlap",
+        CallableExecutor(work),
+        round_timeout=1,
+        retry_count=1,
+        retry_delay=0,
+    )
+    workflow = Workflow()
+    workflow.add_task(task)
+    assert workflow.run() == ["ok"]
+    assert calls["n"] == 2
+    assert max_concurrent["n"] == 1
 
 
 def test_workflow_soft_timeout_returns_result_when_future_finishes_in_race():

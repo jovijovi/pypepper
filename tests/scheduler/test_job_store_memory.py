@@ -383,24 +383,6 @@ async def test_invalid_run_transition_does_not_execute_workflows():
     assert executed == []
 
 
-def test_dispatch_save_failure_rolls_back_for_retry():
-    set_job_store(_AlwaysFailStore())
-    job = Job(category="x", channel_id="dispatch-rollback")
-
-    with pytest.raises(RuntimeError, match="always-fail"):
-        job.scheduled()
-
-    assert job._fsm.current().value == Status.UNKNOWN
-    assert job.status == Status.UNKNOWN.value
-    assert Job.get_saved(job.id) is None
-
-    reset_job_store()
-    job.scheduled()
-    assert Job.get_saved(job.id) is not None
-    assert Job.get_saved(job.id).status == Status.SCHEDULED.value
-    assert job.status == Status.SCHEDULED.value
-
-
 def test_sql_missing_connection_raises_value_error():
     from pypepper.scheduler.store.mongodb import MongoJobStore
     from pypepper.scheduler.store.sql import SqlJobStore
@@ -460,7 +442,7 @@ def test_to_record_uses_fsm_status():
     assert job.to_record().status == Status.SCHEDULED.value
 
 
-def test_channel_full_rolls_back_and_deletes_scheduled():
+def test_channel_full_rolls_back_without_store_row():
     import asyncio
 
     from pypepper.scheduler.channel import manager
@@ -482,46 +464,14 @@ def test_channel_full_rolls_back_and_deletes_scheduled():
         manager.remove(channel_id)
 
 
-class _FailDeleteStore(InMemoryJobStore):
-    def delete(self, job_id: str) -> None:
-        raise RuntimeError("delete-failed")
-
-
-def test_channel_full_delete_failure_still_raises_channel_full():
+def test_channel_full_writes_nothing_then_retry_succeeds():
+    """Enqueue rejection must not persist a row; a later successful schedule can insert."""
     import asyncio
 
     from pypepper.scheduler.channel import manager
     from pypepper.scheduler.job import ChannelFullError
 
-    set_job_store(_FailDeleteStore())
-    channel_id = "bounded-full-delete-fail"
-    bounded = Channel(maxsize=1)
-    assert asyncio.run(bounded.send("occupier")) is True
-    manager.put(channel_id, bounded)
-    try:
-        job = Job(category="x", channel_id=channel_id)
-        with pytest.raises(ChannelFullError, match="channel full"):
-            job.scheduled()
-
-        assert job._fsm.current().value == Status.UNKNOWN
-        assert job.status == Status.UNKNOWN.value
-        # Best-effort delete failed: Scheduled ghost may remain.
-        ghost = Job.get_saved(job.id)
-        assert ghost is not None
-        assert ghost.status == Status.SCHEDULED.value
-    finally:
-        manager.remove(channel_id)
-
-
-def test_channel_full_ghost_then_retry_upserts():
-    """Ghost Scheduled row after failed cleanup must not block a later successful schedule."""
-    import asyncio
-
-    from pypepper.scheduler.channel import manager
-    from pypepper.scheduler.job import ChannelFullError
-
-    set_job_store(_FailDeleteStore())
-    channel_id = "bounded-ghost-retry"
+    channel_id = "bounded-full-retry-empty"
     bounded = Channel(maxsize=1)
     assert asyncio.run(bounded.send("occupier")) is True
     manager.put(channel_id, bounded)
@@ -529,20 +479,55 @@ def test_channel_full_ghost_then_retry_upserts():
         job = Job(category="x", channel_id=channel_id)
         with pytest.raises(ChannelFullError):
             job.scheduled()
-        ghost = Job.get_saved(job.id)
-        assert ghost is not None
-        ghost_created = ghost.created
+        assert Job.get_saved(job.id) is None
+        assert job._fsm.current().value == Status.UNKNOWN
 
         assert asyncio.run(bounded.receive()) == "occupier"
         job.scheduled()
         saved = Job.get_saved(job.id)
         assert saved is not None
         assert saved.status == Status.SCHEDULED.value
-        assert saved.created == ghost_created
         assert job._fsm.current().value == Status.SCHEDULED
         assert job.status == Status.SCHEDULED.value
     finally:
         manager.remove(channel_id)
+
+
+def test_scheduled_save_failure_after_enqueue_does_not_rollback():
+    """Committed send + failed Scheduled persist: job stays on the channel, store empty."""
+    import asyncio
+
+    from pypepper.scheduler.channel import manager
+
+    set_job_store(_AlwaysFailStore())
+    channel_id = "save-after-enqueue-fail"
+    manager.remove(channel_id)
+    job = Job(category="x", channel_id=channel_id)
+    try:
+        with pytest.raises(RuntimeError, match="always-fail"):
+            job.scheduled()
+        assert job._fsm.current().value == Status.SCHEDULED
+        assert job.status == Status.UNKNOWN.value
+        assert Job.get_saved(job.id) is None
+        chan = manager.get(channel_id)
+        assert chan is not None
+        assert chan.length() == 1
+        assert asyncio.run(chan.receive()) is job
+    finally:
+        manager.remove(channel_id)
+
+
+def test_schedule_apply_failure_rolls_back_without_store_row(monkeypatch):
+    def boom(self, event):
+        raise RuntimeError("apply-fail")
+
+    monkeypatch.setattr(Job, "apply_event", boom)
+    job = Job(category="x", channel_id="apply-fail")
+    with pytest.raises(RuntimeError, match="apply-fail"):
+        job.scheduled()
+    assert job._fsm.current().value == Status.UNKNOWN
+    assert job.status == Status.UNKNOWN.value
+    assert Job.get_saved(job.id) is None
 
 
 def test_enqueue_failure_rolls_back_for_any_error(monkeypatch):
@@ -592,9 +577,8 @@ def test_post_enqueue_error_does_not_rollback(monkeypatch):
             job.scheduled()
 
         assert job._fsm.current().value == Status.SCHEDULED
-        assert job.status == Status.SCHEDULED.value
-        assert Job.get_saved(job.id) is not None
-        assert Job.get_saved(job.id).status == Status.SCHEDULED.value
+        assert job.status == Status.UNKNOWN.value
+        assert Job.get_saved(job.id) is None
         # Committed enqueue: job remains receivable on the channel.
         received = asyncio.run(chan.receive())
         assert received is job

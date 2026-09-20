@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Breaking
+- `Channel.send` and `request_stop` are serialized: a successful enqueue and a stop-reject are mutually exclusive (no TOCTOU put after stop).
+- `Worker.run_once` / `run_forever` drain queued jobs after stop (stop is still not cancel). `run_forever` exits when the channel is stopped **and** empty.
+- `Job.scheduled()` persists Scheduled **after** a successful channel send. Enqueue failure rolls back in memory only (no store row, no cleanup delete). A `save()` failure after send does not roll back; the job stays on the channel.
+- `round_timeout`: started execute is joined before retry or `Workflow.run()` return. Hung execute blocks the workflow / Worker. No orphan overlap on the shared timeout pool.
+
 ## 0.6.6
 
 ### Changed
