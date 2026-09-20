@@ -380,6 +380,9 @@ async def test_run_forever_raises_job_redelivery_when_channel_actually_full(monk
     assert ei.value.job is job
     assert chan.length() == 1  # filler only
     assert job._fsm.current().value == Status.FAILED
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.FAILED.value
 
 
 @pytest.mark.asyncio
@@ -416,6 +419,9 @@ async def test_run_forever_raises_job_redelivery_when_channel_actually_stopped(m
     assert ei.value.job is job
     assert chan.length() == 0
     assert job._fsm.current().value == Status.FAILED
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.FAILED.value
 
 
 @pytest.mark.asyncio

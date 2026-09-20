@@ -76,7 +76,10 @@ Each `Job` owns an FSM from `build_scheduler_fsm()`:
 | `CANCEL` | scheduled or in progress → cancelled |
 
 `Job.cancel()` applies `CANCEL`, sets a `threading.Event` in `Job.context`
-(`CANCEL_EVENT_KEY`), and persists. Executors may poll that event; `CallableExecutor`
+(`CANCEL_EVENT_KEY`), and persists. Before `execute`, the Worker copies that
+**same** Event onto each `Task.context` (`job.share_cancel_event()`). If you call
+`Workflow.run()` yourself, call `share_cancel_event()` first. Executors poll `context`
+(`context.context.get(CANCEL_EVENT_KEY)`); `CallableExecutor`
 does not wrap user functions. Cancellation is cooperative: the Worker
 skips work if the job is already cancelled, and stops before `COMPLETE` at workflow
 boundaries. It does **not** interrupt a sync workflow mid-`to_thread`. Prefer
@@ -126,7 +129,9 @@ Non-optional task failure after all rounds/attempts aborts the workflow.
 Workflows / executors are **not** serialized unless every task has `executor_id`; then
 `to_record()` may include a JSON `payload`. Rebuild a runnable job with
 `executor_registry.register(...)` and `Job.from_record(record)` (missing ids raise
-`ValueError`). `put` returns `True`/`False`; a `False` skip does not rewind
+`ValueError`). `from_record` rebuilds workflows and leaves the FSM at Unknown so
+`scheduled()` can run again; it does not restore `record.status`. `put` returns
+`True`/`False`; a `False` skip does not rewind
 `Job.status`. Successful writes increment store `version` (OCC).
 
 Default backend is **in-memory**. Switch to a database with `configure_job_store` (or YAML `scheduler.jobStore`):
@@ -191,12 +196,15 @@ Connections reuse [`helper.db`](helper-db.md) settings style (`uri` or discrete 
 rejections), then `job.save()`, and consume with `Worker`. Prefer
 `Job.scheduled()` from sync code so failures raise `ChannelStoppedError` /
 `ChannelFullError`. If the store has no Scheduled row when the Worker dequeues the
-job, it heals that snapshot before `RUN`.
+job, it heals that snapshot before `RUN`. If that heal persist still fails, the
+Worker follows the RUN persist-failure path (prefer Failed, else restore and
+re-enqueue). `put` False on RUN follows durable Cancelled/InProgress/terminals
+and does not run workflows.
 
 ### Persist-failure rules
 
 - **Schedule** (`INIT`/`SCHEDULE` in `dispatch`): roll back FSM and `Job.status` so `scheduled()` can retry (no store write yet).
-- **Enqueue** (channel/processor setup or send rejected): roll back FSM/`Job.status` with **no store write**. After a successful send, persist Scheduled. If that `save()` fails, do **not** roll back — the job is on the channel (store may lack a Scheduled row until Worker heal / RUN `save`); do not treat it as “nothing queued.”
+- **Enqueue** (channel/processor setup or send rejected): roll back FSM/`Job.status` with **no store write**. After a successful send, persist Scheduled (retries `save()` a few times, including `False` skip). If that `save()` still fails, do **not** roll back — the job is on the channel (store may lack a Scheduled row until Worker heal / RUN `save`); do not treat it as “nothing queued.”
 - **Start (`RUN`)**: if the store has no row, persist Scheduled first. If Running snapshot fails or `put` returns `False`, do not run workflows. Follow durable Cancelled/InProgress/terminals. Otherwise prefer persist `Failed`. If that also fails and the job is already `Cancelled`, keep Cancelled and retry `job.save()` only — do **not** restore pre-RUN over a winning cancel. Otherwise restore pre-RUN and **re-enqueue** when possible, then raise `JobRequeuedError` so `run_forever` **re-raises** (job stays queued; no busy-spin). If re-enqueue fails, persist Failed, set `.job`, and raise `JobRedeliveryError` (`full` stops immediately; `stopped` drains leftovers first).
 - **After work** (COMPLETE/FAIL via Worker): keep the terminal FSM; retry `job.save()` only — do not re-run workflows because the snapshot write failed.
 - **Cancel** (`Job.cancel()`): set the context cancel event, apply `CANCEL` then `save()`; on persist failure keep Cancelled in the FSM and retry `job.save()` only. The Worker does not apply `CANCEL` — it skips or exits when the job is already cancelled (and retries Cancelled persist if the store lags).

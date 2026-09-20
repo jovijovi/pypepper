@@ -29,12 +29,30 @@ def _follow_durable_status(job: Job, status: str) -> None:
     job.status = status
 
 
+def _force_failed_lifecycle(job: Job) -> None:
+    """Move the FSM to Failed. ``FAIL`` is InProgress-only; otherwise restore."""
+    if job._current_status() == Status.FAILED.value:
+        return
+    try:
+        job.apply_event(events.FAIL)
+    except Exception:
+        job._fsm.restore(State(Status.FAILED))
+        job.status = Status.FAILED.value
+
+
+def _persist_failed_snapshot(job: Job) -> None:
+    """Prefer a Failed snapshot. Skip (``save()`` False) is persist failure."""
+    _force_failed_lifecycle(job)
+    if not job.save():
+        raise RuntimeError(f"Job Failed persist skipped: id={job.id}")
+
+
 def _mark_undeliverable_failed(job: Job) -> None:
     """Persist Failed when re-enqueue is impossible (FSM may still be Scheduled)."""
-    job._fsm.restore(State(Status.FAILED))
-    job.status = Status.FAILED.value
+    _force_failed_lifecycle(job)
     try:
-        job.save()
+        if not job.save():
+            log.error(f"Job undeliverable Failed persist skipped: id={job.id}")
     except Exception as exc:
         log.error(f"Job undeliverable Failed persist failed: id={job.id}: {exc}")
 
@@ -145,8 +163,9 @@ class Worker:
         save_exc: BaseException,
     ) -> None:
         try:
-            job.apply_event(events.FAIL)
-            job.save()
+            if job.is_cancelled():
+                raise RuntimeError(f"Job already cancelled: id={job.id}")
+            _persist_failed_snapshot(job)
         except Exception as fail_save_exc:
             if job.is_cancelled():
                 try:
@@ -186,7 +205,8 @@ class Worker:
                 raise RuntimeError(f"Job Scheduled persist failed before RUN: id={job.id}")
         except Exception as heal_exc:
             log.error(f"Job missing Scheduled snapshot before RUN: id={job.id}, error={heal_exc}")
-            await self._requeue_after_run_restore(job, heal_exc)
+            await self._fail_or_restore_after_run_persist(job, prev_state, prev_status, heal_exc)
+            return
 
         job.apply_event(events.RUN)
         try:
@@ -217,6 +237,7 @@ class Worker:
 
         try:
             workflows = getattr(job, "workflows", None) or []
+            job.share_cancel_event()
             for workflow in workflows:
                 if job.is_cancelled():
                     log.info(f"Job cancelled between workflows: id={job.id}")

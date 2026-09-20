@@ -186,15 +186,21 @@ class Dispatcher:
             processor = self._available_processor(job.channel_id)
             processor.run(job, chan, on_enqueued=_mark_enqueued)
             last_save_exc: Exception | None = None
+            applied = False
             for _attempt in range(_DISPATCH_SAVE_ATTEMPTS):
                 try:
-                    job.save()
-                    last_save_exc = None
-                    break
+                    if job.save():
+                        applied = True
+                        last_save_exc = None
+                        break
                 except Exception as save_exc:
                     last_save_exc = save_exc
-            if last_save_exc is not None:
-                raise last_save_exc
+            if not applied:
+                if last_save_exc is not None:
+                    raise last_save_exc
+                raise RuntimeError(
+                    f"Job Scheduled persist skipped after enqueue: id={job.id}, channel_id={job.channel_id}"
+                )
         except Exception as enqueue_exc:
             if enqueued:
                 log.error(
@@ -250,6 +256,14 @@ class Job(IJob):
         self._cancel_event = Event()
         self.context.with_value(CANCEL_EVENT_KEY, self._cancel_event)
 
+    def share_cancel_event(self) -> None:
+        """Put this job's cancel Event on every task context (same object ``execute`` receives)."""
+        token = self._cancel_event
+        self.context.with_value(CANCEL_EVENT_KEY, token)
+        for workflow in self.workflows:
+            for task in workflow.tasks:
+                task.context.with_value(CANCEL_EVENT_KEY, token)
+
     def _current_status(self) -> str:
         current = self._fsm.current()
         if current is None:
@@ -279,6 +293,7 @@ class Job(IJob):
 
         On ``save()`` failure the FSM stays Cancelled; retry ``job.save()`` only.
         """
+        self.share_cancel_event()
         self._cancel_event.set()
         self.apply_event(events.CANCEL)
         self.save()
@@ -374,7 +389,11 @@ class Job(IJob):
 
     @classmethod
     def from_record(cls, record: JobRecord) -> Job:
-        """Rebuild a Job from a store snapshot. Requires registered ``executor_id``s when payload is set."""
+        """
+        Rebuild a Job from a store snapshot. Requires registered ``executor_id``s when payload is set.
+
+        Leaves the FSM at Unknown (does not restore ``record.status``) so ``scheduled()`` can run again.
+        """
         job = cls(category=record.category, channel_id=record.channel_id)
         job.id = record.id
         job.created = record.created

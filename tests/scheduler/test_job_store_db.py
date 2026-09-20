@@ -80,29 +80,35 @@ def _status_fence_roundtrip(backend: str, uri: str) -> None:
     store = configure_job_store(backend, uri=uri)
     job_id = f"db-fence-{backend}"
     store.clear()
-    store.put(
-        JobRecord(
-            id=job_id,
-            category="keep",
-            channel_id="ch",
-            status=Status.COMPLETED.value,
-            created="t0",
-            updated="t1",
-            workflow_count=1,
-            version=1,
+    assert (
+        store.put(
+            JobRecord(
+                id=job_id,
+                category="keep",
+                channel_id="ch",
+                status=Status.COMPLETED.value,
+                created="t0",
+                updated="t1",
+                workflow_count=1,
+                version=1,
+            )
         )
+        is True
     )
-    store.put(
-        JobRecord(
-            id=job_id,
-            category="stale",
-            channel_id="ch-stale",
-            status=Status.SCHEDULED.value,
-            created="should-not-overwrite",
-            updated="t2",
-            workflow_count=0,
-            version=2,
+    assert (
+        store.put(
+            JobRecord(
+                id=job_id,
+                category="stale",
+                channel_id="ch-stale",
+                status=Status.SCHEDULED.value,
+                created="should-not-overwrite",
+                updated="t2",
+                workflow_count=0,
+                version=2,
+            )
         )
+        is False
     )
     got = store.get(job_id)
     assert got is not None
@@ -112,6 +118,27 @@ def _status_fence_roundtrip(backend: str, uri: str) -> None:
     assert got.created == "t0"
     assert got.updated == "t1"
     assert got.workflow_count == 1
+    assert got.version == 1
+    assert (
+        store.put(
+            JobRecord(
+                id=job_id,
+                category="stale-match",
+                channel_id="ch-stale",
+                status=Status.SCHEDULED.value,
+                created="should-not-overwrite",
+                updated="t3",
+                workflow_count=0,
+                version=1,
+            )
+        )
+        is False
+    )
+    matched = store.get(job_id)
+    assert matched is not None
+    assert matched.status == Status.COMPLETED.value
+    assert matched.category == "keep"
+    assert matched.version == 1
     store.delete(job_id)
 
 

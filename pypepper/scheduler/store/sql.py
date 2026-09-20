@@ -5,10 +5,9 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
-from sqlalchemy import Column, Integer, MetaData, String, Table, Text, and_, case, create_engine, inspect, select, text
-from sqlalchemy.dialects.mysql import insert as mysql_insert
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.engine import Engine
+from sqlalchemy import Column, Integer, MetaData, String, Table, Text, and_, create_engine, inspect, select, text
+from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.exc import IntegrityError
 
 from pypepper.helper.db import mysql, postgres
 from pypepper.helper.db.uri import build_mysql_uri, build_postgres_uri
@@ -100,6 +99,19 @@ def _loads_payload(raw: str | None) -> dict[str, Any] | None:
     return None
 
 
+def _update_if_allowed(
+    conn: Connection,
+    record_id: str,
+    update_values: dict[str, Any],
+    may_replace: Any,
+) -> bool:
+    """True when the gated UPDATE matched a row (skip is 0, not FOUND_ROWS no-op)."""
+    result = conn.execute(
+        scheduler_jobs.update().where(scheduler_jobs.c.id == record_id).where(may_replace).values(**update_values)
+    )
+    return (result.rowcount or 0) > 0
+
+
 def _row_to_record(row: Any) -> JobRecord:
     payload_raw = getattr(row, "payload", None)
     return JobRecord(
@@ -164,31 +176,15 @@ class SqlJobStore(IJobStore):
             "payload": payload_json,
         }
         with self._engine.begin() as conn:
-            if self._backend == "postgres":
-                pg_stmt = pg_insert(scheduler_jobs).values(**values)
-                pg_stmt = pg_stmt.on_conflict_do_update(
-                    index_elements=["id"],
-                    set_=update_values,
-                    where=may_replace,
-                )
-                result = conn.execute(pg_stmt)
-                return bool(result.rowcount)
-            mysql_stmt = mysql_insert(scheduler_jobs).values(**values)
-
-            def _gated(new_value: object, column: Column[Any]) -> object:
-                return case((may_replace, new_value), else_=column)
-
-            mysql_stmt = mysql_stmt.on_duplicate_key_update(
-                category=_gated(record.category, scheduler_jobs.c.category),
-                channel_id=_gated(record.channel_id, scheduler_jobs.c.channel_id),
-                status=_gated(record.status, scheduler_jobs.c.status),
-                updated=_gated(record.updated, scheduler_jobs.c.updated),
-                workflow_count=_gated(record.workflow_count, scheduler_jobs.c.workflow_count),
-                version=_gated(next_version, scheduler_jobs.c.version),
-                payload=_gated(payload_json, scheduler_jobs.c.payload),
-            )
-            result = conn.execute(mysql_stmt)
-            return bool(result.rowcount)
+            if _update_if_allowed(conn, record.id, update_values, may_replace):
+                return True
+            try:
+                with conn.begin_nested():
+                    conn.execute(scheduler_jobs.insert().values(**values))
+                return True
+            except IntegrityError:
+                # Concurrent first-insert: savepoint rolled back; retry gated UPDATE.
+                return _update_if_allowed(conn, record.id, update_values, may_replace)
 
     def get(self, job_id: str) -> JobRecord | None:
         with self._engine.connect() as conn:

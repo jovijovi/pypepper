@@ -95,16 +95,19 @@ def test_memory_put_does_not_downgrade_status():
             workflow_count=1,
         )
     )
-    store.put(
-        JobRecord(
-            id="job-fence",
-            category="stale",
-            channel_id="ch-stale",
-            status=Status.SCHEDULED.value,
-            created="should-not-overwrite",
-            updated="t2",
-            workflow_count=0,
+    assert (
+        store.put(
+            JobRecord(
+                id="job-fence",
+                category="stale",
+                channel_id="ch-stale",
+                status=Status.SCHEDULED.value,
+                created="should-not-overwrite",
+                updated="t2",
+                workflow_count=0,
+            )
         )
+        is False
     )
     got = store.get("job-fence")
     assert got is not None
@@ -128,15 +131,18 @@ def test_memory_put_does_not_replace_distinct_terminals():
             updated="t1",
         )
     )
-    store.put(
-        JobRecord(
-            id="job-term",
-            category="b",
-            channel_id="ch",
-            status=Status.CANCELLED.value,
-            created="t0",
-            updated="t2",
+    assert (
+        store.put(
+            JobRecord(
+                id="job-term",
+                category="b",
+                channel_id="ch",
+                status=Status.CANCELLED.value,
+                created="t0",
+                updated="t2",
+            )
         )
+        is False
     )
     got = store.get("job-term")
     assert got is not None
@@ -628,6 +634,65 @@ def test_scheduled_save_failure_after_enqueue_does_not_rollback():
     job = Job(category="x", channel_id=channel_id)
     try:
         with pytest.raises(RuntimeError, match="always-fail"):
+            job.scheduled()
+        assert job._fsm.current().value == Status.SCHEDULED
+        assert job.status == Status.SCHEDULED.value
+        assert Job.get_saved(job.id) is None
+        chan = manager.get(channel_id)
+        assert chan is not None
+        assert chan.length() == 1
+        assert asyncio.run(chan.receive()) is job
+    finally:
+        manager.remove(channel_id)
+
+
+def test_scheduled_retries_save_skip_after_enqueue():
+    """Dispatch retries ``save()`` False; a later apply persists Scheduled."""
+
+    class _SkipTwiceStore(InMemoryJobStore):
+        def __init__(self) -> None:
+            super().__init__()
+            self.puts = 0
+
+        def put(self, record: JobRecord) -> bool:
+            self.puts += 1
+            if self.puts < 3:
+                return False
+            return super().put(record)
+
+    from pypepper.scheduler.channel import manager
+
+    store = _SkipTwiceStore()
+    set_job_store(store)
+    channel_id = "save-skip-retry"
+    manager.remove(channel_id)
+    job = Job(category="x", channel_id=channel_id)
+    try:
+        job.scheduled()
+        saved = Job.get_saved(job.id)
+        assert saved is not None
+        assert saved.status == Status.SCHEDULED.value
+        assert store.puts == 3
+    finally:
+        manager.remove(channel_id)
+
+
+def test_scheduled_save_skip_after_enqueue_does_not_rollback():
+    """Committed send + ``save()`` still False: raise, do not roll back the enqueue."""
+    import asyncio
+
+    from pypepper.scheduler.channel import manager
+
+    class _AlwaysSkipStore(InMemoryJobStore):
+        def put(self, record: JobRecord) -> bool:
+            return False
+
+    set_job_store(_AlwaysSkipStore())
+    channel_id = "save-skip-after-enqueue"
+    manager.remove(channel_id)
+    job = Job(category="x", channel_id=channel_id)
+    try:
+        with pytest.raises(RuntimeError, match="Scheduled persist skipped after enqueue"):
             job.scheduled()
         assert job._fsm.current().value == Status.SCHEDULED
         assert job.status == Status.SCHEDULED.value

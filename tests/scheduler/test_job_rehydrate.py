@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from threading import Event
 
 import pytest
@@ -10,7 +11,7 @@ from pypepper.fsm.fsm import State
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel, manager
 from pypepper.scheduler.executor import CallableExecutor, executor_registry
-from pypepper.scheduler.job import CANCEL_EVENT_KEY, Job
+from pypepper.scheduler.job import CANCEL_EVENT_KEY, Job, JobRequeuedError
 from pypepper.scheduler.status import Status
 from pypepper.scheduler.store import JobRecord, get_job_store, reset_job_store, set_job_store
 from pypepper.scheduler.store.memory import InMemoryJobStore
@@ -75,6 +76,9 @@ def test_from_record_roundtrip_runs_on_worker():
     assert record.payload is not None
 
     restored = Job.from_record(record)
+    assert restored.status == Status.UNKNOWN.value
+    assert restored._fsm.current() is not None
+    assert restored._fsm.current().value == Status.UNKNOWN
     try:
         restored.scheduled()
         chan = manager.available("rehydrate")
@@ -191,9 +195,11 @@ def test_apply_event_syncs_status_and_save_skip_keeps_it():
         )
     )
     before_updated = job.updated
+    before_version = job.version
     assert job.save() is False
     assert job.status == Status.SCHEDULED.value
     assert job.updated == before_updated
+    assert job.version == before_version
 
 
 def test_cancel_sets_context_event():
@@ -211,11 +217,18 @@ def test_cancel_sets_context_event():
 @pytest.mark.asyncio
 async def test_worker_heals_missing_scheduled_then_runs():
     executed: list[int] = []
+    statuses: list[str] = []
+
+    class _RecordingStore(InMemoryJobStore):
+        def put(self, record: JobRecord) -> bool:
+            statuses.append(record.status)
+            return super().put(record)
 
     def work(task, context):
         executed.append(1)
         return "ok"
 
+    set_job_store(_RecordingStore())
     workflow = Workflow()
     workflow.add_task(_task("heal", CallableExecutor(work)))
     job = Job(category="x", channel_id="heal-ch")
@@ -230,6 +243,8 @@ async def test_worker_heals_missing_scheduled_then_runs():
     saved = Job.get_saved(job.id)
     assert saved is not None
     assert saved.status == Status.COMPLETED.value
+    assert statuses[0] == Status.SCHEDULED.value
+    assert statuses.index(Status.SCHEDULED.value) < statuses.index(Status.IN_PROGRESS.value)
 
 
 def test_worker_heals_after_dispatch_save_failure():
@@ -291,3 +306,110 @@ async def test_run_skip_when_durable_cancelled_does_not_execute():
     await Worker(chan).run_once()
     assert executed == []
     assert job.is_cancelled()
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.CANCELLED.value
+
+
+def _skip_job(channel_id: str, executed: list[int]) -> Job:
+    workflow = Workflow()
+    workflow.add_task(_task("skip", CallableExecutor(lambda t, c: executed.append(1) or "ok")))
+    job = Job(category="x", channel_id=channel_id)
+    job.workflows = [workflow]
+    job.apply_event(events.INIT)
+    job.apply_event(events.SCHEDULE)
+    return job
+
+
+@pytest.mark.asyncio
+async def test_run_skip_when_durable_in_progress_does_not_execute():
+    executed: list[int] = []
+    job = _skip_job("in-progress-race", executed)
+    assert job.save() is True
+    seeded = replace(job.to_record(), status=Status.IN_PROGRESS.value, updated="t-run")
+    assert get_job_store().put(seeded) is True
+    chan = Channel()
+    await chan.send(job)
+    await Worker(chan).run_once()
+    assert executed == []
+    assert job.status == Status.IN_PROGRESS.value
+
+
+@pytest.mark.asyncio
+async def test_run_skip_when_durable_completed_does_not_execute():
+    executed: list[int] = []
+    job = _skip_job("completed-race", executed)
+    assert job.save() is True
+    seeded = replace(job.to_record(), status=Status.COMPLETED.value, updated="t-done")
+    assert get_job_store().put(seeded) is True
+    chan = Channel()
+    await chan.send(job)
+    await Worker(chan).run_once()
+    assert executed == []
+    assert job.status == Status.COMPLETED.value
+
+
+@pytest.mark.asyncio
+async def test_worker_heal_persist_skip_prefers_failed():
+    executed: list[int] = []
+
+    class _SkipScheduled(InMemoryJobStore):
+        def put(self, record: JobRecord) -> bool:
+            if record.status == Status.SCHEDULED.value:
+                return False
+            return super().put(record)
+
+    set_job_store(_SkipScheduled())
+    job = _skip_job("heal-skip-failed", executed)
+    chan = Channel()
+    await chan.send(job)
+    with pytest.raises(RuntimeError, match="Scheduled persist failed before RUN"):
+        await Worker(chan).run_once()
+    assert executed == []
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.FAILED.value
+    assert chan.length() == 0
+
+
+@pytest.mark.asyncio
+async def test_worker_heal_persist_failure_requeues_when_failed_also_fails():
+    executed: list[int] = []
+
+    class _FailAll(InMemoryJobStore):
+        def put(self, record: JobRecord) -> bool:
+            raise RuntimeError("store-down")
+
+    set_job_store(_FailAll())
+    job = _skip_job("heal-requeue", executed)
+    chan = Channel()
+    await chan.send(job)
+    with pytest.raises(JobRequeuedError):
+        await Worker(chan).run_once()
+    assert executed == []
+    assert job.status == Status.SCHEDULED.value
+    assert chan.length() == 1
+
+
+@pytest.mark.asyncio
+async def test_run_persist_skip_requeues_when_failed_also_skipped():
+    executed: list[int] = []
+
+    class _SkipRunAndFail(InMemoryJobStore):
+        def put(self, record: JobRecord) -> bool:
+            if record.status in (Status.IN_PROGRESS.value, Status.FAILED.value):
+                return False
+            return super().put(record)
+
+    set_job_store(_SkipRunAndFail())
+    job = _skip_job("run-skip-requeue", executed)
+    assert job.save() is True
+    chan = Channel()
+    await chan.send(job)
+    with pytest.raises(JobRequeuedError):
+        await Worker(chan).run_once()
+    assert executed == []
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.SCHEDULED.value
+    assert chan.length() == 1

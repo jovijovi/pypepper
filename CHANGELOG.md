@@ -15,16 +15,17 @@
 - `Processor.run` / `Job.scheduled()` RuntimeError for async callers: apply `INIT`→`SCHEDULE`, `await Channel.send` (check `"ok"` / `"full"` / `"stopped"`), then `job.save()` (not save-then-send).
 
 ### Added
-- Worker heals a missing Scheduled snapshot before `RUN`. `put` False on RUN follows durable Cancelled/InProgress/terminals (does not run workflows).
+- Worker heals a missing Scheduled snapshot before `RUN`. Heal persist failure follows the RUN path (prefer Failed, else restore and re-enqueue). `put` False on RUN follows durable Cancelled/InProgress/terminals (does not run workflows). Failed persist `save()` False is treated as persist failure (restore/re-enqueue unless Cancelled).
 - `JobRedeliveryError.job` and Failed persist when re-enqueue is impossible.
-- `Task.round_timeout_join`, `Task.executor_id`, `Job.context` cancel `Event` (`CANCEL_EVENT_KEY`).
+- `Task.round_timeout_join`, `Task.executor_id`, `Job.context` cancel `Event` (`CANCEL_EVENT_KEY`). Worker copies that Event onto each `Task.context` before `execute`.
 - `build_response(..., status_code=)` (default HTTP 200; business `code` is not mapped to HTTP).
 - SSE Last-Event-ID replay from a bounded in-process ring of events that have an `id`.
 
 ### Changed
 - Lock-graph floor `anyio>=4.14.2` (CVE-2026-63374, CVE-2026-64847 on 4.12.1).
 - `apply_event` keeps `Job.status` aligned with the FSM.
-- Mongo `put` is update-then-insert-if-absent (no fence-bypassing upsert). Helper Mongo `connect` raises `ValueError` without `uri` or discrete fields.
+- Mongo `put` is update-then-insert-if-absent (no fence-bypassing upsert). SQL `put` uses a gated `UPDATE` then insert (MySQL skip is `False`, not FOUND_ROWS no-op). Helper Mongo `connect` raises `ValueError` without `uri` or discrete fields.
+- Dispatch retries Scheduled `save()` on exceptions and on `False`; exhausted skip still does not roll back the enqueue.
 - mypy `disallow_untyped_defs` includes `scheduler.channel` / `executor`, `network.http.response` / `sse.event`, plus `event` / `fsm` and selected `common` modules.
 - `pypepper.scheduler` exports `manager`, `CallableExecutor`, `executor_registry`, `JobRecord`, `IJobStore`.
 

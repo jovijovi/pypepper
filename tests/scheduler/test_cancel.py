@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
+from threading import Event as ThreadEvent
+
 import pytest
 from pypepper.exceptions import InternalException
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel
 from pypepper.scheduler.executor import CallableExecutor
-from pypepper.scheduler.job import Job
+from pypepper.scheduler.job import CANCEL_EVENT_KEY, Job
 from pypepper.scheduler.status import Status
 from pypepper.scheduler.store import JobRecord, reset_job_store, set_job_store
 from pypepper.scheduler.store.memory import InMemoryJobStore
@@ -213,6 +216,42 @@ async def test_worker_does_not_complete_when_cancelled_mid_run():
     processed = await Worker(chan).run_once()
 
     assert processed is job
+    _assert_cancelled(job)
+
+
+@pytest.mark.asyncio
+async def test_executor_polls_cancel_event_on_execute_context():
+    """``execute``'s context argument must see the same Event ``Job.cancel()`` sets."""
+    seen: list[ThreadEvent | None] = []
+    started = ThreadEvent()
+    proceed = ThreadEvent()
+
+    def work(task, context):
+        token = None if context is None else context.context.get(CANCEL_EVENT_KEY)
+        seen.append(token)
+        started.set()
+        proceed.wait(timeout=2)
+        return token is not None and token.is_set()
+
+    job = _job_with_workflow(work, channel_id="cancel-exec-ctx")
+    job.save()
+    chan = Channel()
+    await chan.send(job)
+
+    async def _cancel_after_start() -> None:
+        await asyncio.to_thread(started.wait, 2)
+        job.cancel()
+        proceed.set()
+
+    cancel_task = asyncio.create_task(_cancel_after_start())
+    processed = await Worker(chan).run_once()
+    await cancel_task
+
+    job_token = job.context.context.get(CANCEL_EVENT_KEY)
+    assert processed is job
+    assert seen == [job_token]
+    assert job_token is not None
+    assert job_token.is_set()
     _assert_cancelled(job)
 
 
