@@ -5,7 +5,7 @@ from abc import ABCMeta
 from pypepper.common.context import Context
 from pypepper.common.utils import uuid
 from pypepper.scheduler.base import IBase
-from pypepper.scheduler.executor import Executor
+from pypepper.scheduler.executor import IExecutor
 from pypepper.scheduler.tag import Tag
 
 # Default per-round attempt cap when retry_until_completed=True and retry_count==0.
@@ -19,7 +19,7 @@ class ITask(IBase, metaclass=ABCMeta):
     # Per-round cap for until-retries when retry_count==0 (see Workflow._run_task).
     retry_until_max: int = DEFAULT_RETRY_UNTIL_MAX
     optional: bool = False
-    executor: Executor
+    executor: IExecutor
 
 
 class Task(ITask):
@@ -32,7 +32,7 @@ class Task(ITask):
         category: str,
         description: str,
         tags: list[Tag],
-        executor: Executor,
+        executor: IExecutor,
         round_timeout: int = 0,
         round_times: int = 1,
         version: int = 1,
@@ -41,6 +41,8 @@ class Task(ITask):
         retry_until_completed: bool = False,
         retry_until_max: int = DEFAULT_RETRY_UNTIL_MAX,
         optional: bool = False,
+        executor_id: str | None = None,
+        round_timeout_join: int = 0,
     ) -> None:
         if retry_until_max < 1:
             raise ValueError(f"retry_until_max must be >= 1, got {retry_until_max}")
@@ -48,6 +50,8 @@ class Task(ITask):
             raise ValueError(f"round_times must be >= 1, got {round_times}")
         if round_timeout < 0:
             raise ValueError(f"round_timeout must be >= 0, got {round_timeout}")
+        if round_timeout_join < 0:
+            raise ValueError(f"round_timeout_join must be >= 0, got {round_timeout_join}")
         if retry_count < 0:
             raise ValueError(f"retry_count must be >= 0, got {retry_count}")
         if retry_delay < 0:
@@ -61,8 +65,11 @@ class Task(ITask):
         self.description = description
         self.tags = tags
         self.executor = executor
+        self.executor_id = executor_id
         # Seconds per execute attempt; 0 = none. Started work is joined on timeout.
         self.round_timeout = round_timeout
+        # Extra seconds to join a started execute after round_timeout (0 = wait forever).
+        self.round_timeout_join = round_timeout_join
         # Outer rounds; each round has its own inner retry budget.
         self.round_times = round_times
         self.version = version

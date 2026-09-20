@@ -31,6 +31,9 @@ server.run(AppHandlers())
 `server.run` / `run_without_tls` / `run_with_tls` build a fresh app via `create_app(...)`
 (handlers + middleware registered once). Prefer `create_app` in tests instead of
 re-registering on the module-level `server.app`.
+`server.run` raises if both `httpServer.enable` and `httpsServer.enable` are true
+(enable only one). `build_response` stays HTTP 200 by default; pass `status_code`
+explicitly (business `code` is not mapped to HTTP).
 
 Built-in routes from `BaseHandlers`: `/health`, `/ping`, `/metrics`.
 `RequestIdMiddleware` injects `X-Request-ID`.
@@ -80,6 +83,10 @@ async def clock(request: Request):
 - Keys come from YAML `sse.authentication.validKeys` (default empty — inject via deployment)
 - Rate limit: `sse.rateLimit.maxRequestsPerMinute`
 - Connection caps: `maxTotalConnections`, `maxConnectionsPerIP`
+- Reconnect: events **with an `id`** are kept in a bounded in-process ring (128).
+  A new connection that sends `Last-Event-ID` is replayed events strictly after
+  that id. Events without `id` are not stored. If the id is not in the ring,
+  replay is empty and the stream continues live (this is not a complete bus).
 
 ### Security notes
 

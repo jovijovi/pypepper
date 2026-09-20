@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from pypepper.common.config import config
 from pypepper.scheduler.channel import manager
 from pypepper.scheduler.executor import CallableExecutor
@@ -50,7 +49,7 @@ def test_scheduled_raises_when_durable_job_store_deferred(tmp_path):
 
         # Send succeeded; Scheduled persist hit the deferred guard — committed enqueue.
         assert job._fsm.current().value == Status.SCHEDULED
-        assert job.status == Status.UNKNOWN.value
+        assert job.status == Status.SCHEDULED.value
         assert chan.length() == 1
 
         config.mark_scheduler_job_store_applied()
@@ -104,11 +103,11 @@ async def test_worker_run_save_deferred_restores_pre_run(tmp_path):
 
         job = Job(category="deferred", channel_id=channel_id)
         job.workflows = [workflow]
-        assert job._fsm.on(events.INIT).error is None
-        assert job._fsm.on(events.SCHEDULE).error is None
+        job.apply_event(events.INIT)
+        job.apply_event(events.SCHEDULE)
         job.save()
         chan = manager.available(channel_id)
-        assert await chan.send(job)
+        assert await chan.send(job) == "ok"
         assert chan.length() == 1
         assert job._fsm.current().value == Status.SCHEDULED
 

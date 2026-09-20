@@ -7,10 +7,36 @@ from typing import NoReturn, cast
 
 from pypepper.common.log import log
 from pypepper.event.interfaces import IEvent
+from pypepper.fsm.fsm import State
+from pypepper.fsm.interfaces import IState
 from pypepper.scheduler import events
-from pypepper.scheduler.channel import Channel
+from pypepper.scheduler.channel import SEND_FULL, SEND_OK, Channel
 from pypepper.scheduler.job import Job, JobRedeliveryError, JobRequeuedError
 from pypepper.scheduler.status import Status
+
+_FOLLOW_WITHOUT_RUN = frozenset(
+    {
+        Status.IN_PROGRESS.value,
+        Status.FAILED.value,
+        Status.COMPLETED.value,
+        Status.CANCELLED.value,
+    }
+)
+
+
+def _follow_durable_status(job: Job, status: str) -> None:
+    job._fsm.restore(State(Status(status)))
+    job.status = status
+
+
+def _mark_undeliverable_failed(job: Job) -> None:
+    """Persist Failed when re-enqueue is impossible (FSM may still be Scheduled)."""
+    job._fsm.restore(State(Status.FAILED))
+    job.status = Status.FAILED.value
+    try:
+        job.save()
+    except Exception as exc:
+        log.error(f"Job undeliverable Failed persist failed: id={job.id}: {exc}")
 
 
 def _transition_and_save_terminal(job: Job, event: IEvent) -> None:
@@ -95,19 +121,56 @@ class Worker:
                 return
 
     async def _requeue_after_run_restore(self, job: Job, save_exc: BaseException) -> NoReturn:
-        """Re-enqueue after pre-RUN restore, or raise. Never returns normally."""
-        requeued = await self.channel.send(job)
-        if requeued:
+        """Re-enqueue after pre-RUN restore, or persist Failed and raise. Never returns normally."""
+        result = await self.channel.send(job)
+        if result == SEND_OK:
             log.error(f"Job re-enqueued after RUN persist restore: id={job.id}")
             raise JobRequeuedError(
                 f"Job re-enqueued after RUN persist restore: id={job.id}, channel_id={job.channel_id}"
             ) from save_exc
-        reason = "stopped" if self.channel.stop else "full"
+        reason = "full" if result == SEND_FULL else "stopped"
+        _mark_undeliverable_failed(job)
         raise JobRedeliveryError(
             f"Job RUN persist restore could not re-enqueue "
             f"(channel {reason}): id={job.id}, channel_id={job.channel_id}",
             reason=reason,
+            job=job,
         ) from save_exc
+
+    async def _fail_or_restore_after_run_persist(
+        self,
+        job: Job,
+        prev_state: IState | None,
+        prev_status: str,
+        save_exc: BaseException,
+    ) -> None:
+        try:
+            job.apply_event(events.FAIL)
+            job.save()
+        except Exception as fail_save_exc:
+            if job.is_cancelled():
+                try:
+                    _ensure_cancelled_persisted(job)
+                except Exception as cancel_save_exc:
+                    log.error(
+                        f"Job RUN persist failed: id={job.id}, error={save_exc}; "
+                        f"cancel won but Cancelled persist failed: {cancel_save_exc}"
+                    )
+                    raise cancel_save_exc from save_exc
+                log.error(
+                    f"Job RUN persist failed: id={job.id}, error={save_exc}; "
+                    f"cancel already applied (skip restore): {fail_save_exc}"
+                )
+                raise save_exc from fail_save_exc
+            job.restore_lifecycle(prev_state, prev_status)
+            log.error(
+                f"Job RUN persist failed: id={job.id}, error={save_exc}; FAIL persist also failed: {fail_save_exc}"
+            )
+            await self._requeue_after_run_restore(job, save_exc)
+        log.error(
+            f"Job RUN persist failed: id={job.id}, error={save_exc}; persisted Failed instead (do not re-run workflows)"
+        )
+        raise save_exc
 
     async def _process(self, job: Job) -> None:
         if job.is_cancelled():
@@ -117,40 +180,40 @@ class Worker:
 
         prev_state = job._fsm.current()
         prev_status = job.status
+
+        try:
+            if Job.get_saved(job.id) is None and not job.save() and Job.get_saved(job.id) is None:
+                raise RuntimeError(f"Job Scheduled persist failed before RUN: id={job.id}")
+        except Exception as heal_exc:
+            log.error(f"Job missing Scheduled snapshot before RUN: id={job.id}, error={heal_exc}")
+            await self._requeue_after_run_restore(job, heal_exc)
+
         job.apply_event(events.RUN)
         try:
-            job.save()
+            applied = job.save()
         except Exception as save_exc:
-            # Prefer persisting Failed; if that also fails, restore pre-RUN state
-            # unless cancel already won (do not undo Cancelled in-memory).
-            try:
-                job.apply_event(events.FAIL)
-                job.save()
-            except Exception as fail_save_exc:
-                if job.is_cancelled():
-                    try:
-                        _ensure_cancelled_persisted(job)
-                    except Exception as cancel_save_exc:
-                        log.error(
-                            f"Job RUN persist failed: id={job.id}, error={save_exc}; "
-                            f"cancel won but Cancelled persist failed: {cancel_save_exc}"
-                        )
-                        raise cancel_save_exc from save_exc
-                    log.error(
-                        f"Job RUN persist failed: id={job.id}, error={save_exc}; "
-                        f"cancel already applied (skip restore): {fail_save_exc}"
-                    )
-                    raise save_exc from fail_save_exc
-                job.restore_lifecycle(prev_state, prev_status)
-                log.error(
-                    f"Job RUN persist failed: id={job.id}, error={save_exc}; FAIL persist also failed: {fail_save_exc}"
-                )
-                await self._requeue_after_run_restore(job, save_exc)
-            log.error(
-                f"Job RUN persist failed: id={job.id}, error={save_exc}; "
-                f"persisted Failed instead (do not re-run workflows)"
+            await self._fail_or_restore_after_run_persist(job, prev_state, prev_status, save_exc)
+            return
+
+        if not applied:
+            durable = Job.get_saved(job.id)
+            durable_status = None if durable is None else durable.status
+            if durable_status == Status.CANCELLED.value:
+                if not job.is_cancelled():
+                    job.apply_event(events.CANCEL)
+                _ensure_cancelled_persisted_logged(job)
+                return
+            if durable_status in _FOLLOW_WITHOUT_RUN:
+                _follow_durable_status(job, durable_status)
+                log.info(f"Job RUN snapshot skipped; following durable {durable_status}: id={job.id}")
+                return
+            await self._fail_or_restore_after_run_persist(
+                job,
+                prev_state,
+                prev_status,
+                RuntimeError(f"Job RUN persist skipped: id={job.id}, durable={durable_status}"),
             )
-            raise
+            return
 
         try:
             workflows = getattr(job, "workflows", None) or []

@@ -57,5 +57,5 @@ class IFSM(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def close(self):
+    def close(self) -> None:
         pass

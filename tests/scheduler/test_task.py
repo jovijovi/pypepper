@@ -1,17 +1,16 @@
 import pytest
-
 from pypepper.scheduler.executor import Executor
 from pypepper.scheduler.task import Task
 
 
 def test_new_task():
     task = Task(
-        channel_id='channel_1',
-        dag_id='dag_1',
-        fingerprint='fingerprint_1',
-        name='Test Task',
-        category='Test Category',
-        description='This is a test task',
+        channel_id="channel_1",
+        dag_id="dag_1",
+        fingerprint="fingerprint_1",
+        name="Test Task",
+        category="Test Category",
+        description="This is a test task",
         tags=[],
         executor=Executor(),
         round_timeout=60,
@@ -20,13 +19,30 @@ def test_new_task():
         retry_count=2,
         retry_delay=5,
         retry_until_completed=True,
-        optional=False
+        optional=False,
+        round_timeout_join=0,
     )
 
     assert task is not None
+    assert task.round_timeout_join == 0
     print("Task ID=", task.id)
     print("Task Context ID=", task.context.context_id)
 
 
-if __name__ == '__main__':
+def test_round_timeout_join_rejects_negative():
+    with pytest.raises(ValueError, match="round_timeout_join"):
+        Task(
+            channel_id="c",
+            dag_id="d",
+            fingerprint="f",
+            name="n",
+            category="c",
+            description="",
+            tags=[],
+            executor=Executor(),
+            round_timeout_join=-1,
+        )
+
+
+if __name__ == "__main__":
     pytest.main()

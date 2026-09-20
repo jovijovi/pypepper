@@ -20,7 +20,10 @@ def test_put_applies_rejects_downgrade_and_other_terminals():
     assert put_applies(Status.CANCELLED.value, Status.FAILED.value) is False
 
 
-def test_put_applies_unknown_incoming_only_same_status():
-    assert put_applies("Custom", "Custom") is True
-    assert put_applies(Status.SCHEDULED.value, "Custom") is False
-    assert put_applies("Custom", Status.SCHEDULED.value) is False
+def test_put_may_write_requires_matching_version():
+    from pypepper.scheduler.store.lifecycle import put_may_write
+
+    assert put_may_write(None, None, Status.SCHEDULED.value, 1) is True
+    assert put_may_write(Status.SCHEDULED.value, 1, Status.IN_PROGRESS.value, 1) is True
+    assert put_may_write(Status.SCHEDULED.value, 2, Status.IN_PROGRESS.value, 1) is False
+    assert put_may_write(Status.COMPLETED.value, 1, Status.SCHEDULED.value, 1) is False

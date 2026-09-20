@@ -5,7 +5,6 @@ from concurrent.futures import TimeoutError as FuturesTimeoutError
 from unittest.mock import patch
 
 import pytest
-
 from pypepper.scheduler.executor import CallableExecutor, Executor
 from pypepper.scheduler.task import Task
 from pypepper.scheduler.workflow import Workflow
@@ -586,3 +585,31 @@ def test_workflow_retry_until_max_is_per_round_not_global():
     workflow.add_task(task)
     assert workflow.run() == ["ok"]
     assert calls["n"] == 3
+
+
+def test_workflow_bounded_join_skips_overlapping_submit():
+    started = threading.Event()
+    release = threading.Event()
+    calls = {"n": 0}
+
+    def hang(task, context):
+        calls["n"] += 1
+        _hold_until(release, started)
+        return "done"
+
+    task = _task(
+        "bounded-join",
+        CallableExecutor(hang),
+        round_timeout=1,
+        round_timeout_join=1,
+        retry_count=1,
+        retry_delay=0,
+    )
+    workflow = Workflow()
+    workflow.add_task(task)
+    try:
+        with pytest.raises(TimeoutError, match="execute still running"):
+            workflow.run()
+        assert calls["n"] == 1
+    finally:
+        release.set()

@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, MutableMapping
-from threading import Lock
+from threading import Event, Lock
+from typing import Any
 
 from pypepper.common.context import Context
 from pypepper.common.log import log
@@ -15,10 +16,13 @@ from pypepper.event.interfaces import IEvent
 from pypepper.fsm.interfaces import IState
 from pypepper.scheduler import events
 from pypepper.scheduler.base import IBase
-from pypepper.scheduler.channel import Channel, manager
+from pypepper.scheduler.channel import SEND_OK, SEND_STOPPED, Channel, manager
 from pypepper.scheduler.status import Status
 from pypepper.scheduler.store import JobRecord, get_job_store
 from pypepper.scheduler.workflow import Workflow
+
+CANCEL_EVENT_KEY = "pypepper.scheduler.cancel_event"
+_DISPATCH_SAVE_ATTEMPTS = 3
 
 
 class ChannelEnqueueError(RuntimeError):
@@ -44,13 +48,15 @@ class JobRedeliveryError(RuntimeError):
     Dequeued job could not be returned to the channel after a RUN-start restore
     (channel full or stopped). ``Worker.run_forever`` re-raises. When ``reason`` is
     ``stopped``, leftover queued jobs are drained first; ``full`` stops immediately.
+    ``job`` is the unrestored instance (not on the channel).
     """
 
-    def __init__(self, message: str, *, reason: str) -> None:
+    def __init__(self, message: str, *, reason: str, job: Job | None = None) -> None:
         super().__init__(message)
         if reason not in ("full", "stopped"):
             raise ValueError(f"JobRedeliveryError.reason must be 'full' or 'stopped', got {reason!r}")
         self.reason = reason
+        self.job = job
 
 
 class JobRequeuedError(RuntimeError):
@@ -80,8 +86,8 @@ class Processor:
         raise RuntimeError(
             "Processor.run / Job.scheduled() must be called from a sync context "
             "(no running event loop); from async code apply INIT→SCHEDULE, "
-            "await Channel.send(job) (False means stopped or full; inspect "
-            "channel.stop), then job.save(), and consume with Worker"
+            "await Channel.send(job) (returns ok/full/stopped), then job.save(), "
+            "and consume with Worker"
         )
 
     @staticmethod
@@ -91,11 +97,10 @@ class Processor:
         *,
         on_enqueued: Callable[[], None] | None = None,
     ) -> None:
-        ok = await chan.send(job)
-        if not ok:
-            # Classify after send so a concurrent request_stop is not labeled "full".
-            if chan.stop:
-                raise ChannelStoppedError(f"channel stopped: channel_id={job.channel_id}, job_id={job.id}")
+        result = await chan.send(job)
+        if result == SEND_STOPPED:
+            raise ChannelStoppedError(f"channel stopped: channel_id={job.channel_id}, job_id={job.id}")
+        if result != SEND_OK:
             raise ChannelFullError(f"channel full: channel_id={job.channel_id}, job_id={job.id}")
         # Job is on the channel: callers must not roll back schedule/store after this.
         if on_enqueued is not None:
@@ -180,7 +185,16 @@ class Dispatcher:
             chan = manager.available(job.channel_id)
             processor = self._available_processor(job.channel_id)
             processor.run(job, chan, on_enqueued=_mark_enqueued)
-            job.save()
+            last_save_exc: Exception | None = None
+            for _attempt in range(_DISPATCH_SAVE_ATTEMPTS):
+                try:
+                    job.save()
+                    last_save_exc = None
+                    break
+                except Exception as save_exc:
+                    last_save_exc = save_exc
+            if last_save_exc is not None:
+                raise last_save_exc
         except Exception as enqueue_exc:
             if enqueued:
                 log.error(
@@ -200,7 +214,7 @@ class IJob(IBase, metaclass=ABCMeta):
     workflows: list[Workflow]
 
     @abstractmethod
-    def save(self) -> None:
+    def save(self) -> bool:
         pass
 
     @abstractmethod
@@ -233,6 +247,8 @@ class Job(IJob):
         self.created: str = now
         self.updated: str = now
         self.version: int = 1
+        self._cancel_event = Event()
+        self.context.with_value(CANCEL_EVENT_KEY, self._cancel_event)
 
     def _current_status(self) -> str:
         current = self._fsm.current()
@@ -255,6 +271,7 @@ class Job(IJob):
         """Apply an FSM event or raise if the transition is invalid."""
         resp = self._fsm.on(event)
         _raise_if_transition_failed(resp.error)
+        self.status = self._current_status()
 
     def cancel(self) -> None:
         """
@@ -262,6 +279,7 @@ class Job(IJob):
 
         On ``save()`` failure the FSM stays Cancelled; retry ``job.save()`` only.
         """
+        self._cancel_event.set()
         self.apply_event(events.CANCEL)
         self.save()
 
@@ -276,9 +294,97 @@ class Job(IJob):
             updated=self.updated,
             workflow_count=len(self.workflows),
             version=self.version,
+            payload=self._workflows_payload(),
         )
 
-    def save(self) -> None:
+    def _workflows_payload(self) -> dict[str, Any] | None:
+        if not self.workflows:
+            return None
+        workflows_out: list[dict[str, Any]] = []
+        for workflow in self.workflows:
+            tasks_out: list[dict[str, Any]] = []
+            for task in workflow.tasks:
+                if not task.executor_id:
+                    return None
+                tasks_out.append(
+                    {
+                        "id": task.id,
+                        "channel_id": task.channel_id,
+                        "dag_id": task.dag_id,
+                        "fingerprint": task.fingerprint,
+                        "name": task.name,
+                        "category": task.category,
+                        "description": task.description,
+                        "tags": [{"key": tag.key, "value": tag.value} for tag in task.tags],
+                        "executor_id": task.executor_id,
+                        "round_timeout": task.round_timeout,
+                        "round_timeout_join": task.round_timeout_join,
+                        "round_times": task.round_times,
+                        "version": task.version,
+                        "retry_count": task.retry_count,
+                        "retry_delay": task.retry_delay,
+                        "retry_until_completed": task.retry_until_completed,
+                        "retry_until_max": task.retry_until_max,
+                        "optional": task.optional,
+                    }
+                )
+            workflows_out.append({"tasks": tasks_out})
+        return {"workflows": workflows_out}
+
+    @staticmethod
+    def _workflows_from_payload(payload: dict[str, Any]) -> list[Workflow]:
+        from pypepper.scheduler.executor import executor_registry
+        from pypepper.scheduler.tag import Tag
+        from pypepper.scheduler.task import Task
+        from pypepper.scheduler.workflow import Workflow
+
+        workflows: list[Workflow] = []
+        for wf_spec in payload.get("workflows") or []:
+            workflow = Workflow()
+            for spec in wf_spec.get("tasks") or []:
+                executor_id = spec.get("executor_id")
+                if not executor_id:
+                    raise ValueError("payload task missing executor_id")
+                tags = [Tag(key=str(t.get("key", "")), value=str(t.get("value", ""))) for t in spec.get("tags") or []]
+                task = Task(
+                    channel_id=str(spec["channel_id"]),
+                    dag_id=str(spec["dag_id"]),
+                    fingerprint=str(spec["fingerprint"]),
+                    name=str(spec["name"]),
+                    category=str(spec["category"]),
+                    description=str(spec.get("description") or ""),
+                    tags=tags,
+                    executor=executor_registry.resolve(str(executor_id)),
+                    round_timeout=int(spec.get("round_timeout") or 0),
+                    round_timeout_join=int(spec.get("round_timeout_join") or 0),
+                    round_times=int(spec.get("round_times") or 1),
+                    version=int(spec.get("version") or 1),
+                    retry_count=int(spec.get("retry_count") or 0),
+                    retry_delay=int(spec.get("retry_delay") or 0),
+                    retry_until_completed=bool(spec.get("retry_until_completed") or False),
+                    retry_until_max=int(spec.get("retry_until_max") or 1000),
+                    optional=bool(spec.get("optional") or False),
+                    executor_id=str(executor_id),
+                )
+                if spec.get("id"):
+                    task.id = str(spec["id"])
+                workflow.add_task(task)
+            workflows.append(workflow)
+        return workflows
+
+    @classmethod
+    def from_record(cls, record: JobRecord) -> Job:
+        """Rebuild a Job from a store snapshot. Requires registered ``executor_id``s when payload is set."""
+        job = cls(category=record.category, channel_id=record.channel_id)
+        job.id = record.id
+        job.created = record.created
+        job.updated = record.updated
+        job.version = record.version
+        if record.payload:
+            job.workflows = cls._workflows_from_payload(record.payload)
+        return job
+
+    def save(self) -> bool:
         from pypepper.common.config import config as app_config
         from pypepper.scheduler.store.memory import InMemoryJobStore
 
@@ -296,21 +402,19 @@ class Job(IJob):
             updated=updated,
             workflow_count=len(self.workflows),
             version=self.version,
+            payload=self._workflows_payload(),
         )
         store = get_job_store()
-        store.put(record)
-        # Mutate in-memory fields only after durable persist succeeds, and only
-        # if this snapshot actually landed (put skips earlier-lifecycle writes).
+        applied = store.put(record)
+        if not applied:
+            log.debug(f"Job save skipped stale snapshot: id={self.id}, attempted={status}, version={self.version}")
+            return False
         durable = store.get(self.id)
-        if durable is None or durable.status != status:
-            log.debug(
-                f"Job save skipped stale snapshot: id={self.id}, "
-                f"attempted={status}, durable={None if durable is None else durable.status}"
-            )
-            return
-        self.status = status
+        if durable is not None:
+            self.version = durable.version
         self.updated = updated
-        log.debug(f"Job saved: id={self.id}, channel_id={self.channel_id}, status={self.status}")
+        log.debug(f"Job saved: id={self.id}, channel_id={self.channel_id}, status={status}")
+        return True
 
     @staticmethod
     def get_saved(job_id: str) -> JobRecord | None:

@@ -1,7 +1,8 @@
 """Scheduler domain: job pipeline and pluggable job store."""
 
 from . import events
-from .channel import Channel
+from .channel import Channel, manager
+from .executor import CallableExecutor, executor_registry
 from .job import (
     ChannelEnqueueError,
     ChannelFullError,
@@ -12,6 +13,8 @@ from .job import (
 )
 from .status import Status
 from .store import (
+    IJobStore,
+    JobRecord,
     configure_job_store,
     get_job_store,
     reset_job_store,
@@ -26,7 +29,11 @@ __all__ = [
     "ChannelEnqueueError",
     "ChannelFullError",
     "ChannelStoppedError",
+    "CallableExecutor",
+    "executor_registry",
+    "IJobStore",
     "Job",
+    "JobRecord",
     "JobRedeliveryError",
     "JobRequeuedError",
     "Status",
@@ -36,6 +43,7 @@ __all__ = [
     "configure_job_store",
     "events",
     "get_job_store",
+    "manager",
     "reset_job_store",
     "setup_from_config",
 ]

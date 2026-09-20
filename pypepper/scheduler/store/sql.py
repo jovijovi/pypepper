@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Literal
 
-from sqlalchemy import Column, Integer, MetaData, String, Table, case, create_engine, select
+from sqlalchemy import Column, Integer, MetaData, String, Table, Text, and_, case, create_engine, inspect, select, text
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine
@@ -29,6 +30,7 @@ scheduler_jobs = Table(
     Column("updated", String(64), nullable=False),
     Column("workflow_count", Integer, nullable=False, default=0),
     Column("version", Integer, nullable=False, default=1),
+    Column("payload", Text, nullable=True),
 )
 
 
@@ -83,7 +85,23 @@ def _engine_from_config(backend: Literal["postgres", "mysql"], **kwargs: Any) ->
     )
 
 
+def _dumps_payload(payload: dict[str, Any] | None) -> str | None:
+    if payload is None:
+        return None
+    return json.dumps(payload)
+
+
+def _loads_payload(raw: str | None) -> dict[str, Any] | None:
+    if not raw:
+        return None
+    loaded = json.loads(raw)
+    if isinstance(loaded, dict):
+        return loaded
+    return None
+
+
 def _row_to_record(row: Any) -> JobRecord:
+    payload_raw = getattr(row, "payload", None)
     return JobRecord(
         id=row.id,
         category=row.category,
@@ -93,7 +111,20 @@ def _row_to_record(row: Any) -> JobRecord:
         updated=row.updated,
         workflow_count=int(row.workflow_count or 0),
         version=int(row.version or 1),
+        payload=_loads_payload(payload_raw),
     )
+
+
+def _ensure_schema(engine: Engine) -> None:
+    _metadata.create_all(engine)
+    inspector = inspect(engine)
+    if TABLE_NAME not in inspector.get_table_names():
+        return
+    names = {c["name"] for c in inspector.get_columns(TABLE_NAME)}
+    if "payload" in names:
+        return
+    with engine.begin() as conn:
+        conn.execute(text(f"ALTER TABLE {TABLE_NAME} ADD COLUMN payload TEXT"))
 
 
 class SqlJobStore(IJobStore):
@@ -102,9 +133,10 @@ class SqlJobStore(IJobStore):
     def __init__(self, backend: Literal["postgres", "mysql"], **kwargs: Any) -> None:
         self._backend = backend
         self._engine = _engine_from_config(backend, **kwargs)
-        _metadata.create_all(self._engine)
+        _ensure_schema(self._engine)
 
-    def put(self, record: JobRecord) -> None:
+    def put(self, record: JobRecord) -> bool:
+        payload_json = _dumps_payload(record.payload)
         values = {
             "id": record.id,
             "category": record.category,
@@ -114,16 +146,22 @@ class SqlJobStore(IJobStore):
             "updated": record.updated,
             "workflow_count": record.workflow_count,
             "version": record.version,
+            "payload": payload_json,
         }
         allowed = list(existing_statuses_put_may_replace(record.status))
-        may_replace = scheduler_jobs.c.status.in_(allowed)
+        may_replace = and_(
+            scheduler_jobs.c.status.in_(allowed),
+            scheduler_jobs.c.version == record.version,
+        )
+        next_version = record.version + 1
         update_values = {
             "category": record.category,
             "channel_id": record.channel_id,
             "status": record.status,
             "updated": record.updated,
             "workflow_count": record.workflow_count,
-            "version": record.version,
+            "version": next_version,
+            "payload": payload_json,
         }
         with self._engine.begin() as conn:
             if self._backend == "postgres":
@@ -133,8 +171,8 @@ class SqlJobStore(IJobStore):
                     set_=update_values,
                     where=may_replace,
                 )
-                conn.execute(pg_stmt)
-                return
+                result = conn.execute(pg_stmt)
+                return bool(result.rowcount)
             mysql_stmt = mysql_insert(scheduler_jobs).values(**values)
 
             def _gated(new_value: object, column: Column[Any]) -> object:
@@ -146,9 +184,11 @@ class SqlJobStore(IJobStore):
                 status=_gated(record.status, scheduler_jobs.c.status),
                 updated=_gated(record.updated, scheduler_jobs.c.updated),
                 workflow_count=_gated(record.workflow_count, scheduler_jobs.c.workflow_count),
-                version=_gated(record.version, scheduler_jobs.c.version),
+                version=_gated(next_version, scheduler_jobs.c.version),
+                payload=_gated(payload_json, scheduler_jobs.c.payload),
             )
-            conn.execute(mysql_stmt)
+            result = conn.execute(mysql_stmt)
+            return bool(result.rowcount)
 
     def get(self, job_id: str) -> JobRecord | None:
         with self._engine.connect() as conn:

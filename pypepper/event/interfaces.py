@@ -86,7 +86,7 @@ class IEvent(metaclass=ABCMeta):
     data: IData
 
     @abstractmethod
-    def set_event_id(self, event_id: str):
+    def set_event_id(self, event_id: str) -> None:
         """
         Set event ID.
         :param event_id: event ID.
@@ -95,7 +95,7 @@ class IEvent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def set_event_namespace(self, namespace: str):
+    def set_event_namespace(self, namespace: str) -> None:
         """
         Set event namespace.
         :param namespace: namespace.
@@ -104,7 +104,7 @@ class IEvent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def set_event_version(self, version: str):
+    def set_event_version(self, version: str) -> None:
         """
         Set event version.
         :param version: event version.
@@ -113,7 +113,7 @@ class IEvent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def set_request_id(self, req_id: str):
+    def set_request_id(self, req_id: str) -> None:
         """
         Set event request ID.
         :param req_id: event request ID.
@@ -122,7 +122,7 @@ class IEvent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def set_sender(self, sender: str):
+    def set_sender(self, sender: str) -> None:
         """
         Set event sender.
         :param sender: event sender.
@@ -131,7 +131,7 @@ class IEvent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def set_flow(self, flow: str):
+    def set_flow(self, flow: str) -> None:
         """
         Set event flow.
         :param flow: event flow.
@@ -140,7 +140,7 @@ class IEvent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def set_name(self, name: str):
+    def set_name(self, name: str) -> None:
         """
         Set event name.
         :param name: event name.
@@ -149,7 +149,7 @@ class IEvent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def set_src(self, src: str):
+    def set_src(self, src: str) -> None:
         """
         Set event original state
         :param src: event original state
@@ -158,7 +158,7 @@ class IEvent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def set_payload(self, payload: IPayload):
+    def set_payload(self, payload: IPayload) -> None:
         """
         Set event payload.
         :param payload: event payload.
@@ -167,7 +167,7 @@ class IEvent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def add_payload(self, payload_id: str, category: str, raw: bytes, hash_alg: str | None):
+    def add_payload(self, payload_id: str, category: str, raw: bytes, hash_alg: str | None) -> None:
         """
         Add event payload
         :param payload_id: payload ID

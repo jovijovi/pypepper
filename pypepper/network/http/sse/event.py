@@ -23,7 +23,7 @@ class SSEEvent(ISSEEvent):
         id: str | None = None,
         retry: int | None = None,
         comment: str | None = None,
-    ):
+    ) -> None:
         """
         Initialize SSE event
 

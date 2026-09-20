@@ -6,7 +6,7 @@ from dataclasses import replace
 from threading import Lock
 
 from pypepper.scheduler.store.interfaces import IJobStore, JobRecord
-from pypepper.scheduler.store.lifecycle import put_applies
+from pypepper.scheduler.store.lifecycle import put_may_write
 
 
 class InMemoryJobStore(IJobStore):
@@ -16,14 +16,20 @@ class InMemoryJobStore(IJobStore):
         self._lock = Lock()
         self._store: dict[str, JobRecord] = {}
 
-    def put(self, record: JobRecord) -> None:
+    def put(self, record: JobRecord) -> bool:
         with self._lock:
             existing = self._store.get(record.id)
-            if existing is not None:
-                if not put_applies(existing.status, record.status):
-                    return
-                record = replace(record, created=existing.created)
-            self._store[record.id] = record
+            if existing is None:
+                self._store[record.id] = record
+                return True
+            if not put_may_write(existing.status, existing.version, record.status, record.version):
+                return False
+            self._store[record.id] = replace(
+                record,
+                created=existing.created,
+                version=existing.version + 1,
+            )
+            return True
 
     def get(self, job_id: str) -> JobRecord | None:
         with self._lock:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from pypepper.exceptions import InternalException
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel
@@ -152,10 +151,10 @@ def test_fsm_cancel_transition_from_scheduled_and_in_progress():
 
 def test_cancel_save_failure_keeps_fsm_cancelled():
     class _FailCancelledStore(InMemoryJobStore):
-        def put(self, record: JobRecord) -> None:
+        def put(self, record: JobRecord) -> bool:
             if record.status == Status.CANCELLED.value:
                 raise RuntimeError("cancel-persist-failed")
-            super().put(record)
+            return super().put(record)
 
     set_job_store(_FailCancelledStore())
     job = Job(category="test", channel_id="cancel-save-fail")
@@ -273,10 +272,10 @@ async def test_worker_ignores_workflow_error_after_cancel():
 @pytest.mark.asyncio
 async def test_worker_rethrows_when_cancel_persist_lags_after_workflow_error():
     class _FailCancelledStore(InMemoryJobStore):
-        def put(self, record: JobRecord) -> None:
+        def put(self, record: JobRecord) -> bool:
             if record.status == Status.CANCELLED.value:
                 raise RuntimeError("cancel-persist-failed")
-            super().put(record)
+            return super().put(record)
 
     set_job_store(_FailCancelledStore())
     hold = {"job": None}
@@ -309,7 +308,7 @@ async def test_worker_run_persist_fail_skips_restore_when_cancel_won():
     class _RaceStore(InMemoryJobStore):
         job: Job | None = None
 
-        def put(self, record: JobRecord) -> None:
+        def put(self, record: JobRecord) -> bool:
             if record.status == Status.IN_PROGRESS.value:
                 assert self.job is not None
                 # Concurrent cancel wins after RUN applied in memory.
@@ -317,7 +316,7 @@ async def test_worker_run_persist_fail_skips_restore_when_cancel_won():
                 raise RuntimeError("run-persist-failed")
             if record.status == Status.FAILED.value:
                 raise RuntimeError("fail-persist-failed")
-            super().put(record)
+            return super().put(record)
 
     store = _RaceStore()
     set_job_store(store)

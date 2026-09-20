@@ -1,5 +1,4 @@
 import pytest
-
 from pypepper.common.config import config
 from pypepper.scheduler.job import Job
 from pypepper.scheduler.store import (
@@ -36,7 +35,7 @@ class _NonMemoryStore(IJobStore):
     def __init__(self) -> None:
         self._rows: dict[str, JobRecord] = {}
 
-    def put(self, record: JobRecord) -> None:
+    def put(self, record: JobRecord) -> bool:
         existing = self._rows.get(record.id)
         if existing is not None:
             record = JobRecord(
@@ -48,8 +47,10 @@ class _NonMemoryStore(IJobStore):
                 updated=record.updated,
                 workflow_count=record.workflow_count,
                 version=record.version,
+                payload=record.payload,
             )
         self._rows[record.id] = record
+        return True
 
     def get(self, job_id: str) -> JobRecord | None:
         return self._rows.get(job_id)

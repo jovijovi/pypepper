@@ -7,13 +7,18 @@ import contextlib
 from asyncio import Queue, QueueFull
 from collections.abc import MutableMapping
 from threading import Lock
-from typing import Any
+from typing import Any, Literal
 
 from pypepper.common.log import log
 
+SendResult = Literal["ok", "full", "stopped"]
+SEND_OK: SendResult = "ok"
+SEND_FULL: SendResult = "full"
+SEND_STOPPED: SendResult = "stopped"
+
 
 class Channel:
-    def __init__(self, maxsize: int = 0):
+    def __init__(self, maxsize: int = 0) -> None:
         self._stop = False
         self._queue: Queue[Any] = Queue(maxsize)
         # Wakes a blocked ``receive()`` without consuming queue capacity.
@@ -26,26 +31,22 @@ class Channel:
         """True after :meth:`request_stop` (read-only; use ``request_stop()`` to stop)."""
         return self._stop
 
-    async def send(self, value: Any) -> bool:
+    async def send(self, value: Any) -> SendResult:
         """
         Enqueue ``value``.
 
-        Returns ``False`` when the channel is stopped or the bounded queue is full.
-        Callers that need the reason must check ``channel.stop`` after a ``False``
-        result (``Job.scheduled`` / ``Processor.async_run`` do this).
-
-        ``send`` and ``request_stop`` share an instance lock: a successful enqueue
-        and a stop-reject are mutually exclusive. Prefer ``Job.scheduled()`` for
-        typed errors.
+        Returns ``ok``, ``full``, or ``stopped``. The reason is decided under the
+        same lock as :meth:`request_stop` (a successful enqueue and a stop-reject
+        are mutually exclusive). Prefer ``Job.scheduled()`` for typed errors.
         """
         with self._op_lock:
             if self._stop:
-                return False
+                return SEND_STOPPED
             try:
                 self._queue.put_nowait(value)
-                return True
+                return SEND_OK
             except QueueFull:
-                return False
+                return SEND_FULL
 
     async def receive(self) -> Any | None:
         """
@@ -139,7 +140,7 @@ class ChannelManager:
 
             return self._job_channel.get(key)
 
-    def remove(self, key: str):
+    def remove(self, key: str) -> Channel | None:
         if not key:
             raise ValueError("invalid key")
 

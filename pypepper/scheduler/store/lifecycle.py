@@ -38,3 +38,17 @@ def put_applies(existing_status: str | None, incoming_status: str) -> bool:
     if existing_status is None:
         return True
     return existing_status in existing_statuses_put_may_replace(incoming_status)
+
+
+def put_may_write(
+    existing_status: str | None,
+    existing_version: int | None,
+    incoming_status: str,
+    incoming_version: int,
+) -> bool:
+    """Status fence plus OCC: first insert always applies; updates need matching version."""
+    if existing_status is None:
+        return True
+    if not put_applies(existing_status, incoming_status):
+        return False
+    return existing_version == incoming_version

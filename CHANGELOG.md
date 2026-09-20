@@ -3,15 +3,30 @@
 ## Unreleased
 
 ### Breaking
+- `Channel.send` returns `"ok"` / `"full"` / `"stopped"` (not `bool`). The reason is decided under the same lock as `request_stop`. Callers must compare to `"ok"`; do not wrap a bool compatibility layer.
+- `IJobStore.put` returns `bool` (`True` applied, `False` skipped by lifecycle fence or OCC version mismatch). Updates require `record.version` to equal the durable version; the store then writes `version+1`.
+- `server.run` raises if both `httpServer.enable` and `httpsServer.enable` are true (previously HTTP won silently).
+- Optional `JobRecord.payload` / `Job.from_record` / `executor_registry`: snapshots stay metadata-only unless every task has `executor_id`.
 - `Channel.send` and `request_stop` are serialized: a successful enqueue and a stop-reject are mutually exclusive (no TOCTOU put after stop).
 - `Worker.run_once` / `run_forever` drain queued jobs after stop (stop is still not cancel). `run_forever` exits when the channel is stopped **and** empty. If a RUN-start restore cannot re-enqueue because the channel is already stopped (`JobRedeliveryError.reason == "stopped"`), leftovers are still drained; the error is re-raised after the queue is empty.
 - `Job.scheduled()` persists Scheduled **after** a successful channel send. Enqueue failure rolls back in memory only (no store row, no cleanup delete). A `save()` failure after send does not roll back; the job stays on the channel.
-- `round_timeout`: started execute is joined before retry or `Workflow.run()` return. Hung execute blocks the workflow / Worker. No orphan overlap on the shared timeout pool.
+- `round_timeout`: started execute is joined before retry or `Workflow.run()` return. Hung execute with `round_timeout_join=0` (default) blocks the workflow / Worker. No orphan overlap on the shared timeout pool.
 - `IJobStore.put` skips a snapshot whose status is earlier than the durable row (Scheduled cannot overwrite InProgress/terminal; Failed/Completed/Cancelled do not overwrite each other). `Job.save()` does not rewind in-memory `status`/`updated` when the write is skipped.
-- `Processor.run` / `Job.scheduled()` RuntimeError for async callers: apply `INIT`→`SCHEDULE`, `await Channel.send`, then `job.save()` (not save-then-send).
+- `Processor.run` / `Job.scheduled()` RuntimeError for async callers: apply `INIT`→`SCHEDULE`, `await Channel.send` (check `"ok"` / `"full"` / `"stopped"`), then `job.save()` (not save-then-send).
+
+### Added
+- Worker heals a missing Scheduled snapshot before `RUN`. `put` False on RUN follows durable Cancelled/InProgress/terminals (does not run workflows).
+- `JobRedeliveryError.job` and Failed persist when re-enqueue is impossible.
+- `Task.round_timeout_join`, `Task.executor_id`, `Job.context` cancel `Event` (`CANCEL_EVENT_KEY`).
+- `build_response(..., status_code=)` (default HTTP 200; business `code` is not mapped to HTTP).
+- SSE Last-Event-ID replay from a bounded in-process ring of events that have an `id`.
 
 ### Changed
 - Lock-graph floor `anyio>=4.14.2` (CVE-2026-63374, CVE-2026-64847 on 4.12.1).
+- `apply_event` keeps `Job.status` aligned with the FSM.
+- Mongo `put` is update-then-insert-if-absent (no fence-bypassing upsert). Helper Mongo `connect` raises `ValueError` without `uri` or discrete fields.
+- mypy `disallow_untyped_defs` includes `scheduler.channel` / `executor`, `network.http.response` / `sse.event`, plus `event` / `fsm` and selected `common` modules.
+- `pypepper.scheduler` exports `manager`, `CallableExecutor`, `executor_registry`, `JobRecord`, `IJobStore`.
 
 ## 0.6.6
 
