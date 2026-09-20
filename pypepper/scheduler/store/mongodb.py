@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from mongoengine import Document, IntField, StringField, disconnect
+from mongoengine import DictField, Document, IntField, StringField, disconnect
 from mongoengine import connect as mongo_connect
 from mongoengine.context_managers import switch_db
 from pymongo.errors import DuplicateKeyError
@@ -33,6 +33,7 @@ class SchedulerJobDoc(Document):
     updated = StringField(required=True)
     workflow_count = IntField(default=0)
     version = IntField(default=1)
+    payload = DictField(null=True)
 
 
 def _doc_to_record(doc: SchedulerJobDoc) -> JobRecord:
@@ -45,6 +46,7 @@ def _doc_to_record(doc: SchedulerJobDoc) -> JobRecord:
         updated=doc.updated,
         workflow_count=int(doc.workflow_count or 0),
         version=int(doc.version or 1),
+        payload=dict(doc.payload) if doc.payload else None,
     )
 
 
@@ -100,22 +102,24 @@ class MongoJobStore(IJobStore):
                 uuidRepresentation="standard",
             )
 
-    def put(self, record: JobRecord) -> None:
+    def put(self, record: JobRecord) -> bool:
         with switch_db(SchedulerJobDoc, self._alias):
             collection = SchedulerJobDoc._get_collection()
+            next_version = record.version + 1
             set_fields = {
                 "category": record.category,
                 "channel_id": record.channel_id,
                 "status": record.status,
                 "updated": record.updated,
                 "workflow_count": record.workflow_count,
-                "version": record.version,
+                "version": next_version,
+                "payload": record.payload,
             }
             allowed = list(existing_statuses_put_may_replace(record.status))
-            filt = {"_id": record.id, "status": {"$in": allowed}}
+            filt = {"_id": record.id, "status": {"$in": allowed}, "version": record.version}
             result = collection.update_one(filt, {"$set": set_fields}, upsert=False)
             if result.matched_count:
-                return
+                return True
             doc = {
                 "_id": record.id,
                 "category": record.category,
@@ -125,26 +129,29 @@ class MongoJobStore(IJobStore):
                 "updated": record.updated,
                 "workflow_count": record.workflow_count,
                 "version": record.version,
+                "payload": record.payload,
             }
             try:
                 collection.insert_one(doc)
+                return True
             except DuplicateKeyError as dke:
-                # Concurrent first-insert race, or an existing later status.
+                # Concurrent first-insert, fence skip, or version conflict.
                 from pypepper.common.log import log
 
                 retry = collection.update_one(filt, {"$set": set_fields}, upsert=False)
                 if retry.matched_count:
                     log.warn(f"MongoJobStore.put DuplicateKeyError retry $set-only: id={record.id}")
-                    return
+                    return True
                 existing = collection.find_one({"_id": record.id})
                 if existing is None:
                     raise RuntimeError(
                         f"MongoJobStore.put: document missing after DuplicateKeyError (id={record.id})"
                     ) from dke
                 log.debug(
-                    f"MongoJobStore.put skipped status downgrade: id={record.id}, "
+                    f"MongoJobStore.put skipped: id={record.id}, "
                     f"attempted={record.status}, durable={existing.get('status')}"
                 )
+                return False
 
     def get(self, job_id: str) -> JobRecord | None:
         with switch_db(SchedulerJobDoc, self._alias):

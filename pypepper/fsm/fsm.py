@@ -17,7 +17,7 @@ class State(IState):
     Machine State
     """
 
-    def __init__(self, value: str):
+    def __init__(self, value: str) -> None:
         self.value = value
 
 
@@ -33,7 +33,7 @@ class Transition(ITransition):
         to_state: IState,
         handler: Callable[..., Any] | None = None,
         context: MutableMapping[Any, Any] | None = None,
-    ):
+    ) -> None:
         self.event = event
         self.from_state = from_state
         self.to_state = to_state
@@ -51,7 +51,7 @@ class Options(IOptions):
         fsm_id: str,
         initial: IState,
         transitions: Collection[ITransition],
-    ):
+    ) -> None:
         self.fsm_id = fsm_id
         self.initial = initial
         self.transitions = transitions
@@ -67,7 +67,7 @@ class Target(ITarget):
         state: IState,
         handler: Callable[..., Any] | None = None,
         context: MutableMapping[Any, Any] | None = None,
-    ):
+    ) -> None:
         self.state = state
         self.handler = handler
         self.context = context
@@ -84,7 +84,7 @@ class Response(IResponse):
         error: Any,
         event_handler_result: Any | None = None,
         transition_result: Any | None = None,
-    ):
+    ) -> None:
         self.state = state
         self.error = error
         self.event_handler_result = event_handler_result
@@ -96,7 +96,7 @@ class FSM(IFSM):
     Finite State Machine
     """
 
-    def __init__(self, options: IOptions):
+    def __init__(self, options: IOptions) -> None:
         self._id = options.fsm_id
         self._current: IState | None = options.initial
         self._transitions: MutableMapping[str, ITarget] = {}
@@ -233,7 +233,7 @@ class FSM(IFSM):
 
         return self._transition(event, handler, context)
 
-    def close(self):
+    def close(self) -> None:
         """
         Close FSM (unsafe)
         :return: None

@@ -24,6 +24,8 @@ __all__ = ["IWorkflow", "Workflow"]
 _SOFT_TIMEOUT_MAX_WORKERS = 32
 _pool_lock = Lock()
 _soft_timeout_pool_ref: ThreadPoolExecutor | None = None
+_inflight_lock = Lock()
+_inflight: dict[str, Future[object | None]] = {}
 
 
 def _soft_timeout_pool() -> ThreadPoolExecutor:
@@ -64,7 +66,9 @@ class Workflow(IWorkflow):
         - ``round_timeout`` seconds per execute attempt (0 = none). Timeout counts as a
           failed attempt. Queued work is cancelled when possible (``timed out before
           start``). Started work is **joined** before the next retry or ``run()``
-          return (``execute still running``); a hung execute blocks this workflow /
+          return (``execute still running``). ``round_timeout_join`` bounds that
+          wait (``0`` = forever); a still-running Future blocks a later attempt
+          for the same task. A hung execute with infinite join blocks this workflow /
           Worker. Concurrent timeout executes are capped (``_SOFT_TIMEOUT_MAX_WORKERS``);
           further work queues and a short timeout may fire before the task starts.
         - Retry modes: until false → ``retry_count + 1``; until + count 0 → per-round
@@ -102,40 +106,65 @@ class Workflow(IWorkflow):
         if timeout <= 0:
             return cast(object | None, executor.execute(task, task.context))
 
-        # Timeout via shared pool: do not shut down the pool. Queued work is cancelled
-        # when possible; started work is joined before retry/return.
+        with _inflight_lock:
+            existing = _inflight.get(task.id)
+            if existing is not None and not existing.done():
+                raise TimeoutError(
+                    f"Task execute still running from a previous attempt: id={task.id}, name={task.name}"
+                )
+            if existing is not None and existing.done():
+                _inflight.pop(task.id, None)
+
         future: Future[object | None] = _soft_timeout_pool().submit(executor.execute, task, task.context)
+        with _inflight_lock:
+            _inflight[task.id] = future
         try:
             return cast(object | None, future.result(timeout=timeout))
         except FuturesTimeoutError as e:
-            # On 3.10+, FuturesTimeoutError is TimeoutError. If the pool Future finished
-            # in the race window, return/raise its outcome; otherwise wrap the wait timeout.
             if future.done():
                 return cast(object | None, future.result())
-            # Prefer cancelling queued work so a "failed" attempt does not run later.
             if future.cancel():
+                with _inflight_lock:
+                    _inflight.pop(task.id, None)
                 raise TimeoutError(
                     f"Task execute timed out before start "
                     f"(round_timeout={timeout}s, still queued): id={task.id}, name={task.name}"
                 ) from e
             if future.done():
                 return cast(object | None, future.result())
+            join_timeout = int(task.round_timeout_join or 0)
             try:
-                future.result()
+                if join_timeout > 0:
+                    future.result(timeout=join_timeout)
+                else:
+                    future.result()
+            except FuturesTimeoutError as join_exc:
+                log.warn(
+                    f"Task execute exceeded round_timeout={timeout}s "
+                    f"(execute still running after join_timeout={join_timeout}s): "
+                    f"id={task.id}, name={task.name}"
+                )
+                raise TimeoutError(
+                    f"Task execute exceeded round_timeout={timeout}s "
+                    f"(execute still running): id={task.id}, name={task.name}"
+                ) from join_exc
             except Exception as execute_exc:
                 log.warn(
                     f"Task execute exceeded round_timeout={timeout}s "
                     f"(execute still running): id={task.id}, name={task.name}, error={execute_exc}"
                 )
-            else:
-                log.warn(
+                raise TimeoutError(
                     f"Task execute exceeded round_timeout={timeout}s "
                     f"(execute still running): id={task.id}, name={task.name}"
-                )
+                ) from e
             raise TimeoutError(
                 f"Task execute exceeded round_timeout={timeout}s "
                 f"(execute still running): id={task.id}, name={task.name}"
             ) from e
+        finally:
+            if future.done():
+                with _inflight_lock:
+                    _inflight.pop(task.id, None)
 
     def _run_task(self, task: Task) -> object | None:
         rounds = max(1, int(task.round_times or 1))

@@ -64,6 +64,9 @@ mongodb.connect(cfg)
 mongodb.close()
 ```
 
+Without `uri`, `connect` requires `username`, `password`, `host`, and `db` (same
+rule as the SQL/Mongo job stores) and raises `ValueError` if they are missing.
+
 !!! tip
     Prefer environment-specific secrets outside the repo. The devenv passwords are for local/CI only.
 

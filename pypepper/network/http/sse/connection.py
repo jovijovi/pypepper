@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from collections.abc import MutableMapping
 from threading import Lock
-from typing import TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from pypepper.common.config import config
 from pypepper.common.context import Context
@@ -41,7 +42,7 @@ class SSEConnection(ISSEConnection):
         queue: asyncio.Queue,
         context: Context | None = None,
         last_event_id: str | None = None,
-    ):
+    ) -> None:
         self.connection_id = connection_id
         self.context = context or Context(context_id=connection_id)
         self.last_event_id = last_event_id
@@ -53,11 +54,12 @@ class SSEConnection(ISSEConnection):
     def max_queue_size(cls) -> int:
         return int(_sse_config_value("maxQueueSize", cls.DEFAULT_MAX_QUEUE_SIZE))
 
-    async def send(self, event: ISSEEvent) -> bool:
+    async def send(self, event: ISSEEvent, *, record: bool = True) -> bool:
         """
         Send event to client
 
         :param event: SSE event
+        :param record: When True, events with an ``id`` are stored for Last-Event-ID replay
         :return: True if sent successfully, False if dropped
         """
         if self._closed:
@@ -66,6 +68,8 @@ class SSEConnection(ISSEConnection):
         try:
             # Non-blocking mode: drop event if queue is full
             self._queue.put_nowait(event)
+            if record and event.id:
+                connection_manager.record_event(event)
             log.request_id(self.connection_id).debug(f"SSE event sent: event={event.event}, id={event.id}")
             return True
 
@@ -94,7 +98,7 @@ class SSEConnection(ISSEConnection):
         """
         return self._closed
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get connection statistics
         :return: Statistics dict
@@ -113,11 +117,13 @@ class SSEConnectionManager(ISSEConnectionManager):
 
     DEFAULT_MAX_CONNECTIONS = 100
     DEFAULT_MAX_CONNECTIONS_PER_IP = 5
+    EVENT_LOG_MAX = 128
 
     _instance: SSEConnectionManager | None = None
     _init_lock = Lock()
     _lock: Lock
     _connections: MutableMapping[str, SSEConnection]
+    _event_log: deque[ISSEEvent]
 
     def __new__(cls) -> SSEConnectionManager:
         with cls._init_lock:
@@ -125,11 +131,34 @@ class SSEConnectionManager(ISSEConnectionManager):
                 inst = super().__new__(cls)
                 inst._lock = Lock()
                 inst._connections = {}
+                inst._event_log = deque(maxlen=cls.EVENT_LOG_MAX)
                 cls._instance = inst
             return cls._instance
 
     def __init__(self) -> None:
         pass
+
+    def record_event(self, event: ISSEEvent) -> None:
+        """Remember an event with an id for Last-Event-ID replay."""
+        if not event.id:
+            return
+        with self._lock:
+            self._event_log.append(event)
+
+    def events_after(self, last_event_id: str) -> list[ISSEEvent]:
+        """Events strictly after ``last_event_id``, or empty if that id is not in the log."""
+        with self._lock:
+            events = list(self._event_log)
+        out: list[ISSEEvent] = []
+        seen = False
+        for event in events:
+            if seen:
+                out.append(event)
+            elif event.id == last_event_id:
+                seen = True
+        if not seen:
+            return []
+        return out
 
     @property
     def MAX_CONNECTIONS(self) -> int:
@@ -217,6 +246,13 @@ class SSEConnectionManager(ISSEConnectionManager):
             f"total_connections={total}"
         )
 
+        if last_event_id:
+            for event in self.events_after(last_event_id):
+                try:
+                    connection._queue.put_nowait(event)
+                except asyncio.QueueFull:
+                    break
+
         return connection
 
     async def disconnect(self, connection_id: str) -> None:
@@ -264,9 +300,14 @@ class SSEConnectionManager(ISSEConnectionManager):
         """
         connections = self.get_all_connections()
         active_connections = [conn for conn in connections if not conn.is_closed()]
+        if event.id:
+            self.record_event(event)
 
         results = await asyncio.gather(
-            *[conn.send(event) for conn in active_connections],
+            *[
+                conn.send(event, record=False) if isinstance(conn, SSEConnection) else conn.send(event)
+                for conn in active_connections
+            ],
             return_exceptions=True,
         )
 
@@ -276,7 +317,7 @@ class SSEConnectionManager(ISSEConnectionManager):
 
         return success_count
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get global connection statistics
 

@@ -7,9 +7,9 @@ from fastapi.responses import JSONResponse
 from pypepper.common.log import log
 
 
-def build_response(code: str, data: Any, msg: str | None = None) -> JSONResponse:
+def build_response(code: str, data: Any, msg: str | None = None, status_code: int = http.HTTPStatus.OK) -> JSONResponse:
     return JSONResponse(
-        status_code=http.HTTPStatus.OK,
+        status_code=status_code,
         content=jsonable_encoder(
             {
                 "code": code,

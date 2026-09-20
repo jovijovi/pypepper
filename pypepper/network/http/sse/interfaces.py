@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pypepper.common.context import Context
 
@@ -60,7 +60,7 @@ class ISSEConnection(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get connection statistics
         :return: Statistics dict

@@ -21,7 +21,7 @@ def new_uuid_32bits() -> str:
     return uuid.uuid4().hex
 
 
-def custom_uuid(length=6) -> str:
+def custom_uuid(length: int = 6) -> str:
     """
     Generate a new UUID(v4) with specified length
     :param length: UUID length

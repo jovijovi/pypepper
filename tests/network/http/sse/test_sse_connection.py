@@ -1,7 +1,6 @@
 import asyncio
 
 import pytest
-
 from pypepper.exceptions import InternalException
 from pypepper.network.http.sse.connection import SSEConnection, SSEConnectionManager
 from pypepper.network.http.sse.event import SSEEvent
@@ -13,21 +12,21 @@ async def test_connection_creation():
     manager = SSEConnectionManager()
 
     connection = await manager.connect(
-        connection_id='test-conn-1',
-        last_event_id='evt-100',
-        client_ip='127.0.0.1',
-        api_key='test-key',
+        connection_id="test-conn-1",
+        last_event_id="evt-100",
+        client_ip="127.0.0.1",
+        api_key="test-key",
     )
 
     assert connection is not None
-    assert connection.connection_id == 'test-conn-1'
-    assert connection.last_event_id == 'evt-100'
+    assert connection.connection_id == "test-conn-1"
+    assert connection.last_event_id == "evt-100"
     assert not connection.is_closed()
-    assert connection.context.context.get('client_ip') == '127.0.0.1'
-    assert connection.context.context.get('api_key') == 'test-key'
+    assert connection.context.context.get("client_ip") == "127.0.0.1"
+    assert connection.context.context.get("api_key") == "test-key"
 
     # Cleanup
-    await manager.disconnect('test-conn-1')
+    await manager.disconnect("test-conn-1")
 
 
 @pytest.mark.asyncio
@@ -49,51 +48,51 @@ async def test_connection_auto_id():
 async def test_connection_send_event():
     """Test sending event"""
     manager = SSEConnectionManager()
-    connection = await manager.connect(connection_id='test-conn-2')
+    connection = await manager.connect(connection_id="test-conn-2")
 
     # Send event
-    event = SSEEvent(data={'test': 'value'}, event='test', id='evt-1')
+    event = SSEEvent(data={"test": "value"}, event="test", id="evt-1")
     success = await connection.send(event)
 
     assert success is True
 
     # Read from queue
     received_event = await asyncio.wait_for(connection._queue.get(), timeout=1.0)
-    assert received_event.data == {'test': 'value'}
-    assert received_event.event == 'test'
+    assert received_event.data == {"test": "value"}
+    assert received_event.event == "test"
 
     # Cleanup
-    await manager.disconnect('test-conn-2')
+    await manager.disconnect("test-conn-2")
 
 
 @pytest.mark.asyncio
 async def test_connection_ping():
     """Test heartbeat"""
     manager = SSEConnectionManager()
-    connection = await manager.connect(connection_id='test-conn-3')
+    connection = await manager.connect(connection_id="test-conn-3")
 
     await connection.ping()
 
     # Read heartbeat from queue
     ping_event = await asyncio.wait_for(connection._queue.get(), timeout=1.0)
-    assert ping_event.comment == 'heartbeat'
+    assert ping_event.comment == "heartbeat"
 
     # Cleanup
-    await manager.disconnect('test-conn-3')
+    await manager.disconnect("test-conn-3")
 
 
 @pytest.mark.asyncio
 async def test_connection_disconnect():
     """Test disconnection"""
     manager = SSEConnectionManager()
-    connection = await manager.connect(connection_id='test-conn-4')
+    connection = await manager.connect(connection_id="test-conn-4")
 
     assert not connection.is_closed()
 
-    await manager.disconnect('test-conn-4')
+    await manager.disconnect("test-conn-4")
 
     assert connection.is_closed()
-    assert manager.get_connection('test-conn-4') is None
+    assert manager.get_connection("test-conn-4") is None
 
 
 @pytest.mark.asyncio
@@ -102,15 +101,15 @@ async def test_connection_manager_broadcast():
     manager = SSEConnectionManager()
 
     # Create multiple connections
-    conn1 = await manager.connect(connection_id='test-conn-5')
-    conn2 = await manager.connect(connection_id='test-conn-6')
-    conn3 = await manager.connect(connection_id='test-conn-7')
+    conn1 = await manager.connect(connection_id="test-conn-5")
+    conn2 = await manager.connect(connection_id="test-conn-6")
+    conn3 = await manager.connect(connection_id="test-conn-7")
 
     # Broadcast event
     broadcast_event = SSEEvent(
-        data={'broadcast': 'message'},
-        event='broadcast',
-        id='bcast-1',
+        data={"broadcast": "message"},
+        event="broadcast",
+        id="bcast-1",
     )
     count = await manager.broadcast(broadcast_event)
 
@@ -121,14 +120,14 @@ async def test_connection_manager_broadcast():
     evt2 = await asyncio.wait_for(conn2._queue.get(), timeout=1.0)
     evt3 = await asyncio.wait_for(conn3._queue.get(), timeout=1.0)
 
-    assert evt1.data == {'broadcast': 'message'}
-    assert evt2.data == {'broadcast': 'message'}
-    assert evt3.data == {'broadcast': 'message'}
+    assert evt1.data == {"broadcast": "message"}
+    assert evt2.data == {"broadcast": "message"}
+    assert evt3.data == {"broadcast": "message"}
 
     # Cleanup
-    await manager.disconnect('test-conn-5')
-    await manager.disconnect('test-conn-6')
-    await manager.disconnect('test-conn-7')
+    await manager.disconnect("test-conn-5")
+    await manager.disconnect("test-conn-6")
+    await manager.disconnect("test-conn-7")
 
 
 @pytest.mark.asyncio
@@ -138,15 +137,15 @@ async def test_connection_manager_get_all():
 
     initial_count = len(manager.get_all_connections())
 
-    conn1 = await manager.connect(connection_id='test-conn-8')
-    conn2 = await manager.connect(connection_id='test-conn-9')
+    conn1 = await manager.connect(connection_id="test-conn-8")
+    conn2 = await manager.connect(connection_id="test-conn-9")
 
     all_connections = manager.get_all_connections()
     assert len(all_connections) == initial_count + 2
 
     # Cleanup
-    await manager.disconnect('test-conn-8')
-    await manager.disconnect('test-conn-9')
+    await manager.disconnect("test-conn-8")
+    await manager.disconnect("test-conn-9")
 
 
 @pytest.mark.asyncio
@@ -157,31 +156,31 @@ async def test_connection_queue_full():
         # Use a smaller queue in tests to keep runtime short.
         queue = asyncio.Queue(maxsize=20)
         connection = SSEConnection(
-            connection_id='test-conn-10',
+            connection_id="test-conn-10",
             queue=queue,
         )
         with manager._lock:
-            manager._connections['test-conn-10'] = connection
+            manager._connections["test-conn-10"] = connection
 
         # Fill queue to capacity
         for i in range(20):
-            event = SSEEvent(data={'index': i}, event='fill', id=f'evt-{i}')
+            event = SSEEvent(data={"index": i}, event="fill", id=f"evt-{i}")
             success = await connection.send(event)
             assert success is True
 
         # Try to send one more (should be dropped)
-        overflow_event = SSEEvent(data={'overflow': True}, event='overflow')
+        overflow_event = SSEEvent(data={"overflow": True}, event="overflow")
         success = await connection.send(overflow_event)
         assert success is False
 
         # Check stats
         stats = connection.get_stats()
-        assert stats['dropped_events'] == 1
+        assert stats["dropped_events"] == 1
 
         # Cleanup
-        await manager.disconnect('test-conn-10')
+        await manager.disconnect("test-conn-10")
     finally:
-        await manager.disconnect('test-conn-10')
+        await manager.disconnect("test-conn-10")
 
 
 @pytest.mark.asyncio
@@ -202,18 +201,18 @@ async def test_connection_limit():
         manager.MAX_CONNECTIONS = 2
 
         # Create connections up to limit
-        conn1 = await manager.connect(connection_id='test-limit-1')
-        conn2 = await manager.connect(connection_id='test-limit-2')
+        conn1 = await manager.connect(connection_id="test-limit-1")
+        conn2 = await manager.connect(connection_id="test-limit-2")
 
         # Try to exceed limit
         with pytest.raises(InternalException) as exc_info:
-            await manager.connect(connection_id='test-limit-3')
+            await manager.connect(connection_id="test-limit-3")
 
-        assert 'Maximum connections reached' in str(exc_info.value)
+        assert "Maximum connections reached" in str(exc_info.value)
 
         # Cleanup
-        await manager.disconnect('test-limit-1')
-        await manager.disconnect('test-limit-2')
+        await manager.disconnect("test-limit-1")
+        await manager.disconnect("test-limit-2")
 
     finally:
         # Restore original limit
@@ -224,23 +223,88 @@ async def test_connection_limit():
 async def test_connection_stats():
     """Test connection statistics"""
     manager = SSEConnectionManager()
-    connection = await manager.connect(connection_id='test-conn-stats')
+    connection = await manager.connect(connection_id="test-conn-stats")
 
     # Send some events
-    await connection.send(SSEEvent(data={'test': 1}, id='evt-1'))
-    await connection.send(SSEEvent(data={'test': 2}, id='evt-2'))
+    await connection.send(SSEEvent(data={"test": 1}, id="evt-1"))
+    await connection.send(SSEEvent(data={"test": 2}, id="evt-2"))
 
     # Get stats
     stats = connection.get_stats()
 
-    assert stats['connection_id'] == 'test-conn-stats'
-    assert stats['queue_size'] == 2
-    assert stats['dropped_events'] == 0
-    assert stats['is_closed'] is False
+    assert stats["connection_id"] == "test-conn-stats"
+    assert stats["queue_size"] == 2
+    assert stats["dropped_events"] == 0
+    assert stats["is_closed"] is False
 
     # Cleanup
-    await manager.disconnect('test-conn-stats')
+    await manager.disconnect("test-conn-stats")
 
 
-if __name__ == '__main__':
+@pytest.mark.asyncio
+async def test_last_event_id_replays_events_after_id():
+    manager = SSEConnectionManager()
+    manager._event_log.clear()
+    publisher = await manager.connect(connection_id="sse-replay-pub")
+    await publisher.send(SSEEvent(data={"n": 1}, id="replay-1"))
+    await publisher.send(SSEEvent(data={"n": 2}, event="tick"))
+    await publisher.send(SSEEvent(data={"n": 3}, id="replay-3"))
+    await manager.disconnect("sse-replay-pub")
+
+    resumed = await manager.connect(connection_id="sse-replay-sub", last_event_id="replay-1")
+    first = await asyncio.wait_for(resumed._queue.get(), timeout=1.0)
+    assert first.id == "replay-3"
+    assert resumed._queue.empty()
+    await manager.disconnect("sse-replay-sub")
+
+
+@pytest.mark.asyncio
+async def test_last_event_id_unknown_does_not_pretend_history():
+    manager = SSEConnectionManager()
+    manager._event_log.clear()
+    publisher = await manager.connect(connection_id="sse-replay-unknown-pub")
+    await publisher.send(SSEEvent(data={"n": 1}, id="live-1"))
+    await manager.disconnect("sse-replay-unknown-pub")
+
+    resumed = await manager.connect(connection_id="sse-replay-unknown-sub", last_event_id="missing")
+    assert resumed._queue.empty()
+    await manager.disconnect("sse-replay-unknown-sub")
+
+
+def test_record_event_ignores_events_without_id():
+    manager = SSEConnectionManager()
+    manager._event_log.clear()
+    manager.record_event(SSEEvent(data={"n": 1}))
+    assert list(manager._event_log) == []
+
+
+@pytest.mark.asyncio
+async def test_broadcast_without_id_does_not_record():
+    manager = SSEConnectionManager()
+    manager._event_log.clear()
+    await manager.connect(connection_id="sse-bcast-no-id")
+    count = await manager.broadcast(SSEEvent(data={"x": 1}, event="tick"))
+    assert count == 1
+    assert list(manager._event_log) == []
+    await manager.disconnect("sse-bcast-no-id")
+
+
+@pytest.mark.asyncio
+async def test_last_event_id_replay_stops_when_queue_full(monkeypatch):
+    monkeypatch.setattr(SSEConnection, "max_queue_size", classmethod(lambda cls: 1))
+    manager = SSEConnectionManager()
+    manager._event_log.clear()
+    manager.record_event(SSEEvent(data={"n": 1}, id="full-1"))
+    manager.record_event(SSEEvent(data={"n": 2}, id="full-2"))
+    manager.record_event(SSEEvent(data={"n": 3}, id="full-3"))
+
+    resumed = await manager.connect(connection_id="sse-replay-full-sub", last_event_id="full-1")
+    assert resumed._queue.qsize() == 1
+    first = resumed._queue.get_nowait()
+    assert first.id == "full-2"
+    assert resumed._queue.empty()
+    await manager.disconnect("sse-replay-full-sub")
+
+
+if __name__ == "__main__":
     pytest.main()

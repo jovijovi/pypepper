@@ -79,6 +79,7 @@ def test_memory_put_upserts():
     assert got.category == "b"
     assert got.status == Status.COMPLETED.value
     assert got.created == "t0"
+    assert got.version == 2
 
 
 def test_memory_put_does_not_downgrade_status():
@@ -94,16 +95,19 @@ def test_memory_put_does_not_downgrade_status():
             workflow_count=1,
         )
     )
-    store.put(
-        JobRecord(
-            id="job-fence",
-            category="stale",
-            channel_id="ch-stale",
-            status=Status.SCHEDULED.value,
-            created="should-not-overwrite",
-            updated="t2",
-            workflow_count=0,
+    assert (
+        store.put(
+            JobRecord(
+                id="job-fence",
+                category="stale",
+                channel_id="ch-stale",
+                status=Status.SCHEDULED.value,
+                created="should-not-overwrite",
+                updated="t2",
+                workflow_count=0,
+            )
         )
+        is False
     )
     got = store.get("job-fence")
     assert got is not None
@@ -127,15 +131,18 @@ def test_memory_put_does_not_replace_distinct_terminals():
             updated="t1",
         )
     )
-    store.put(
-        JobRecord(
-            id="job-term",
-            category="b",
-            channel_id="ch",
-            status=Status.CANCELLED.value,
-            created="t0",
-            updated="t2",
+    assert (
+        store.put(
+            JobRecord(
+                id="job-term",
+                category="b",
+                channel_id="ch",
+                status=Status.CANCELLED.value,
+                created="t0",
+                updated="t2",
+            )
         )
+        is False
     )
     got = store.get("job-term")
     assert got is not None
@@ -195,7 +202,7 @@ def test_save_does_not_rewind_in_memory_when_store_already_ahead():
     )
     before_status = job.status
     before_updated = job.updated
-    job.save()
+    assert job.save() is False
     saved = Job.get_saved(job.id)
     assert saved is not None
     assert saved.status == Status.COMPLETED.value
@@ -292,21 +299,21 @@ def test_set_and_configure_job_store():
 
 
 class _FailingStore(InMemoryJobStore):
-    def put(self, record: JobRecord) -> None:
+    def put(self, record: JobRecord) -> bool:
         if record.status in (Status.COMPLETED.value, Status.FAILED.value):
             raise RuntimeError("persist-failed")
-        super().put(record)
+        return super().put(record)
 
 
 class _FailOnInProgressStore(InMemoryJobStore):
-    def put(self, record: JobRecord) -> None:
+    def put(self, record: JobRecord) -> bool:
         if record.status == Status.IN_PROGRESS.value:
             raise RuntimeError("run-persist-failed")
-        super().put(record)
+        return super().put(record)
 
 
 class _AlwaysFailStore(InMemoryJobStore):
-    def put(self, record: JobRecord) -> None:
+    def put(self, record: JobRecord) -> bool:
         raise RuntimeError("always-fail")
 
 
@@ -327,8 +334,8 @@ def _job_with_workflow(executor):
     )
     job = Job(category="test", channel_id="mem-save-err")
     job.workflows = [workflow]
-    assert job._fsm.on(events.INIT).error is None
-    assert job._fsm.on(events.SCHEDULE).error is None
+    job.apply_event(events.INIT)
+    job.apply_event(events.SCHEDULE)
     return job
 
 
@@ -376,7 +383,7 @@ async def test_complete_save_failure_keeps_completed_fsm():
     # Work finished: keep Completed; retry job.save() only (store may still be InProgress).
     assert executed == ["step1"]
     assert job._fsm.current().value == Status.COMPLETED
-    assert job.status == Status.IN_PROGRESS.value
+    assert job.status == Status.COMPLETED.value
     assert job.to_record().status == Status.COMPLETED.value
     saved = Job.get_saved(job.id)
     assert saved is not None
@@ -394,7 +401,7 @@ async def test_complete_save_failure_keeps_completed_fsm():
             created=job.created,
             updated=job.updated,
             workflow_count=1,
-            version=1,
+            version=job.version,
         )
     )
     job.save()
@@ -423,7 +430,7 @@ async def test_fail_path_save_failure_keeps_failed_fsm():
     assert "persist-failed" in str(exc_info.value.__cause__)
     # Terminal failure kept; retry job.save() only.
     assert job._fsm.current().value == Status.FAILED
-    assert job.status == Status.IN_PROGRESS.value
+    assert job.status == Status.FAILED.value
     assert job.to_record().status == Status.FAILED.value
     saved = Job.get_saved(job.id)
     assert saved is not None
@@ -439,7 +446,7 @@ async def test_fail_path_save_failure_keeps_failed_fsm():
             created=job.created,
             updated=job.updated,
             workflow_count=1,
-            version=1,
+            version=job.version,
         )
     )
     job.save()
@@ -447,10 +454,10 @@ async def test_fail_path_save_failure_keeps_failed_fsm():
 
 
 class _FailOnInProgressAndFailedStore(InMemoryJobStore):
-    def put(self, record: JobRecord) -> None:
+    def put(self, record: JobRecord) -> bool:
         if record.status in (Status.IN_PROGRESS.value, Status.FAILED.value):
             raise RuntimeError("run-and-fail-persist-failed")
-        super().put(record)
+        return super().put(record)
 
 
 @pytest.mark.asyncio
@@ -559,7 +566,7 @@ def test_to_record_uses_fsm_status():
     assert job.status == Status.UNKNOWN.value
     assert job._fsm.on(events.INIT).error is None
     assert job._fsm.on(events.SCHEDULE).error is None
-    # FSM advanced; durable Job.status not updated until save succeeds.
+    # FSM advanced via raw `_fsm.on` (bypassing apply_event); Job.status lags until apply_event.
     assert job.status == Status.UNKNOWN.value
     assert job.to_record().status == Status.SCHEDULED.value
 
@@ -572,7 +579,7 @@ def test_channel_full_rolls_back_without_store_row():
 
     channel_id = "bounded-full"
     bounded = Channel(maxsize=1)
-    assert asyncio.run(bounded.send("occupier")) is True
+    assert asyncio.run(bounded.send("occupier")) == "ok"
     manager.put(channel_id, bounded)
     try:
         job = Job(category="x", channel_id=channel_id)
@@ -595,7 +602,7 @@ def test_channel_full_writes_nothing_then_retry_succeeds():
 
     channel_id = "bounded-full-retry-empty"
     bounded = Channel(maxsize=1)
-    assert asyncio.run(bounded.send("occupier")) is True
+    assert asyncio.run(bounded.send("occupier")) == "ok"
     manager.put(channel_id, bounded)
     try:
         job = Job(category="x", channel_id=channel_id)
@@ -629,7 +636,66 @@ def test_scheduled_save_failure_after_enqueue_does_not_rollback():
         with pytest.raises(RuntimeError, match="always-fail"):
             job.scheduled()
         assert job._fsm.current().value == Status.SCHEDULED
-        assert job.status == Status.UNKNOWN.value
+        assert job.status == Status.SCHEDULED.value
+        assert Job.get_saved(job.id) is None
+        chan = manager.get(channel_id)
+        assert chan is not None
+        assert chan.length() == 1
+        assert asyncio.run(chan.receive()) is job
+    finally:
+        manager.remove(channel_id)
+
+
+def test_scheduled_retries_save_skip_after_enqueue():
+    """Dispatch retries ``save()`` False; a later apply persists Scheduled."""
+
+    class _SkipTwiceStore(InMemoryJobStore):
+        def __init__(self) -> None:
+            super().__init__()
+            self.puts = 0
+
+        def put(self, record: JobRecord) -> bool:
+            self.puts += 1
+            if self.puts < 3:
+                return False
+            return super().put(record)
+
+    from pypepper.scheduler.channel import manager
+
+    store = _SkipTwiceStore()
+    set_job_store(store)
+    channel_id = "save-skip-retry"
+    manager.remove(channel_id)
+    job = Job(category="x", channel_id=channel_id)
+    try:
+        job.scheduled()
+        saved = Job.get_saved(job.id)
+        assert saved is not None
+        assert saved.status == Status.SCHEDULED.value
+        assert store.puts == 3
+    finally:
+        manager.remove(channel_id)
+
+
+def test_scheduled_save_skip_after_enqueue_does_not_rollback():
+    """Committed send + ``save()`` still False: raise, do not roll back the enqueue."""
+    import asyncio
+
+    from pypepper.scheduler.channel import manager
+
+    class _AlwaysSkipStore(InMemoryJobStore):
+        def put(self, record: JobRecord) -> bool:
+            return False
+
+    set_job_store(_AlwaysSkipStore())
+    channel_id = "save-skip-after-enqueue"
+    manager.remove(channel_id)
+    job = Job(category="x", channel_id=channel_id)
+    try:
+        with pytest.raises(RuntimeError, match="Scheduled persist skipped after enqueue"):
+            job.scheduled()
+        assert job._fsm.current().value == Status.SCHEDULED
+        assert job.status == Status.SCHEDULED.value
         assert Job.get_saved(job.id) is None
         chan = manager.get(channel_id)
         assert chan is not None
@@ -685,7 +751,7 @@ def test_post_enqueue_error_does_not_rollback(monkeypatch):
 
     async def send_then_boom(job, chan, *, on_enqueued=None):
         ok = await chan.send(job)
-        assert ok is True
+        assert ok == "ok"
         if on_enqueued is not None:
             on_enqueued()
         raise RuntimeError("after-send")
@@ -700,7 +766,7 @@ def test_post_enqueue_error_does_not_rollback(monkeypatch):
             job.scheduled()
 
         assert job._fsm.current().value == Status.SCHEDULED
-        assert job.status == Status.UNKNOWN.value
+        assert job.status == Status.SCHEDULED.value
         assert Job.get_saved(job.id) is None
         # Committed enqueue: job remains receivable on the channel.
         received = asyncio.run(chan.receive())
@@ -746,7 +812,7 @@ def test_channel_full_then_retry_succeeds():
 
     channel_id = "bounded-retry"
     bounded = Channel(maxsize=1)
-    assert asyncio.run(bounded.send("occupier")) is True
+    assert asyncio.run(bounded.send("occupier")) == "ok"
     manager.put(channel_id, bounded)
     try:
         job = Job(category="x", channel_id=channel_id)

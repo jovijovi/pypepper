@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from pymongo.errors import DuplicateKeyError
-
 from pypepper.scheduler.status import Status
 from pypepper.scheduler.store.interfaces import JobRecord
 from pypepper.scheduler.store.mongodb import MongoJobStore
@@ -48,6 +47,18 @@ def _patch_collection(monkeypatch, collection: MagicMock) -> MongoJobStore:
     return store
 
 
+def test_mongo_put_inserts_when_absent(monkeypatch):
+    collection = MagicMock()
+    collection.update_one.return_value = SimpleNamespace(matched_count=0)
+    collection.insert_one.return_value = SimpleNamespace(inserted_id="dup-1")
+
+    store = _patch_collection(monkeypatch, collection)
+    assert store.put(_record()) is True
+    collection.insert_one.assert_called_once()
+    assert collection.update_one.call_count == 1
+    assert collection.update_one.call_args.kwargs.get("upsert") is False
+
+
 def test_mongo_put_retries_set_only_on_duplicate_key(monkeypatch):
     calls: list[tuple[dict, dict, bool]] = []
 
@@ -62,7 +73,7 @@ def test_mongo_put_retries_set_only_on_duplicate_key(monkeypatch):
     collection.insert_one.side_effect = DuplicateKeyError("E11000 duplicate key")
 
     store = _patch_collection(monkeypatch, collection)
-    store.put(_record())
+    assert store.put(_record()) is True
 
     assert collection.insert_one.call_count == 1
     inserted = collection.insert_one.call_args.args[0]
@@ -73,6 +84,7 @@ def test_mongo_put_retries_set_only_on_duplicate_key(monkeypatch):
     assert calls[0][0]["_id"] == "dup-1"
     assert "$in" in calls[0][0]["status"]
     assert calls[1][2] is False
+    assert calls[0][0]["version"] == 1
     assert calls[1][1] == {
         "$set": {
             "category": "c",
@@ -80,7 +92,8 @@ def test_mongo_put_retries_set_only_on_duplicate_key(monkeypatch):
             "status": Status.SCHEDULED.value,
             "updated": "t1",
             "workflow_count": 1,
-            "version": 1,
+            "version": 2,
+            "payload": None,
         }
     }
     assert "created" not in calls[1][1]["$set"]
@@ -104,5 +117,5 @@ def test_mongo_put_skips_downgrade_after_duplicate_key(monkeypatch):
     collection.find_one.return_value = {"_id": "ahead", "status": Status.COMPLETED.value}
 
     store = _patch_collection(monkeypatch, collection)
-    store.put(_record(job_id="ahead"))
+    assert store.put(_record(job_id="ahead")) is False
     collection.find_one.assert_called_once_with({"_id": "ahead"})

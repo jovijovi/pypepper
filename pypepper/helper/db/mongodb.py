@@ -50,16 +50,20 @@ def connect(cfg: Config) -> None:
             host=cfg.uri,
             uuidRepresentation="standard",
         )
-    else:
-        connect_db(
-            username=cfg.username,
-            password=cfg.password,
-            host=cfg.host,
-            port=cfg.port,
-            db=cfg.db,
-            authentication_source=cfg.auth_source,
-            uuidRepresentation="standard",
-        )
+        return
+
+    if not (cfg.username and cfg.password and cfg.host and cfg.db):
+        raise ValueError("mongodb connect requires uri=... or username, password, host, and db")
+
+    connect_db(
+        username=cfg.username,
+        password=cfg.password,
+        host=cfg.host,
+        port=cfg.port,
+        db=cfg.db,
+        authentication_source=cfg.auth_source,
+        uuidRepresentation="standard",
+    )
 
 
 def close() -> None:

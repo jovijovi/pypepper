@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 from datetime import datetime
+from typing import Any
 
 from pypepper.common.security.crypto import digest
 from pypepper.common.security.crypto.elliptic.ecdsa import ecdsa
@@ -15,7 +16,7 @@ from pypepper.event.interfaces import IData, IEvent, IHeader, IPayload
 class Header(IHeader):
     default_version = "1"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.namespace = ""
         self.request_id = ""
         self.sender = ""
@@ -25,7 +26,7 @@ class Header(IHeader):
 
 
 class Payload(IPayload):
-    def __init__(self, dict_: dict | None = None):
+    def __init__(self, dict_: dict[str, Any] | None = None) -> None:
         self.id = ""
         self.category = ""
         self.digest = None
@@ -36,7 +37,7 @@ class Payload(IPayload):
 
 
 class Data(IData):
-    def __init__(self):
+    def __init__(self) -> None:
         self.flow = ""
         self.name = ""
         self.src = ""
@@ -44,7 +45,7 @@ class Data(IData):
         self.payload = Payload()
 
 
-def _data_to_dict(data: IData) -> dict:
+def _data_to_dict(data: IData) -> dict[str, Any]:
     header = data.header
     payload = data.payload
     return {
@@ -75,38 +76,38 @@ def _data_to_dict(data: IData) -> dict:
 
 
 class Event(IEvent):
-    def __init__(self, data: IData | None = None, sig: bytes | None = None):
+    def __init__(self, data: IData | None = None, sig: bytes | None = None) -> None:
         if not data:
             self.data = Data()
         else:
             self.data = data
         self.signature = sig
 
-    def set_event_id(self, event_id: str):
+    def set_event_id(self, event_id: str) -> None:
         self.data.header.id = event_id
 
-    def set_event_namespace(self, namespace: str):
+    def set_event_namespace(self, namespace: str) -> None:
         self.data.header.namespace = namespace
 
-    def set_event_version(self, version: str):
+    def set_event_version(self, version: str) -> None:
         self.data.header.version = version
 
-    def set_request_id(self, req_id: str):
+    def set_request_id(self, req_id: str) -> None:
         self.data.header.request_id = req_id
 
-    def set_sender(self, sender: str):
+    def set_sender(self, sender: str) -> None:
         self.data.header.sender = sender
 
-    def set_flow(self, flow: str):
+    def set_flow(self, flow: str) -> None:
         self.data.flow = flow
 
-    def set_name(self, name: str):
+    def set_name(self, name: str) -> None:
         self.data.name = name
 
-    def set_src(self, src: str):
+    def set_src(self, src: str) -> None:
         self.data.src = src
 
-    def set_payload(self, payload: IPayload):
+    def set_payload(self, payload: IPayload) -> None:
         self.data.payload = payload
 
     def add_payload(self, payload_id: str, category: str, raw: bytes, hash_alg: str | None = None) -> None:

@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import os
 import signal
+import types
 
 from pypepper.common.log import log
 from pypepper.common.utils import time
@@ -11,7 +14,7 @@ signals = [
 ]
 
 
-def shutdown():
+def shutdown() -> None:
     """
     Shutdown the program
     :return: None
@@ -25,7 +28,7 @@ def shutdown():
     os.abort()
 
 
-def handler(signal_number: int, frame):
+def handler(signal_number: int, frame: types.FrameType | None) -> None:
     """
     The function handler for signal number.
     :param signal_number: signal number.
@@ -38,7 +41,7 @@ def handler(signal_number: int, frame):
     shutdown()
 
 
-def handle_signals():
+def handle_signals() -> None:
     """
     Handle the signals
     :return: None

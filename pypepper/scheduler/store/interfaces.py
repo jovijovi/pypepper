@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
 class JobRecord:
-    """Serializable job snapshot (metadata only; no executors)."""
+    """Job snapshot. Executors are omitted unless ``payload`` is present."""
 
     id: str
     category: str | None
@@ -18,21 +19,26 @@ class JobRecord:
     updated: str
     workflow_count: int = 0
     version: int = 1
+    payload: dict[str, Any] | None = None
 
 
 class IJobStore(metaclass=ABCMeta):
     """Pluggable persistence for JobRecord snapshots."""
 
     @abstractmethod
-    def put(self, record: JobRecord) -> None:
+    def put(self, record: JobRecord) -> bool:
         """
         Upsert by ``id``.
+
+        Returns ``True`` when the row is inserted or updated, ``False`` when the
+        write is skipped (lifecycle fence or version conflict).
 
         Must not overwrite an existing row's ``created``. Must not replace a
         durable status with an earlier lifecycle (for example Scheduled must
         not overwrite InProgress/Completed/Failed/Cancelled). Distinct
         terminals must not overwrite each other. Same status may update other
-        fields.
+        fields. Updates require ``record.version`` to equal the durable version
+        (then the stored version is incremented).
         """
         pass
 

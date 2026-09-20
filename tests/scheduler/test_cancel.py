@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-import pytest
+import asyncio
+from threading import Event as ThreadEvent
 
+import pytest
 from pypepper.exceptions import InternalException
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel
 from pypepper.scheduler.executor import CallableExecutor
-from pypepper.scheduler.job import Job
+from pypepper.scheduler.job import CANCEL_EVENT_KEY, Job
 from pypepper.scheduler.status import Status
 from pypepper.scheduler.store import JobRecord, reset_job_store, set_job_store
 from pypepper.scheduler.store.memory import InMemoryJobStore
@@ -152,10 +154,10 @@ def test_fsm_cancel_transition_from_scheduled_and_in_progress():
 
 def test_cancel_save_failure_keeps_fsm_cancelled():
     class _FailCancelledStore(InMemoryJobStore):
-        def put(self, record: JobRecord) -> None:
+        def put(self, record: JobRecord) -> bool:
             if record.status == Status.CANCELLED.value:
                 raise RuntimeError("cancel-persist-failed")
-            super().put(record)
+            return super().put(record)
 
     set_job_store(_FailCancelledStore())
     job = Job(category="test", channel_id="cancel-save-fail")
@@ -218,6 +220,42 @@ async def test_worker_does_not_complete_when_cancelled_mid_run():
 
 
 @pytest.mark.asyncio
+async def test_executor_polls_cancel_event_on_execute_context():
+    """``execute``'s context argument must see the same Event ``Job.cancel()`` sets."""
+    seen: list[ThreadEvent | None] = []
+    started = ThreadEvent()
+    proceed = ThreadEvent()
+
+    def work(task, context):
+        token = None if context is None else context.context.get(CANCEL_EVENT_KEY)
+        seen.append(token)
+        started.set()
+        proceed.wait(timeout=2)
+        return token is not None and token.is_set()
+
+    job = _job_with_workflow(work, channel_id="cancel-exec-ctx")
+    job.save()
+    chan = Channel()
+    await chan.send(job)
+
+    async def _cancel_after_start() -> None:
+        await asyncio.to_thread(started.wait, 2)
+        job.cancel()
+        proceed.set()
+
+    cancel_task = asyncio.create_task(_cancel_after_start())
+    processed = await Worker(chan).run_once()
+    await cancel_task
+
+    job_token = job.context.context.get(CANCEL_EVENT_KEY)
+    assert processed is job
+    assert seen == [job_token]
+    assert job_token is not None
+    assert job_token.is_set()
+    _assert_cancelled(job)
+
+
+@pytest.mark.asyncio
 async def test_worker_skips_second_workflow_when_cancelled_between():
     executed = []
     hold = {"job": None}
@@ -273,10 +311,10 @@ async def test_worker_ignores_workflow_error_after_cancel():
 @pytest.mark.asyncio
 async def test_worker_rethrows_when_cancel_persist_lags_after_workflow_error():
     class _FailCancelledStore(InMemoryJobStore):
-        def put(self, record: JobRecord) -> None:
+        def put(self, record: JobRecord) -> bool:
             if record.status == Status.CANCELLED.value:
                 raise RuntimeError("cancel-persist-failed")
-            super().put(record)
+            return super().put(record)
 
     set_job_store(_FailCancelledStore())
     hold = {"job": None}
@@ -309,7 +347,7 @@ async def test_worker_run_persist_fail_skips_restore_when_cancel_won():
     class _RaceStore(InMemoryJobStore):
         job: Job | None = None
 
-        def put(self, record: JobRecord) -> None:
+        def put(self, record: JobRecord) -> bool:
             if record.status == Status.IN_PROGRESS.value:
                 assert self.job is not None
                 # Concurrent cancel wins after RUN applied in memory.
@@ -317,7 +355,7 @@ async def test_worker_run_persist_fail_skips_restore_when_cancel_won():
                 raise RuntimeError("run-persist-failed")
             if record.status == Status.FAILED.value:
                 raise RuntimeError("fail-persist-failed")
-            super().put(record)
+            return super().put(record)
 
     store = _RaceStore()
     set_job_store(store)
@@ -344,6 +382,49 @@ async def test_worker_run_persist_fail_skips_restore_when_cancel_won():
     saved = Job.get_saved(job.id)
     assert saved is not None
     assert saved.status == Status.CANCELLED.value
+
+
+@pytest.mark.asyncio
+async def test_worker_run_persist_fail_cancel_won_but_cancelled_save_fails():
+    """Cancel wins after RUN, but Cancelled persist also fails: keep Cancelled, retry save only."""
+
+    class _RaceStore(InMemoryJobStore):
+        job: Job | None = None
+
+        def put(self, record: JobRecord) -> bool:
+            if record.status == Status.IN_PROGRESS.value:
+                assert self.job is not None
+                self.job.apply_event(events.CANCEL)
+                raise RuntimeError("run-persist-failed")
+            if record.status == Status.FAILED.value:
+                raise RuntimeError("fail-persist-failed")
+            if record.status == Status.CANCELLED.value:
+                raise RuntimeError("cancel-persist-failed")
+            return super().put(record)
+
+    store = _RaceStore()
+    set_job_store(store)
+    executed: list[str] = []
+
+    def work(task, context):
+        executed.append(task.name)
+        return "ok"
+
+    job = _job_with_workflow(work, channel_id="cancel-save-fail")
+    store.job = job
+    job.save()
+
+    chan = Channel()
+    await chan.send(job)
+    with pytest.raises(RuntimeError, match="cancel-persist-failed"):
+        await Worker(chan).run_once()
+
+    assert executed == []
+    assert job.is_cancelled()
+    assert job.status != Status.SCHEDULED.value
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.SCHEDULED.value
 
 
 @pytest.mark.asyncio

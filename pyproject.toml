@@ -121,7 +121,20 @@ module = [
 ]
 ignore_missing_imports = true
 
-# Stricter typing on crypto, HTTP/SSE, scheduler (incl. store), and helper.db.
+[[tool.mypy.overrides]]
+module = [
+    "pypepper.event",
+    "pypepper.event.*",
+    "pypepper.fsm",
+    "pypepper.fsm.*",
+    "pypepper.common.utils.time",
+    "pypepper.common.utils.uuid",
+    "pypepper.common.utils.retry",
+    "pypepper.common.system",
+]
+disallow_untyped_defs = true
+warn_return_any = true
+
 [[tool.mypy.overrides]]
 module = [
     "pypepper.common.security.crypto",
@@ -141,6 +154,8 @@ module = [
     "pypepper.network.http.sse.handlers",
     "pypepper.network.http.sse.interfaces",
     "pypepper.network.http.sse.security",
+    "pypepper.network.http.sse.event",
+    "pypepper.network.http.response",
 ]
 disallow_untyped_defs = true
 warn_return_any = true
@@ -155,6 +170,8 @@ module = [
     "pypepper.scheduler.tag",
     "pypepper.scheduler.events",
     "pypepper.scheduler.base",
+    "pypepper.scheduler.channel",
+    "pypepper.scheduler.executor",
     "pypepper.scheduler.store",
     "pypepper.scheduler.store.*",
 ]

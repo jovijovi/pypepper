@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel
 from pypepper.scheduler.executor import CallableExecutor
@@ -63,7 +62,7 @@ def _crud_roundtrip(backend: str, uri: str) -> None:
         created="should-not-overwrite",
         updated="t1",
         workflow_count=2,
-        version=2,
+        version=1,
     )
     store.put(updated)
     got = store.get(record.id)
@@ -81,29 +80,35 @@ def _status_fence_roundtrip(backend: str, uri: str) -> None:
     store = configure_job_store(backend, uri=uri)
     job_id = f"db-fence-{backend}"
     store.clear()
-    store.put(
-        JobRecord(
-            id=job_id,
-            category="keep",
-            channel_id="ch",
-            status=Status.COMPLETED.value,
-            created="t0",
-            updated="t1",
-            workflow_count=1,
-            version=1,
+    assert (
+        store.put(
+            JobRecord(
+                id=job_id,
+                category="keep",
+                channel_id="ch",
+                status=Status.COMPLETED.value,
+                created="t0",
+                updated="t1",
+                workflow_count=1,
+                version=1,
+            )
         )
+        is True
     )
-    store.put(
-        JobRecord(
-            id=job_id,
-            category="stale",
-            channel_id="ch-stale",
-            status=Status.SCHEDULED.value,
-            created="should-not-overwrite",
-            updated="t2",
-            workflow_count=0,
-            version=2,
+    assert (
+        store.put(
+            JobRecord(
+                id=job_id,
+                category="stale",
+                channel_id="ch-stale",
+                status=Status.SCHEDULED.value,
+                created="should-not-overwrite",
+                updated="t2",
+                workflow_count=0,
+                version=2,
+            )
         )
+        is False
     )
     got = store.get(job_id)
     assert got is not None
@@ -113,6 +118,27 @@ def _status_fence_roundtrip(backend: str, uri: str) -> None:
     assert got.created == "t0"
     assert got.updated == "t1"
     assert got.workflow_count == 1
+    assert got.version == 1
+    assert (
+        store.put(
+            JobRecord(
+                id=job_id,
+                category="stale-match",
+                channel_id="ch-stale",
+                status=Status.SCHEDULED.value,
+                created="should-not-overwrite",
+                updated="t3",
+                workflow_count=0,
+                version=1,
+            )
+        )
+        is False
+    )
+    matched = store.get(job_id)
+    assert matched is not None
+    assert matched.status == Status.COMPLETED.value
+    assert matched.category == "keep"
+    assert matched.version == 1
     store.delete(job_id)
 
 
@@ -192,7 +218,7 @@ def test_mongodb_concurrent_put_preserves_created():
             created="should-not-overwrite",
             updated="u3",
             workflow_count=2,
-            version=2,
+            version=got.version,
         )
     )
     again = store.get(job_id)
@@ -259,7 +285,7 @@ class _FailPutProxy(IJobStore):
     def __init__(self, inner: IJobStore) -> None:
         self._inner = inner
 
-    def put(self, record: JobRecord) -> None:
+    def put(self, record: JobRecord) -> bool:
         raise RuntimeError("proxy-put-failed")
 
     def get(self, job_id: str) -> JobRecord | None:
@@ -292,7 +318,7 @@ def test_db_scheduled_put_failure_after_enqueue_keeps_job_on_channel(backend: st
         with pytest.raises(RuntimeError, match="proxy-put-failed"):
             job.scheduled()
         assert job._fsm.current().value == Status.SCHEDULED
-        assert job.status == Status.UNKNOWN.value
+        assert job.status == Status.SCHEDULED.value
         assert inner.get(job.id) is None
         chan = manager.get(channel_id)
         assert chan is not None
@@ -315,7 +341,7 @@ def test_db_enqueue_failure_writes_nothing(backend: str, uri: str):
     set_job_store(inner)
     channel_id = f"db-full-{backend}"
     bounded = Channel(maxsize=1)
-    assert asyncio.run(bounded.send("occupier")) is True
+    assert asyncio.run(bounded.send("occupier")) == "ok"
     manager.put(channel_id, bounded)
     try:
         job = Job(category="x", channel_id=channel_id)

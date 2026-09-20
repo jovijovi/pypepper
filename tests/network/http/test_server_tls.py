@@ -1,5 +1,4 @@
 import pytest
-
 from pypepper.network.http import server
 from pypepper.network.http.interfaces import ITaskHandler
 
@@ -114,6 +113,28 @@ def test_run_requires_http_or_https_enabled(monkeypatch):
     )
 
     with pytest.raises(RuntimeError, match="Neither httpServer nor httpsServer"):
+        server.run()
+
+
+def test_run_raises_when_http_and_https_enabled(monkeypatch):
+    class _Server:
+        enable = True
+        port = 80
+
+    class _Network:
+        ip = "127.0.0.1"
+        httpServer = _Server()
+        httpsServer = _Server()
+
+    class _Cfg:
+        network = _Network()
+
+    monkeypatch.setattr(
+        "pypepper.network.http.server.config.get_yml_config",
+        lambda: _Cfg(),
+    )
+
+    with pytest.raises(RuntimeError, match="Both httpServer and httpsServer"):
         server.run()
 
 

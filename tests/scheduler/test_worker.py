@@ -2,7 +2,6 @@ import asyncio
 import threading
 
 import pytest
-
 from pypepper.scheduler import events
 from pypepper.scheduler.channel import Channel
 from pypepper.scheduler.executor import CallableExecutor
@@ -123,13 +122,13 @@ async def test_request_stop_unblocks_empty_receive(monkeypatch):
 async def test_request_stop_does_not_steal_bounded_capacity():
     """Regression: stop must not fill the only free slot on a bounded channel."""
     chan = Channel(maxsize=1)
-    assert await chan.send("occupier") is True
+    assert await chan.send("occupier") == "ok"
     assert await chan.receive() == "occupier"
     assert chan.length() == 0
     chan.request_stop()
     assert chan.length() == 0
     # send refuses because stopped (not because queue full)
-    assert await chan.send("after-stop") is False
+    assert await chan.send("after-stop") == "stopped"
     assert chan.length() == 0
 
 
@@ -191,7 +190,7 @@ async def test_concurrent_send_and_request_stop_are_atomic():
 
         async def sender() -> None:
             nonlocal send_ok
-            send_ok = await chan.send("item")
+            send_ok = await chan.send("item") == "ok"
 
         async def stopper() -> None:
             chan.request_stop()
@@ -216,7 +215,7 @@ def test_thread_send_and_request_stop_are_atomic():
 
         def sender() -> None:
             barrier.wait(timeout=5)
-            send_ok["v"] = asyncio.run(chan.send("item"))
+            send_ok["v"] = asyncio.run(chan.send("item")) == "ok"
 
         def stopper() -> None:
             barrier.wait(timeout=5)
@@ -318,6 +317,7 @@ async def test_run_forever_reenqueues_then_raises_job_requeued(monkeypatch):
 
     chan = Channel()
     job = _make_job("reenqueue", "retry-me", work)
+    job.save()
     await chan.send(job)
 
     original_save = Job.save
@@ -352,6 +352,7 @@ async def test_run_forever_raises_job_redelivery_when_channel_actually_full(monk
 
     chan = Channel(maxsize=1)
     job = _make_job("orphan", "stuck", lambda t, c: None)
+    job.save()
     await chan.send(job)
 
     original_save = Job.save
@@ -376,17 +377,22 @@ async def test_run_forever_raises_job_redelivery_when_channel_actually_full(monk
     with pytest.raises(JobRedeliveryError, match="channel full") as ei:
         await worker.run_forever()
     assert ei.value.reason == "full"
+    assert ei.value.job is job
     assert chan.length() == 1  # filler only
-    assert job._fsm.current().value == Status.SCHEDULED
+    assert job._fsm.current().value == Status.FAILED
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.FAILED.value
 
 
 @pytest.mark.asyncio
 async def test_run_forever_raises_job_redelivery_when_channel_actually_stopped(monkeypatch):
-    """request_stop during restore so real send returns False with stop set."""
+    """request_stop during restore so real send returns stopped."""
     from pypepper.scheduler.job import JobRedeliveryError
 
     chan = Channel()
     job = _make_job("orphan-stop", "stuck", lambda t, c: None)
+    job.save()
     await chan.send(job)
 
     original_save = Job.save
@@ -410,8 +416,12 @@ async def test_run_forever_raises_job_redelivery_when_channel_actually_stopped(m
     with pytest.raises(JobRedeliveryError, match="channel stopped") as ei:
         await asyncio.wait_for(worker.run_forever(), timeout=2.0)
     assert ei.value.reason == "stopped"
+    assert ei.value.job is job
     assert chan.length() == 0
-    assert job._fsm.current().value == Status.SCHEDULED
+    assert job._fsm.current().value == Status.FAILED
+    saved = Job.get_saved(job.id)
+    assert saved is not None
+    assert saved.status == Status.FAILED.value
 
 
 @pytest.mark.asyncio
@@ -448,7 +458,8 @@ async def test_run_forever_drains_after_stopped_redelivery(monkeypatch):
     with pytest.raises(JobRedeliveryError, match="channel stopped") as ei:
         await asyncio.wait_for(Worker(chan).run_forever(), timeout=2.0)
     assert ei.value.reason == "stopped"
+    assert ei.value.job is job_fail
     assert executed == ["kept"]
-    assert job_fail._fsm.current().value == Status.SCHEDULED
+    assert job_fail._fsm.current().value == Status.FAILED
     assert job_ok._fsm.current().value == Status.COMPLETED
     assert chan.length() == 0

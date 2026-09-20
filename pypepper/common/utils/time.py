@@ -84,7 +84,7 @@ def parse_unix_timestamp(
     return arrow.arrow.Arrow.fromtimestamp(timestamp, tz).format(ISO8601_WITH_TZ_OFFSET)
 
 
-def sleep(ms: int = 0, second: int = 0, minute: int = 0, hour: int = 0, day: int = 0):
+def sleep(ms: int = 0, second: int = 0, minute: int = 0, hour: int = 0, day: int = 0) -> None:
     """
     Delay execution for a given number of ms/seconds/minutes/hours/days
     :param ms: Millisecond

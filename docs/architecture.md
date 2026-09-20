@@ -1,6 +1,6 @@
 # Architecture
 
-PyPepper is a layered toolkit. Domains stay mostly independent; the main composition path is **scheduler → event + fsm + common**. Network depends only on common.
+PyPepper is a layered toolkit. Domains stay mostly independent; the main composition path is **scheduler → event + fsm + common + helper**. Network depends only on common.
 
 ## Layering
 
@@ -19,6 +19,7 @@ flowchart TB
   scheduler --> event
   scheduler --> fsm
   scheduler --> common
+  scheduler --> helper
   network --> common
 ```
 
@@ -27,7 +28,7 @@ flowchart TB
 | `common` | (none of other domains) | Shared kernel; does not import `scheduler` |
 | `event` | `common` | Signed events |
 | `fsm` | `event`, `errors` | Generic state machine |
-| `scheduler` | `common`, `event`, `fsm` | Job pipeline; job store wired via `setup_from_config` / `configure_job_store` (not by `config.load_config`) |
+| `scheduler` | `common`, `event`, `fsm`, `helper` | Job pipeline; job store wired via `setup_from_config` / `configure_job_store` (not by `config.load_config`). SQL/Mongo stores use `helper.db` connectors |
 | `network` | `common` | HTTP + SSE; no scheduler coupling |
 | `helper` | (standalone) | DB connect helpers only |
 
@@ -54,6 +55,7 @@ Process-wide registries must be intentional, not accidental shared class dicts:
 | `loader` | `pypepper.loader` |
 | `dispatcher` | `pypepper.scheduler.job` |
 | `manager` | `pypepper.scheduler.channel` |
+| `executor_registry` | `pypepper.scheduler.executor` |
 | `connection_manager` | `pypepper.network.http.sse.connection` |
 
 Mutable instance state belongs in `__init__` / `__new__`, not as class attributes.
@@ -72,6 +74,7 @@ sequenceDiagram
   Job->>Dispatcher: scheduled()
   Dispatcher->>Job: FSM INIT then SCHEDULE
   Dispatcher->>Channel: send(job)
+  Dispatcher->>Job: save() Scheduled
   Worker->>Channel: receive()
   Worker->>Job: FSM RUN
   Worker->>Workflow: run()
@@ -98,4 +101,4 @@ HTTP requests and `Workflow.run` emit spans when enabled; Jaeger all-in-one is a
 
 ## Type checking
 
-`make lint` runs mypy on `pypepper/`. Selected static paths (crypto, HTTP/SSE skeleton, scheduler structure) additionally enable `disallow_untyped_defs` and `warn_return_any` via `[[tool.mypy.overrides]]` in `pyproject.toml`. Dynamic boundaries (config/`Box`, FSM handlers, loader, executor/channel) and third-party stubs remain on the looser global settings.
+`make lint` runs mypy on `pypepper/`. Selected static paths (crypto, HTTP/SSE, scheduler including channel/executor/store, helper.db, event, fsm, and a few `common` utilities) additionally enable `disallow_untyped_defs` and `warn_return_any` via `[[tool.mypy.overrides]]` in `pyproject.toml`. Dynamic boundaries (config/`Box`, loguru) and third-party stubs remain on the looser global settings.

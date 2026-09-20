@@ -1,5 +1,4 @@
 import pytest
-
 from pypepper.scheduler import channel
 from pypepper.scheduler.channel import Channel
 
@@ -133,8 +132,8 @@ async def test_channel_manager_maxsize_applies_only_on_first_create():
     again = manager.available(key, maxsize=0)
     assert again is bounded
 
-    assert await bounded.send("a") is True
-    assert await bounded.send("b") is False
+    assert await bounded.send("a") == "ok"
+    assert await bounded.send("b") == "full"
 
     manager.remove(key)
 
@@ -149,8 +148,8 @@ async def test_channel_manager_ignores_maxsize_after_unbounded_create():
     again = manager.new(key, maxsize=1)
     assert again is unbounded
 
-    assert await unbounded.send("a") is True
-    assert await unbounded.send("b") is True
+    assert await unbounded.send("a") == "ok"
+    assert await unbounded.send("b") == "ok"
 
     manager.remove(key)
 
@@ -164,7 +163,7 @@ def test_channel_manager_new_maxsize_scheduled_raises_channel_full():
     channel_id = "mgr-new-bounded-full"
     manager.remove(channel_id)
     bounded = manager.new(channel_id, maxsize=1)
-    assert asyncio.run(bounded.send("occupier")) is True
+    assert asyncio.run(bounded.send("occupier")) == "ok"
     try:
         job = Job(category="x", channel_id=channel_id)
         with pytest.raises(ChannelFullError, match="channel full") as ei:
@@ -173,6 +172,28 @@ def test_channel_manager_new_maxsize_scheduled_raises_channel_full():
         assert "channel stopped" not in str(ei.value)
     finally:
         manager.remove(channel_id)
+
+
+@pytest.mark.asyncio
+async def test_send_full_then_stop_stays_full():
+    chan = Channel(maxsize=1)
+    assert await chan.send("occupier") == "ok"
+    result = await chan.send("late")
+    chan.request_stop()
+    assert result == "full"
+    assert await chan.send("after-stop") == "stopped"
+
+
+@pytest.mark.asyncio
+async def test_async_run_full_is_full_even_if_later_stopped():
+    from pypepper.scheduler.job import ChannelFullError, Job, Processor
+
+    chan = Channel(maxsize=1)
+    assert await chan.send("occupier") == "ok"
+    job = Job(category="x", channel_id="full-then-stop")
+    with pytest.raises(ChannelFullError, match="channel full"):
+        await Processor.async_run(job, chan)
+    chan.request_stop()
 
 
 if __name__ == "__main__":

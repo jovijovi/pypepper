@@ -59,6 +59,8 @@ def run_with_tls(port: int, handlers_: ITaskHandler | None, host: str = "0.0.0.0
 def run(handlers_: ITaskHandler | None = None) -> None:
     network_conf = config.get_yml_config().network
     host = getattr(network_conf, "ip", None) or "0.0.0.0"
+    if network_conf.httpServer.enable and network_conf.httpsServer.enable:
+        raise RuntimeError("Both httpServer and httpsServer are enabled; enable only one")
     if network_conf.httpServer.enable:
         run_without_tls(network_conf.httpServer.port, handlers_, host=host)
     elif network_conf.httpsServer.enable:
