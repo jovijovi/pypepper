@@ -10,6 +10,9 @@
 - `IJobStore.put` skips a snapshot whose status is earlier than the durable row (Scheduled cannot overwrite InProgress/terminal; Failed/Completed/Cancelled do not overwrite each other). `Job.save()` does not rewind in-memory `status`/`updated` when the write is skipped.
 - `Processor.run` / `Job.scheduled()` RuntimeError for async callers: apply `INIT`→`SCHEDULE`, `await Channel.send`, then `job.save()` (not save-then-send).
 
+### Changed
+- Lock-graph floor `anyio>=4.14.2` (CVE-2026-63374, CVE-2026-64847 on 4.12.1).
+
 ## 0.6.6
 
 ### Changed
