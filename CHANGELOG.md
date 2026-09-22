@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- Development dependency `httpx` replaced with `httpx2` (`>=2.0.0`). Starlette 1.6 `TestClient` warns when only `httpx` is installed.
+
 ## 0.7.0
 
 ### Breaking
