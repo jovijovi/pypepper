@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Python `3.10`–`3.14`
+- Python `3.11`–`3.14`
 - [uv](https://github.com/astral-sh/uv) `>= 0.10.7` (recommended for local installs)
 - Docker (optional; required for DB helper integration tests)
 
@@ -19,6 +19,10 @@ For runtime-only dependencies:
 ```shell
 uv pip install -r requirements.txt
 ```
+
+## Upgrading from 0.7.0
+
+**0.7.1** drops Python 3.10 (`requires-python` is `>=3.11, <3.15`). Callers already on 3.11–3.14 keep the 0.7.0 scheduler and HTTP contracts. Full notes: [CHANGELOG 0.7.1](https://github.com/jovijovi/pypepper/blob/main/CHANGELOG.md#071).
 
 ## Upgrading from 0.6.x
 

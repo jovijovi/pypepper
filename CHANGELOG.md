@@ -2,10 +2,17 @@
 
 ## Unreleased
 
+## 0.7.1
+
+### Breaking
+- `requires-python` is `>=3.11, <3.15`. CPython 3.10 is no longer supported. The CI test matrix is Python 3.11–3.14. The tag publish pretest samples 3.11 and 3.14.
+
 ### Changed
+- Production dependencies: `fastapi` 0.141.1 → 0.142.1, `uvicorn` 0.53.0 → 0.54.0, `psycopg` 3.3.5 → 3.3.6, `sqlalchemy` 2.0.54 → 2.1.1, and OpenTelemetry API/SDK/OTLP HTTP exporter 1.44.0 → 1.45.0.
 - Development dependency `httpx` replaced with `httpx2` (`>=2.0.0`). Starlette 1.6 `TestClient` warns when only `httpx` is installed.
-- Devenv MySQL image is `mysql:8.4.11`. Dropped `--default-authentication-plugin=mysql_native_password` (removed in 8.4). New accounts use `caching_sha2_password`.
 - HTTP middleware disables FastAPI 0.142 native server spans. `TracingMiddleware` stays the one SERVER span per request (with `request_id`).
+- Devenv images: Postgres `18.4` → `18.6`; MySQL `8.0.45` → `8.4.11`. Dropped `--default-authentication-plugin=mysql_native_password` (removed in 8.4). New MySQL accounts use `caching_sha2_password`.
+- Docker: Dockerfile syntax 1.26.0 → 1.27.0; uv image 0.12.16 → 0.12.21.
 
 ## 0.7.0
 

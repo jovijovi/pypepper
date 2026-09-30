@@ -60,7 +60,7 @@ make docs-serve      # local preview
 
 ## Style
 
-- Python `>=3.10, <=3.14`; 4-space indent; PEP 8; explicit type hints on public APIs.
+- Python `>=3.11, <3.15`; 4-space indent; PEP 8; explicit type hints on public APIs.
 - Package-qualified imports (`from pypepper.common...`).
 - Do not declare mutable instance state as class attributes; initialize in
   `__init__` / `__new__` (see `scripts/check_mutable_class_attrs.py`).

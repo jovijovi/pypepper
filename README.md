@@ -13,7 +13,7 @@
     <a href="https://jovijovi.github.io/pypepper/"><img src="https://img.shields.io/badge/docs-online-0A7EA4?style=flat-square" alt="Docs" /></a>
     <a href="https://github.com/jovijovi/pypepper/actions"><img src="https://img.shields.io/github/actions/workflow/status/jovijovi/pypepper/test.yaml?branch=main&style=flat-square&label=CI" alt="CI" /></a>
     <a href="https://codecov.io/gh/jovijovi/pypepper"><img src="https://img.shields.io/codecov/c/github/jovijovi/pypepper?style=flat-square&logo=codecov&logoColor=white" alt="Coverage" /></a>
-    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%E2%80%933.14-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python" /></a>
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%E2%80%933.14-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2F2F2F?style=flat-square" alt="License" /></a>
   </p>
 </div>
@@ -22,7 +22,7 @@
 
 ---
 
-PyPepper is a small toolkit—not a full framework—for wiring services: **HTTP / SSE**, **FSM**, a **workflow scheduler**, signed **events**, thin **DB helpers**, and optional **OpenTelemetry** tracing. Supports Python `3.10`–`3.14`.
+PyPepper is a small toolkit—not a full framework—for wiring services: **HTTP / SSE**, **FSM**, a **workflow scheduler**, signed **events**, thin **DB helpers**, and optional **OpenTelemetry** tracing. Supports Python `3.11`–`3.14`.
 
 - Repo: [github.com/jovijovi/pypepper](https://github.com/jovijovi/pypepper)
 - Docs: [jovijovi.github.io/pypepper](https://jovijovi.github.io/pypepper/)
@@ -62,7 +62,7 @@ Source under [`docs/`](docs/index.md). Local preview: `make docs-serve`.
 
 ## Quick start
 
-Requires Python `3.10`–`3.14`. [uv](https://github.com/astral-sh/uv) `≥ 0.10.7` is recommended for local installs.
+Requires Python `3.11`–`3.14`. [uv](https://github.com/astral-sh/uv) `≥ 0.10.7` is recommended for local installs.
 
 ```shell
 make build-prepare
