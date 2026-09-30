@@ -7,6 +7,8 @@ When enabled, the library creates:
 - One **SERVER** span per HTTP request (`TracingMiddleware`), including `request_id` when set by `RequestIdMiddleware`
 - One span around `Workflow.run` (`scheduler.workflow.run`)
 
+FastAPI 0.142 also emits a SERVER span when a tracer provider is set, and names it `METHOD path` — the same name as `TracingMiddleware`. Registering PyPepper HTTP middleware turns that native HTTP tracing off (`app` telemetry `tracing: false`) so a request still produces one SERVER span. FastAPI metrics and logs are left as configured.
+
 `Context.trace(index)` in `pypepper.common.context` is unrelated — it walks the local context chain.
 
 ## Configuration
