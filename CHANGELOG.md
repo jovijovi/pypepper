@@ -2,9 +2,6 @@
 
 ## Unreleased
 
-### Changed
-- `LogLevel` and `Status` inherit `enum.StrEnum`. SSE stream handles builtin `TimeoutError` (Ruff `target-version` `py311`).
-
 ## 0.7.1
 
 ### Breaking
@@ -16,6 +13,8 @@
 - HTTP middleware disables FastAPI 0.142 native server spans. `TracingMiddleware` stays the one SERVER span per request (with `request_id`).
 - Devenv images: Postgres `18.4` → `18.6`; MySQL `8.0.45` → `8.4.11`. Dropped `--default-authentication-plugin=mysql_native_password` (removed in 8.4). New MySQL accounts use `caching_sha2_password`.
 - Docker: Dockerfile syntax 1.26.0 → 1.27.0; uv image 0.12.16 → 0.12.21.
+- `LogLevel` and `Status` inherit `enum.StrEnum`. SSE stream handles builtin `TimeoutError` (Ruff `target-version` `py311`).
+- Development dependency `ruff` 0.16.7 → 0.16.9 (`uv.lock` matches `requirements-dev.txt`).
 
 ## 0.7.0
 
