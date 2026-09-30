@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import SpanKind
 from fastapi.testclient import TestClient
 
 from pypepper.common.tracing import setup_for_tests, shutdown
@@ -22,10 +23,9 @@ def test_http_middleware_creates_server_span_with_request_id():
     assert response.headers.get("X-Request-ID") == "req-trace-1"
 
     spans = exporter.get_finished_spans()
-    assert len(spans) >= 1
-    http_spans = [s for s in spans if s.name.startswith("GET ")]
-    assert len(http_spans) == 1
-    span = http_spans[0]
+    server_spans = [s for s in spans if s.kind == SpanKind.SERVER]
+    assert len(server_spans) == 1
+    span = server_spans[0]
     assert span.attributes.get("http.method") == "GET"
     assert span.attributes.get("url.path") == "/health"
     assert span.attributes.get("request_id") == "req-trace-1"
@@ -51,7 +51,7 @@ def test_http_middleware_records_query_and_server_error():
     response = client.get("/boom?x=1", headers={"X-Request-ID": "req-err"})
     assert response.status_code == 500
 
-    spans = [s for s in exporter.get_finished_spans() if s.name.startswith("GET ")]
+    spans = [s for s in exporter.get_finished_spans() if s.kind == SpanKind.SERVER]
     assert len(spans) == 1
     span = spans[0]
     assert span.attributes.get("url.query") == "x=1"
@@ -76,7 +76,7 @@ def test_http_middleware_records_unhandled_exception():
     response = client.get("/raise", headers={"X-Request-ID": "req-raise"})
     assert response.status_code == 500
 
-    spans = [s for s in exporter.get_finished_spans() if s.name.startswith("GET ")]
+    spans = [s for s in exporter.get_finished_spans() if s.kind == SpanKind.SERVER]
     assert len(spans) == 1
     assert spans[0].status.status_code.name == "ERROR"
 
