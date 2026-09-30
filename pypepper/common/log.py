@@ -4,7 +4,7 @@ import getpass
 import json
 import socket
 import sys
-from enum import Enum
+from enum import StrEnum
 from string import Template
 from typing import Any
 
@@ -13,7 +13,7 @@ from loguru import logger
 from pypepper.common.version import version
 
 
-class LogLevel(str, Enum):
+class LogLevel(StrEnum):
     """
     Log level
     """
