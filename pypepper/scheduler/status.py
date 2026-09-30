@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class Status(str, Enum):
+class Status(StrEnum):
     UNKNOWN = "Unknown"
     INITIALIZING = "Initializing"
     SCHEDULED = "Scheduled"

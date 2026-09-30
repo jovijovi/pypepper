@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- `LogLevel` and `Status` inherit `enum.StrEnum`. SSE stream handles builtin `TimeoutError` (Ruff `target-version` `py311`).
+
 ## 0.7.1
 
 ### Breaking

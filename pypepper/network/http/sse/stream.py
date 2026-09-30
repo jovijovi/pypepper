@@ -114,7 +114,7 @@ async def sse_stream(
                 sse_event = event.to_server_sent_event()
                 yield _serialize_sse_event(sse_event)
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Timeout: send heartbeat
                 from pypepper.network.http.sse.event import SSEEvent
 
