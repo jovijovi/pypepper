@@ -4,6 +4,7 @@
 
 ### Changed
 - Development dependency `httpx` replaced with `httpx2` (`>=2.0.0`). Starlette 1.6 `TestClient` warns when only `httpx` is installed.
+- Devenv MySQL image is `mysql:8.4.11`. Dropped `--default-authentication-plugin=mysql_native_password` (removed in 8.4). New accounts use `caching_sha2_password`.
 
 ## 0.7.0
 
