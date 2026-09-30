@@ -5,6 +5,7 @@
 ### Changed
 - Development dependency `httpx` replaced with `httpx2` (`>=2.0.0`). Starlette 1.6 `TestClient` warns when only `httpx` is installed.
 - Devenv MySQL image is `mysql:8.4.11`. Dropped `--default-authentication-plugin=mysql_native_password` (removed in 8.4). New accounts use `caching_sha2_password`.
+- HTTP middleware disables FastAPI 0.142 native server spans. `TracingMiddleware` stays the one SERVER span per request (with `request_id`).
 
 ## 0.7.0
 
