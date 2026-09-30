@@ -11,7 +11,7 @@ in the in-memory job store.
 
 ## Prerequisites
 
-- Python `3.10`–`3.14` and repo dependencies (`make build-prepare` or
+- Python `3.11`–`3.14` and repo dependencies (`make build-prepare` or
   `uv pip install -r requirements-dev.txt` then `requirements.txt`)
 - Work from the **repository root** (config and example paths are relative)
 
