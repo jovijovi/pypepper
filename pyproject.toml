@@ -61,7 +61,7 @@ constraint-dependencies = [
 [dependency-groups]
 dev = [
     "build==1.6.1",
-    "coverage==7.16.1",
+    "coverage==7.16.2",
     # Starlette 1.6 TestClient requires httpx2; the httpx fallback warns.
     "httpx2>=2.0.0",
     "mkdocs-material>=9.7.7",
