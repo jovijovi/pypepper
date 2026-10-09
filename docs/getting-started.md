@@ -20,6 +20,10 @@ For runtime-only dependencies:
 uv pip install -r requirements.txt
 ```
 
+## Upgrading from 0.7.1
+
+**0.7.2** keeps the 0.7.1 API. The Docker image, `Makefile` `PYTHON_VER`, and `.python-version` use CPython **3.13.16**. The supported range is still Python 3.11–3.14. Full notes: [CHANGELOG 0.7.2](https://github.com/jovijovi/pypepper/blob/main/CHANGELOG.md#072).
+
 ## Upgrading from 0.7.0
 
 **0.7.1** drops Python 3.10 (`requires-python` is `>=3.11, <3.15`). Callers already on 3.11–3.14 keep the 0.7.0 scheduler and HTTP contracts. Full notes: [CHANGELOG 0.7.1](https://github.com/jovijovi/pypepper/blob/main/CHANGELOG.md#071).
