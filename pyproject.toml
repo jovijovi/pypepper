@@ -48,6 +48,8 @@ packages = ["pypepper"]
 # FastAPI 0.141.1 requires starlette>=0.46.0 (no upper bound). Floor 1.3.1 closes
 # GHSA-jp82-gr82-jpxm and GHSA-82w8-x6qw-7x6p (a 1.1.0 floor is not enough).
 # anyio 4.12.1 (httpx/starlette) is CVE-2026-63374 / CVE-2026-64847; floor 4.14.2.
+# pymongo 4.16.0 is CVE-2026-88029 / 96747 / 96749 / 96748; floor 4.18.2
+# (4.18.1 is not enough). mongoengine 0.29.3 allows pymongo>=3.4,<5.0.
 [tool.uv]
 constraint-dependencies = [
     "starlette>=1.3.1",
@@ -56,6 +58,7 @@ constraint-dependencies = [
     "Pygments>=2.20.0",
     "click>=8.3.3",
     "anyio>=4.14.2",
+    "pymongo>=4.18.2",
 ]
 
 [dependency-groups]

@@ -8,6 +8,7 @@
 - Production dependencies: `cachetools` 7.2.0 → 7.2.1, `cryptography` 50.0.1 → 50.0.2, `fastapi` 0.142.1 → 0.143.0, `sqlalchemy` 2.1.1 → 2.1.4, and OpenTelemetry API/SDK/OTLP HTTP exporter 1.45.0 → 1.45.1.
 - Development dependencies: `coverage` 7.16.1 → 7.16.2, `mypy` 2.3.1 → 2.4.0, and `ruff` 0.16.9 → 0.16.10.
 - Docker image Python 3.13.15 → 3.13.16 (`Makefile` `PYTHON_VER`, `.python-version`, and `FROM python:3.13.16-slim-trixie`). Dockerfile syntax 1.27.0 → 1.28.0; uv image 0.12.21 → 0.12.24.
+- Transitive `pymongo` 4.16.0 → 4.18.3 (uv floor `pymongo>=4.18.2`; 4.18.1 does not close CVE-2026-88029 / 96747 / 96749 / 96748). `mongoengine` stays 0.29.3.
 
 ## 0.7.1
 
