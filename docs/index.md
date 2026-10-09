@@ -3,7 +3,7 @@
 PyPepper is a microservice toolkit for Python (`>=3.11, <3.15`).
 It provides reusable building blocks rather than a full application framework.
 
-Package version **0.7.1**. It requires Python 3.11 or newer. Breaking changes vs 0.6.6 stay in [0.7.0](https://github.com/jovijovi/pypepper/blob/main/CHANGELOG.md#070) and [Getting Started](getting-started.md#upgrading-from-06x).
+Package version **0.7.2**. It requires Python 3.11 or newer. The container image and `.python-version` pin CPython 3.13.16. Breaking changes vs 0.6.6 stay in [0.7.0](https://github.com/jovijovi/pypepper/blob/main/CHANGELOG.md#070) and [Getting Started](getting-started.md#upgrading-from-06x).
 
 Published docs: <https://jovijovi.github.io/pypepper/>
 
