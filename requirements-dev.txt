@@ -1,8 +1,8 @@
 build==1.6.1
 coverage==7.16.2
-httpx2>=2.0.0
+httpx2>=2.14.0
 mkdocs-material>=9.7.7
-mkdocstrings[python]>=1.0.6
+mkdocstrings[python]>=1.0.7
 mypy==2.4.0
 packaging==26.3
 pip==26.2.1
@@ -10,6 +10,6 @@ pip-audit==2.10.1
 pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
-ruff==0.17.0
+ruff==0.17.1
 twine==7.0.0
 types-PyYAML>=6.0
