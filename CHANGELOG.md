@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- Transitive `certifi` 2026.1.4 → 2026.10.19 (uv floor `certifi>=2026.10.19`; closes PYSEC-2026-4320). `requests` stays 2.33.1.
+
 ## 0.7.2
 
 ### Changed
