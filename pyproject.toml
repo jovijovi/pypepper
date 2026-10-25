@@ -17,7 +17,7 @@ dependencies = [
     "arrow~=1.4.0",
     "cachetools~=7.2.4",
     "cryptography~=50.0.2",
-    "fastapi~=0.161.1",
+    "fastapi~=0.162.0",
     "uvicorn~=0.54.0",
     "loguru~=0.7.3",
     "mongoengine~=0.29.3",
@@ -67,7 +67,7 @@ dev = [
     "coverage==7.17.0",
     # Starlette 1.6 TestClient requires httpx2; the httpx fallback warns.
     "httpx2>=2.16.0",
-    "mkdocs-material>=9.7.7",
+    "mkdocs-material>=9.8.0",
     "mkdocstrings[python]>=1.0.8",
     "mypy==2.4.0",
     "packaging==26.3",

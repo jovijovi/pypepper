@@ -1,7 +1,7 @@
 build==1.6.1
 coverage==7.17.0
 httpx2>=2.16.0
-mkdocs-material>=9.7.7
+mkdocs-material>=9.8.0
 mkdocstrings[python]>=1.0.8
 mypy==2.4.0
 packaging==26.3
