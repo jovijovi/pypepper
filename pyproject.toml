@@ -51,6 +51,8 @@ packages = ["pypepper"]
 # pymongo 4.16.0 is CVE-2026-88029 / 96747 / 96749 / 96748; floor 4.18.2
 # (4.18.1 is not enough). mongoengine 0.29.3 allows pymongo>=3.4,<5.0.
 # certifi 2026.1.4 (requests) is PYSEC-2026-4320; floor 2026.10.19.
+# filelock 3.31.1 (cachecontrol[filecache] via pip-audit) is CVE-2026-112940 /
+# 112913 / 112907; floor 4.2.1.
 [tool.uv]
 constraint-dependencies = [
     "starlette>=1.3.1",
@@ -61,6 +63,7 @@ constraint-dependencies = [
     "anyio>=4.14.2",
     "pymongo>=4.18.2",
     "certifi>=2026.10.19",
+    "filelock>=4.2.1",
 ]
 
 [dependency-groups]
