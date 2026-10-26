@@ -20,6 +20,10 @@ For runtime-only dependencies:
 uv pip install -r requirements.txt
 ```
 
+## Upgrading from 0.7.2
+
+**0.7.3** keeps the 0.7.2 API. Dependency and lock-graph floors moved (`certifi` 2026.10.19, `filelock` 4.2.4). The Docker uv image is 0.13.5. The Python image pin stays **3.13.16**, and the supported range is still Python 3.11–3.14. Full notes: [CHANGELOG 0.7.3](https://github.com/jovijovi/pypepper/blob/main/CHANGELOG.md#073).
+
 ## Upgrading from 0.7.1
 
 **0.7.2** keeps the 0.7.1 API. The Docker image, `Makefile` `PYTHON_VER`, and `.python-version` use CPython **3.13.16**. The supported range is still Python 3.11–3.14. Full notes: [CHANGELOG 0.7.2](https://github.com/jovijovi/pypepper/blob/main/CHANGELOG.md#072).

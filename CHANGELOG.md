@@ -2,9 +2,14 @@
 
 ## Unreleased
 
+## 0.7.3
+
 ### Changed
+- Production dependencies: `cachetools` 7.2.1 → 7.2.5, `fastapi` 0.143.0 → 0.162.0, and `sqlalchemy` 2.1.4 → 2.1.6.
+- Development dependencies: `coverage` 7.16.2 → 7.17.0, `httpx2` `>=2.0.0` → `>=2.16.0`, `mkdocs-material` `>=9.7.7` → `>=9.8.0`, `mkdocstrings` `>=1.0.6` → `>=1.0.8`, `pip` 26.2.1 → 26.2.2, `pytest-asyncio` 1.4.0 → 1.4.1, and `ruff` 0.16.10 → 0.17.2.
 - Transitive `certifi` 2026.1.4 → 2026.10.19 (uv floor `certifi>=2026.10.19`; closes PYSEC-2026-4320). `requests` stays 2.33.1.
 - Transitive `filelock` 3.31.1 → 4.2.4 (uv floor `filelock>=4.2.1`; closes CVE-2026-112940 / 112913 / 112907). `cachecontrol` stays 0.14.4.
+- Docker uv image 0.12.24 → 0.13.5. The Python image pin stays 3.13.16.
 
 ## 0.7.2
 
