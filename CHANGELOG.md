@@ -4,6 +4,7 @@
 
 ### Changed
 - Transitive `certifi` 2026.1.4 → 2026.10.19 (uv floor `certifi>=2026.10.19`; closes PYSEC-2026-4320). `requests` stays 2.33.1.
+- Transitive `filelock` 3.31.1 → 4.2.4 (uv floor `filelock>=4.2.1`; closes CVE-2026-112940 / 112913 / 112907). `cachecontrol` stays 0.14.4.
 
 ## 0.7.2
 
