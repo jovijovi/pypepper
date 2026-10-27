@@ -15,7 +15,7 @@ classifiers = [
 ]
 dependencies = [
     "arrow~=1.4.0",
-    "cachetools~=7.2.5",
+    "cachetools~=7.2.6",
     "cryptography~=50.0.2",
     "fastapi~=0.162.0",
     "uvicorn~=0.54.0",
@@ -81,7 +81,7 @@ dev = [
     "pytest==9.1.1",
     "pytest-asyncio==1.4.1",
     "pytest-cov==7.1.0",
-    "ruff~=0.17.2",
+    "ruff~=0.17.3",
     "twine==7.0.0",
     "types-PyYAML>=6.0",
 ]
