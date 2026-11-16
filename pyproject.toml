@@ -53,6 +53,8 @@ packages = ["pypepper"]
 # certifi 2026.1.4 (requests) is PYSEC-2026-4320; floor 2026.10.19.
 # filelock 3.31.1 (cachecontrol[filecache] via pip-audit) is CVE-2026-112940 /
 # 112913 / 112907; floor 4.2.1.
+# dnspython 2.8.0 (pymongo) is CVE-2026-114605 / CVE-2026-128089; floor 2.9.2
+# (2.9.0 is not enough). pymongo 4.18.3 allows dnspython>=2.7.0,<3.0.0.
 [tool.uv]
 constraint-dependencies = [
     "starlette>=1.3.1",
@@ -64,6 +66,7 @@ constraint-dependencies = [
     "pymongo>=4.18.2",
     "certifi>=2026.10.19",
     "filelock>=4.2.1",
+    "dnspython>=2.9.2",
 ]
 
 [dependency-groups]
