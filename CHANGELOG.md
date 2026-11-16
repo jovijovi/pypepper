@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- Transitive `dnspython` 2.8.0 → 2.9.2 (uv floor `dnspython>=2.9.2`; 2.9.0 does not close CVE-2026-128089). Closes CVE-2026-114605 and CVE-2026-128089. `pymongo` stays 4.18.3.
+
 ## 0.7.3
 
 ### Changed
