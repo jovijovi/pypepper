@@ -15,9 +15,9 @@ classifiers = [
 ]
 dependencies = [
     "arrow~=1.4.0",
-    "cachetools~=8.0.0",
+    "cachetools~=8.0.2",
     "cryptography~=50.0.2",
-    "fastapi~=0.163.1",
+    "fastapi~=0.165.0",
     "uvicorn~=0.54.0",
     "loguru~=0.8.0",
     "mongoengine~=0.29.3",
